@@ -1,0 +1,20 @@
+## calculate multipoles
+mono = (dd[i] - 2*dr[i] + rr[i]) / rr[i]
+quad = mono * 2.5 * (3 * mu**2 - 1)
+hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+
+nmu=len(DD file)
+xi0[i] = np.trapz(mono, dx=1./nmu, axis=1)
+xi2[i] = np.trapz(quad, dx=1./nmu, axis=1)
+xi4[i] = np.trapz(hexa, dx=1./nmu, axis=1) 
+
+## merge NGC[0] SGC[1] NGC+SGC[2]
+num = np.nanmean(np.sqrt(dd[4]/dd[5])) galaxy total number(similar in each bin)
+nfac = num[1] / num[0]
+dd[2] = (dd[0] + dd[1] * nfac**2) / (1 + nfac)**2
+dr[2] = (dr[0] + dr[1] * nfac**2) / (1 + nfac)**2
+rr[2] = (rr[0] + rr[1] * nfac**2) / (1 + nfac)**2 
+————— 
+
+# obs: https://data.sdss.org/sas/ebosswork/eboss/sandbox/lss/catalogs/versions/7_2/ 
+
