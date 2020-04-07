@@ -32,9 +32,9 @@ obs2pcf  = home+'2PCF/obs/LRG_'+GC+'.dat'
 halofile = home+'catalog/halotest120.fits.gz' #home+'catalog/CatshortV.0029.fits.gz'
 z = 0.57
 boxsize  = 2500
-rmin     = 0
+rmin     = 1
 rmax     = 50
-nbins    = 50
+nbins    = 49
 nthread  = 64
 autocorr = 1
 mu_max   = 1
@@ -68,7 +68,7 @@ Nbias = (hdu[1].data[multipole]).shape # Nbins=np.array([Nbins,Nm])
 covR  = np.linalg.inv(cov)*(Nbias[1]-Nbias[0]-2)/(Nbias[1]-1)
 errbar = np.std(hdu[1].data[multipole],axis=1)
 hdu.close()
-obscf = Table.read(obs2pcf,format='ascii.no_header')  # obs 2pcf
+obscf = Table.read(obs2pcf,format='ascii.no_header')[rmin:]  # obs 2pcf
 print('the covariance matrix and the observation 2pcf vector are ready.')
 
 # RR calculation
@@ -89,9 +89,11 @@ Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # calculate the 2pcf of the galaxies
-num = 10
+num = 11
 chi2 = np.zeros(num)
-sigma = np.linspace(0,1.,num)
+LS = np.zeros(num)
+MSE = np.zeros(num)
+sigma = np.linspace(0.1,0.6,num)
 xi0,xi2,xi4=[x for x in chi2],[x for x in chi2],[x for x in chi2]
 time_start=time.time()
 ### create the LRG catalogues******************
@@ -110,7 +112,7 @@ for i,Sigma in enumerate(sigma):
 	z_redshift %=boxsize
 	### count the galaxy pairs and normalise them
 	DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
-	DD_counts['npairs'][0] -=LRGnum
+	#DD_counts['npairs'][0] -=LRGnum
 	### calculate the 2pcf and the multipoles
 	mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
 	quad = mono * 2.5 * (3 * mu**2 - 1)
@@ -131,6 +133,7 @@ for i,Sigma in enumerate(sigma):
 	res = OBS-model
 	#resTcovR = res.dot(covR)
 	chi2[i]= res.dot(covR.dot(res))
+	LS[i] = res.dot(res.T)
 
 time_end=time.time()
 print('Creating LRG catalogue costs',time_end-time_start,'s')
@@ -138,23 +141,27 @@ print('Creating LRG catalogue costs',time_end-time_start,'s')
 # chi2 trend:
 fig,ax =plt.subplots()
 ax.plot(sigma,chi2)
-plt.title('#$\chi^2$ test')
+#ax.plot(sigma,LS)
+label=['$\chi^2$']#,'least square','mean squared err']
+plt.legend(label,loc=0)
+plt.title('minimum value finder test')
 plt.xlabel('$\sigma$')
 plt.ylabel('$\chi^2$')
-plt.savefig('chi2_'+multipole+'.png',bbox_tight=True)
+plt.savefig('chi2_'+multipole+'(compare).png',bbox_tight=True)
 plt.close()
 
 # see the difference between the 2pcf and Corrfunc
 for arr,i,col,name in zip([xi0,xi2],range(2),['col2','col3'],['mono','quadru']):
 	fig,ax =plt.subplots()
-	ax.fill_between(s,s**2*(obscf[col]-errbar[int(50*i):int(50*(i+1))]),s**2*(obscf[col]+errbar[int(50*i):int(50*(i+1))]),color='green', alpha=0.5)
-	ax.plot(s,s**2*obscf[col],c='k',alpha=0.6)#,label='obs')
+	#ax.fill_between(s,s**2*(obscf[col]-errbar[int(50*i):int(50*(i+1))]),s**2*(obscf[col]+errbar[int(50*i):int(50*(i+1))]),color='green', alpha=0.5)
+	ax.errorbar(s,s**2*obscf[col],s**2*errbar[int(50*i):int(50*(i+1))], marker='s',ecolor='k',ls="none")
+	#ax.plot(s,s**2*obscf[col],c='k',alpha=0.6)#,label='obs')
 	ax.plot(s,s**2*arr[0],c='r')#,label='$\sigma=0$')
 	ax.plot(s,s**2*arr[2],c='c',alpha=0.5)#,label='$\sigma=0.4$')
 	ax.plot(s,s**2*arr[4],c='g',alpha=0.5)#,label='$\sigma=0.4$')
 	ax.plot(s,s**2*arr[6],c='orange',alpha=0.7)#,label='$\sigma=1.8$')
 	ax.plot(s,s**2*arr[8],c='m',alpha=0.5)
-	label = ['obs','$\sigma=0$','$\sigma=0.2$','$\sigma=0.4$','$\sigma=0.6$','$\sigma=0.8$']
+	label = ['$\sigma=0$','$\sigma=0.2$','$\sigma=0.4$','$\sigma=0.6$','$\sigma=0.8$','obs']
 	plt.legend(label,loc=0)
 	plt.title('correlation function: '+name)
 	plt.xlabel('d_cov (Mpc $h^{-1}$)')

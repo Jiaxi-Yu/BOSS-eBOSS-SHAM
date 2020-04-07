@@ -79,9 +79,9 @@ def covmatrix(home,mockdir,mockfits,GC,rmin,rmax,zmin,zmax,Om,exist):
 				print('LRG_'+GC+'_mock ',np.ceil(i/10),'% 2pcf completed.')
 		"""  
 		# calculate the covariance
-		mockmono  = mono_tmp.T[:rmax]
-		mockquad  = np.vstack((mockmono,quad_tmp.T[:rmax]))
-		mockhexa  = np.vstack((mockquad,hexa_tmp.T[:rmax]))
+		mockmono  = mono_tmp.T[rmin:rmax]
+		mockquad  = np.vstack((mockmono,quad_tmp.T[rmin:rmax]))
+		mockhexa  = np.vstack((mockquad,hexa_tmp.T[rmin:rmax]))
 		covmono   = np.cov(mockmono)
 		covquad = np.cov(mockquad)
 		covhexa = np.cov(mockhexa)
