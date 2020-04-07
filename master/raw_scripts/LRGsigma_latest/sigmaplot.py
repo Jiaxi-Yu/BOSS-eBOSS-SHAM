@@ -24,7 +24,7 @@ Om       = 0.31
 multipole= 'quad' # 'mono','quad','hexa'
 mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
 #*********
-covfits = home+'2PCF/obs/corrcoef'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
+covfits = home+'2PCF/obs/cov_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
 #********
 obsname  = 'eBOSS_LRG_clustering_'+GC+'_v7_2.dat.fits'
 randname = obsname[:-8]+'ran.fits'
@@ -66,7 +66,7 @@ hdu = fits.open(covfits) # cov([mono,quadru])
 cov = hdu[1].data['cov'+multipole]
 Nbias = (hdu[1].data[multipole]).shape # Nbins=np.array([Nbins,Nm])
 covR  = np.linalg.inv(cov)*(Nbias[1]-Nbias[0]-2)/(Nbias[1]-1)
-errbar = np.std(hdu[1].data[multipole],axis=0)
+errbar = np.std(hdu[1].data[multipole],axis=1)
 hdu.close()
 obscf = Table.read(obs2pcf,format='ascii.no_header')  # obs 2pcf
 print('the covariance matrix and the observation 2pcf vector are ready.')
@@ -129,8 +129,8 @@ for i,Sigma in enumerate(sigma):
 		model = np.append(xi0[i],xi2[i],xi4[i])
 	### calculate the covariance, residuals and chi2
 	res = OBS-model
-	resTcovR = res.dot(covR)
-	chi2[i]= resTcovR.dot(res)
+	#resTcovR = res.dot(covR)
+	chi2[i]= res.dot(covR.dot(res))
 
 time_end=time.time()
 print('Creating LRG catalogue costs',time_end-time_start,'s')
@@ -146,33 +146,36 @@ plt.close()
 
 # see the difference between the 2pcf and Corrfunc
 for arr,i,col,name in zip([xi0,xi2],range(2),['col2','col3'],['mono','quadru']):
-    fig,ax =plt.subplots()
-    ax.fill_between(s,s**2*(obscf[col]-errbar[int(50*i):int(50*(i+1))]),s**2*(obscf[col]+errbar[int(50*i):int(50*(i+1))]),color='green', alpha=0.5)
-    ax.plot(s,s**2*obscf[col],c='k',alpha=0.6)#,label='obs')
-    ax.plot(s,s**2*arr[0],c='r')#,label='$\sigma=0$')
-    ax.plot(s,s**2*arr[2],c='c',alpha=0.5)#,label='$\sigma=0.4$')
-    ax.plot(s,s**2*arr[4],c='g',alpha=0.5)#,label='$\sigma=0.4$')
-    ax.plot(s,s**2*arr[6],c='orange',alpha=0.7)#,label='$\sigma=1.8$')
-    ax.plot(s,s**2*arr[8],c='m',alpha=0.5)
-    label = ['obs','$\sigma=0$','$\sigma=0.2$','$\sigma=0.4$','$\sigma=0.6$','$\sigma=0.8$']
-    plt.legend(label,loc=0)
-    plt.title('correlation function: '+name)
-    plt.xlabel('d_cov (Mpc $h^{-1}$)')
-    plt.ylabel('d_cov^2 * $\\xi$')
-    plt.savefig('cf_'+name+'_largeerr.png',bbox_tight=True)
-    plt.close()
+	fig,ax =plt.subplots()
+	ax.fill_between(s,s**2*(obscf[col]-errbar[int(50*i):int(50*(i+1))]),s**2*(obscf[col]+errbar[int(50*i):int(50*(i+1))]),color='green', alpha=0.5)
+	ax.plot(s,s**2*obscf[col],c='k',alpha=0.6)#,label='obs')
+	ax.plot(s,s**2*arr[0],c='r')#,label='$\sigma=0$')
+	ax.plot(s,s**2*arr[2],c='c',alpha=0.5)#,label='$\sigma=0.4$')
+	ax.plot(s,s**2*arr[4],c='g',alpha=0.5)#,label='$\sigma=0.4$')
+	ax.plot(s,s**2*arr[6],c='orange',alpha=0.7)#,label='$\sigma=1.8$')
+	ax.plot(s,s**2*arr[8],c='m',alpha=0.5)
+	label = ['obs','$\sigma=0$','$\sigma=0.2$','$\sigma=0.4$','$\sigma=0.6$','$\sigma=0.8$']
+	plt.legend(label,loc=0)
+	plt.title('correlation function: '+name)
+	plt.xlabel('d_cov (Mpc $h^{-1}$)')
+	plt.ylabel('d_cov^2 * $\\xi$')
+	plt.savefig('cf_'+name+'.png',bbox_tight=True)
+	plt.close()
 
 
 # covariance matrix 
 fig = plt.figure(figsize=(18,9))
 pole=['mono','quad','hexa']
 for i,pole in enumerate(pole):
-	covfits = home+'2PCF/obs/corrcoef'+pole+'.fits.gz'  
+	covfits = home+'2PCF/obs/cov_'+GC+'_'+multipole+'.fits.gz' #covfits = home+'2PCF/obs/corrcoef'+pole+'.fits.gz'  
 	ax  = plt.subplot2grid((1,3),(0,i))
 	hdu = fits.open(covfits) # cov([mono,quadru])
 	cov = hdu[1].data['cov'+pole]
 	plt.imshow(cov,cmap='Reds')
 	plt.title('preproc relative difference ')
 	plt.colorbar()
+	plt.savefig('covmatrix.png',bbox_tight=True)
+	plt.close()
+
 
 
