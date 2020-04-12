@@ -79,33 +79,39 @@ print('reading the halo catalogue for creating the galaxy catalogue...')
 halo = fits.open(halofile)
 data = halo[1].data
 halo.close()
-datac = np.zeros((len(data['vpeak']),4))
-for i,key in enumerate(['X','Y','Z','vz']):
+datac = np.zeros((len(data['vpeak']),5))
+for i,key in enumerate(['X','Y','Z','vz','vpeak']):
     datac[:,i] = np.copy(data[key])
 ## find the best parameters
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
-chifile = 'chi2-sigma2.txt'
+chifile = 'chi2-sigma_ELG2.txt'
 f=open(chifile,'w')
-f.write('# sigma  chi2 \n')
+f.write('# sigma_high sigma_low vmax  chi2 \n')
 
-def chi2(Sigma):
+def chi2(sigma_high,sigma_low,v_max):#(par):#
+#for seed in range()：
+    #sigma_high,sigma_low,v_max = par[0],par[1],par[2]
     np.random.seed(47)#(seed)
     datav = np.copy(data['vpeak'])
-    ### shuffle and pick the Nth maximum values
-    datav*=( 1+np.random.normal(scale=Sigma,size=len(datav)))
-    LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
-    ### transfer to the redshift space
+    ## shuffle and pick the Nth maximum values
+    ### the first scattering + remove heavy halo candidates
+    datav*=( 1+np.random.normal(scale=sigma_high,size=len(datav)))
+    org3  = datac[datav<v_max]
+    ### the second scattering, select haloes from the heaviest according to the scattered value
+    org3[:,4]*= 1+np.random.normal(scale=sigma_low,size=len(org3))
+    LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
+    ## transfer to the redshift space
     z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
     z_redshift %=boxsize
-    ### count the galaxy pairs and normalise them
+    ## count the galaxy pairs and normalise them
     DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
-    ### calculate the 2pcf and the multipoles
+    ## calculate the 2pcf and the multipoles
     mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
     quad = mono * 2.5 * (3 * mu**2 - 1)
     hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-    ### use trapz to integrate over mu
+    ## use trapz to integrate over mu
     xi0 = np.trapz(mono, dx=1./nmu, axis=1)
     xi2 = np.trapz(quad, dx=1./nmu, axis=1)
     xi4 = np.trapz(hexa, dx=1./nmu, axis=1)
@@ -120,7 +126,7 @@ def chi2(Sigma):
    
     ### calculate the covariance, residuals and chi2
     res = OBS-model
-    f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
+    f.write('{} {} {} {} \n'.format(sigma_high,sigma_low,v_max,res.dot(covR.dot(res))))
     return res.dot(covR.dot(res))
 
 # chi2 minimise
@@ -128,26 +134,26 @@ time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
 from iminuit import Minuit
-sigma = Minuit(chi2,Sigma=0.3,limit_Sigma=(0,0.7),error_Sigma=0.1,errordef=1)
-sigma.migrad(precision=0.001)  # run optimiser
+sigma = Minuit(chi2,sigma_high=0.1,sigma_low=0.3,v_max=1800,fix_sigma_high=True,fix_sigma_low=True,limit_sigma_high=(0,0.5),limit_sigma_low=(0,0.7),limit_v_max=(1500,2000),error_sigma_high = 0.05,error_sigma_low = 0.05,error_v_max = 100,errordef=1)
+sigma.migrad(precision=0.01)  # run optimiser
 print('the best LRG distribution sigma is ',sigma.values)
-f.close()
 
 ## method 2： minimizer 
 #from scipy.optimize import minimize
-#ini = [0.2]
-#sigma = minimize(chi2, ini,bounds=[(0.1,0.6)])
+#ini = [0.1,0.3,1800]
+#sigma = minimize(chi2, ini,bounds=[(0,0.3),(0.2,0.4),(1500,2000)])
 #print('Best-fit:')
 #print('sigma = ',sigma.x)
 
 print('chi-square fitting finished.')
 time_end=time.time()
 print('Creating LRG catalogue costs',time_end-time_start,'s')
+f.close()
 
 
 # plot the chi2-sigma relation
 a=np.loadtxt(chifile,unpack=True)
-plt.plot(a[0],a[1])
+plt.scatter(a[2],a[-1])
 plt.savefig(chifile[:-4]+'.png',bbox_tight=True)
 plt.close()
 
@@ -158,6 +164,7 @@ datav = np.copy(data['vpeak'])
 ### shuffle and pick the Nth maximum values
 datav*=( 1+np.random.normal(scale=sigma.values['Sigma'],size=len(datav)))
 LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
+
 z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
 z_redshift %=boxsize
 DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)

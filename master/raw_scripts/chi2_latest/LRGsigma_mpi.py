@@ -11,6 +11,8 @@ from covmatrix import covmatrix
 from obs import obs
 import warnings
 import matplotlib.pyplot as plt
+from multiprocessing.dummy import Pool as ThreadPool
+
 
 # variables
 home      = '/global/cscratch1/sd/jiaxi/master/'
@@ -19,10 +21,11 @@ GC  = 'NGC' # 'NGC' 'SGC'
 zmin     = 0.6
 zmax     = 1.0
 Om       = 0.31
+gal      = 'LRG'
 multipole= 'mono' # 'mono','quad','hexa'
 mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
 #*********
-covfits = home+'2PCF/obs/cov_LRG_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
+covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
 #********
 obsname  = 'eBOSS_LRG_clustering_'+GC+'_v7_2.dat.fits'
 randname = obsname[:-8]+'ran.fits'
@@ -38,7 +41,8 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 LRGnum   = 5468750
-autocorr =1
+autocorr = 1
+nseed    = 30
 
 # generate s and mu bins
 if rscale=='linear':
@@ -86,15 +90,15 @@ for i,key in enumerate(['X','Y','Z','vz']):
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
-chifile = 'chi2-sigma2.txt'
-f=open(chifile,'w')
-f.write('# sigma  chi2 \n')
+#chifile = 'chi2-.txt'
+#f=open(chifile,'w')
+#f.write('# sigma_high sigma_low vmax  chi2 \n')
 
-def chi2(Sigma):
-    np.random.seed(47)#(seed)
+def tpcf(sig,seed):
+    np.random.seed(seed)#(seed)
     datav = np.copy(data['vpeak'])
     ### shuffle and pick the Nth maximum values
-    datav*=( 1+np.random.normal(scale=Sigma,size=len(datav)))
+    datav*=( 1+np.random.normal(scale=sig,size=len(datav)))
     LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
     ### transfer to the redshift space
     z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
@@ -102,25 +106,33 @@ def chi2(Sigma):
     ### count the galaxy pairs and normalise them
     DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
     ### calculate the 2pcf and the multipoles
-    mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
+    return DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
+
+from functools import partial
+def chi2(Sigma):
+    pool = ThreadPool(nseed)
+    part = partial(tpcf,sig=Sigma)
+    mono = pool.map(part,np.arange(nseed))
+    pool.close()
+    pool.join()
     quad = mono * 2.5 * (3 * mu**2 - 1)
     hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
     ### use trapz to integrate over mu
-    xi0 = np.trapz(mono, dx=1./nmu, axis=1)
-    xi2 = np.trapz(quad, dx=1./nmu, axis=1)
-    xi4 = np.trapz(hexa, dx=1./nmu, axis=1)
+    xi0 = np.trapz(mono, dx=1./nmu, axis=-1)
+    xi2 = np.trapz(quad, dx=1./nmu, axis=-1)
+    xi4 = np.trapz(hexa, dx=1./nmu, axis=-1)
     if multipole=='mono':
-        model = xi0#.mean(axis=-1)
+        model = xi0.mean(axis=0)
         OBS   = obscf['col2']
     elif multipole=='quad':
-        model = np.append(xi0,xi2)
+        model = np.append(xi0.mean(axis=0),xi2.mean(axis=0))
         OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
     else:
-        model = np.append(xi0,xi2,xi4)
+        model = np.append(xi0.mean(axis=0),xi2.mean(axis=0),xi4.mean(axis=0))
    
     ### calculate the covariance, residuals and chi2
     res = OBS-model
-    f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
+    #f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
     return res.dot(covR.dot(res))
 
 # chi2 minimise
@@ -131,7 +143,7 @@ from iminuit import Minuit
 sigma = Minuit(chi2,Sigma=0.3,limit_Sigma=(0,0.7),error_Sigma=0.1,errordef=1)
 sigma.migrad(precision=0.001)  # run optimiser
 print('the best LRG distribution sigma is ',sigma.values)
-f.close()
+#f.close()
 
 ## method 2： minimizer 
 #from scipy.optimize import minimize
@@ -143,14 +155,6 @@ f.close()
 print('chi-square fitting finished.')
 time_end=time.time()
 print('Creating LRG catalogue costs',time_end-time_start,'s')
-
-
-# plot the chi2-sigma relation
-a=np.loadtxt(chifile,unpack=True)
-plt.plot(a[0],a[1])
-plt.savefig(chifile[:-4]+'.png',bbox_tight=True)
-plt.close()
-
 
 # plot the best fit result
 np.random.seed(47)#(seed)
