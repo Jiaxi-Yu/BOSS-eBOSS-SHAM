@@ -81,59 +81,70 @@ print('reading the halo catalogue for creating the galaxy catalogue...')
 halo = fits.open(halofile)
 data = halo[1].data
 halo.close()
-datac = np.zeros((len(data['vpeak']),4))
-for i,key in enumerate(['X','Y','Z','vz']):
+datac = np.zeros((len(data['vpeak']),5))
+for i,key in enumerate(['X','Y','Z','vz','vpeak']):
     datac[:,i] = np.copy(data[key])
 ## find the best parameters
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # calculate the 2pcf of the galaxies
-num = 11
+num = 3
 chi2 = np.zeros(num)
 LS = np.zeros(num)
 MSE = np.zeros(num)
-sigma = np.linspace(0.3,0.36,num)
 xi0,xi2,xi4=[x for x in chi2],[x for x in chi2],[x for x in chi2]
 time_start=time.time()
-### create the LRG catalogues******************
-for i,Sigma in enumerate(sigma):
-	#for i in range(num):
-	np.random.seed(47)
-	#time_start=time.time()
-	datav = np.copy(data['vpeak'])
-	#datav*=( 1+np.random.normal(scale=0.3,size=len(datav)))
-	datav*=( 1+np.random.normal(scale=Sigma,size=len(datav)))
-	LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]  # bottleneck.argpartition and np.argpartition ~the same time, np a little bit faster
-	#time_end=time.time()
+galtype = 'ELG'  #'ELG', 'LRG'
+
+### create the catalogues******************
+for i in range(num):
+    np.random.seed(47)
+    datav = np.copy(data['vpeak'])
+    if galtype=='LRG':
+        sig = np.linspace(0.3,0.36,num)
+        ### shuffle and pick the Nth maximum values
+        datav*=( 1+np.random.normal(scale=sig[i],size=len(datav)))
+        LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
+        print('LRG used')
+    if galtype== 'ELG':
+        var = 'v_max'
+        par  = [np.zeros(num),np.linspace(0.2,0.6,num)*4000,np.zeros(num)]#]
+        sigma_high,v_max,sigma_low = par[0],par[1],par[2]
+        datav*=( 1+np.random.normal(scale=sigma_high[i],size=len(datav)))
+        org3  = datac[datav<v_max[i]]
+        ### the second scattering, select haloes from the heaviest according to the scattered value
+        org3[:,4]*= 1+np.random.normal(scale=sigma_low[i],size=len(org3))
+        LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
+        print('ELG used')	#time_end=time.time()
 	#print('Sorting the catalogue costs',time_end-time_start,'s')
 	### convert to the redshift space
-	z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
-	z_redshift %=boxsize
-	### count the galaxy pairs and normalise them
-	DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
-	#DD_counts['npairs'][0] -=LRGnum
-	### calculate the 2pcf and the multipoles
-	mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
-	quad = mono * 2.5 * (3 * mu**2 - 1)
-	hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-	### use trapz to integrate over mu
-	xi0[i] = np.trapz(mono, dx=1./nmu, axis=1)
-	xi2[i] = np.trapz(quad, dx=1./nmu, axis=1)
-	xi4[i] = np.trapz(hexa, dx=1./nmu, axis=1)
-	if multipole=='mono':
-		model = xi0[i]
-		OBS   = obscf['col2']
-	elif multipole=='quad':
-		model = np.append(xi0[i],xi2[i])
-		OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
-	else:
-		model = np.append(xi0[i],xi2[i],xi4[i])
-	### calculate the covariance, residuals and chi2
-	res = OBS-model
-	#resTcovR = res.dot(covR)
-	chi2[i]= res.dot(covR.dot(res))
-	LS[i] = res.dot(res.T)
+    z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
+    z_redshift %=boxsize
+    ### count the galaxy pairs and normalise them
+    DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
+    #DD_counts['npairs'][0] -=LRGnum
+    ### calculate the 2pcf and the multipoles
+    mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
+    quad = mono * 2.5 * (3 * mu**2 - 1)
+    hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+    ### use trapz to integrate over mu
+    xi0[i] = np.trapz(mono, dx=1./nmu, axis=1)
+    xi2[i] = np.trapz(quad, dx=1./nmu, axis=1)
+    xi4[i] = np.trapz(hexa, dx=1./nmu, axis=1)
+    if multipole=='mono':
+        model = xi0[i]
+        OBS   = obscf['col2']
+    elif multipole=='quad':
+        model = np.append(xi0[i],xi2[i])
+        OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
+    else:
+        model = np.append(xi0[i],xi2[i],xi4[i])
+    ### calculate the covariance, residuals and chi2
+    res = OBS-model
+    #resTcovR = res.dot(covR)
+    chi2[i]= res.dot(covR.dot(res))
+    LS[i] = res.dot(res.T)
 
 time_end=time.time()
 print('Creating LRG catalogue costs',time_end-time_start,'s')
@@ -168,6 +179,38 @@ for arr,i,col,name in zip([xi0,xi2],range(2),['col2','col3'],['mono','quadru']):
 	plt.ylabel('d_cov^2 * $\\xi$')
 	plt.savefig('cf_'+name+'.png',bbox_tight=True)
 	plt.close()
+
+# plot the effects of different parameters(ELG)
+fig = plt.figure(figsize = (7, 8))
+import matplotlib.gridspec as gridspec 
+spec = gridspec.GridSpec(ncols=1, nrows=2, height_ratios=[4, 1], hspace=0.3)
+ax = np.empty((2,1), dtype=type(plt.axes))
+for k,value in enumerate([np.zeros(nbins),xi0[0]]):
+    ax[k,0] = fig.add_subplot(spec[k,0])
+    for i,xi in enumerate(xi0):
+        if var =='sigma_high':
+            ax[k,0].plot(s,s**2*(xi-value), label = '$\sigma_{high}=$'+str(par[0][i]))
+            #plt.title('sigma_low and v_max fixed')
+        if var =='sigma_low':
+            ax[k,0].plot(s,s**2*(xi-value), label = '$\sigma_{low}=$'+str(par[2][i]))
+            #plt.title('sigma_high and v_max fixed')
+        if var =='v_max':
+            ax[k,0].plot(s,s**2*(xi-value), label = '$v_{max}=$'+str(par[1][i]))
+            #plt.title('sigma_high and v_max fixed')
+        
+    if k==0:
+        ax[k,0].set_ylim(25,115)
+        ax[k,0].set_ylabel('$s^2*\\xi$') 
+        plt.legend(loc=0)
+    else:
+        ax[k,0].set_ylim(-5,10)
+        ax[k,0].set_ylabel('$s^2[\\xi-\\xi$'+'$(v_{max}=800)$')#+str(par[1][0])+')]')
+ 
+        
+plt.savefig('cf_mono_'+var+'.png',bbox_tight=True)#
+plt.close('all')  
+
+
 
 
 # covariance matrix 
