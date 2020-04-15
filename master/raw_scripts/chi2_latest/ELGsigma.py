@@ -86,13 +86,11 @@ for i,key in enumerate(['X','Y','Z','vz','vpeak']):
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
-chifile = 'chi2-sigma_ELG2.txt'
+
+chifile = 'chi2-triple_2.txt'
 f=open(chifile,'w')
 f.write('# sigma_high sigma_low vmax  chi2 \n')
-
 def chi2(sigma_high,sigma_low,v_max):#(par):#
-#for seed in range()：
-    #sigma_high,sigma_low,v_max = par[0],par[1],par[2]
     np.random.seed(47)#(seed)
     datav = np.copy(data['vpeak'])
     ## shuffle and pick the Nth maximum values
@@ -117,10 +115,10 @@ def chi2(sigma_high,sigma_low,v_max):#(par):#
     xi4 = np.trapz(hexa, dx=1./nmu, axis=1)
     if multipole=='mono':
         model = xi0#.mean(axis=-1)
-        OBS   = obscf['col2']
+        OBS   = obscf['col2']*0.5
     elif multipole=='quad':
         model = np.append(xi0,xi2)
-        OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
+        OBS   = np.append(obscf['col2'],obscf['col3'])*0.5  # obs([mono,quadru])
     else:
         model = np.append(xi0,xi2,xi4)
    
@@ -128,60 +126,72 @@ def chi2(sigma_high,sigma_low,v_max):#(par):#
     res = OBS-model
     f.write('{} {} {} {} \n'.format(sigma_high,sigma_low,v_max,res.dot(covR.dot(res))))
     return res.dot(covR.dot(res))
+    #return model
 
 # chi2 minimise
 time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
 from iminuit import Minuit
-sigma = Minuit(chi2,sigma_high=0.1,sigma_low=0.3,v_max=1800,fix_sigma_high=True,fix_sigma_low=True,limit_sigma_high=(0,0.5),limit_sigma_low=(0,0.7),limit_v_max=(1500,2000),error_sigma_high = 0.05,error_sigma_low = 0.05,error_v_max = 100,errordef=1)
+sigma = Minuit(chi2,sigma_high=0.3,sigma_low=0.336,v_max=800,limit_sigma_high=(0,2),limit_sigma_low=(0,0.7),limit_v_max=(500,2000),errordef=1) 
+# 3 parameters: 1 or 2 param needed to be fix to see the trend
+# fix_v_max=True,error_sigma_high = 0.01,error_sigma_low = 0.05,error_v_max = 100,
 sigma.migrad(precision=0.01)  # run optimiser
 print('the best LRG distribution sigma is ',sigma.values)
-
-## method 2： minimizer 
-#from scipy.optimize import minimize
-#ini = [0.1,0.3,1800]
-#sigma = minimize(chi2, ini,bounds=[(0,0.3),(0.2,0.4),(1500,2000)])
-#print('Best-fit:')
-#print('sigma = ',sigma.x)
-
+'''
+# method 2： minimizer 
+from scipy.optimize import minimize
+ini = [0.1,0.3,1800]
+sigma = minimize(chi2, ini,bounds=[(0,0.3),(0.2,0.4),(1500,2000)])
+print('Best-fit:')
+print('sigma = ',sigma.x)
+'''
 print('chi-square fitting finished.')
 time_end=time.time()
 print('Creating LRG catalogue costs',time_end-time_start,'s')
 f.close()
 
-
-# plot the chi2-sigma relation
+names = ['sigma_high','sigma_low','v_max']
 a=np.loadtxt(chifile,unpack=True)
-plt.scatter(a[2],a[-1])
-plt.savefig(chifile[:-4]+'.png',bbox_tight=True)
-plt.close()
+# plot the chi2-sigma relation(single parameters)
+for k,name in enumerate(names):
+    plt.scatter(a[k],a[-1])
+    plt.xlabel(name)
+    plt.ylabel('$\chi^2$')
+    plt.savefig(chifile[:-4]+'_'+name+'.png',bbox_tight=True)
+    plt.close()
 
 
 # plot the best fit result
 np.random.seed(47)#(seed)
 datav = np.copy(data['vpeak'])
-### shuffle and pick the Nth maximum values
-datav*=( 1+np.random.normal(scale=sigma.values['Sigma'],size=len(datav)))
-LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
-
+## shuffle and pick the Nth maximum values
+### the first scattering + remove heavy halo candidates
+datav*=( 1+np.random.normal(scale=sigma.values[0],size=len(datav)))
+org3  = datac[datav<sigma.values[2]]
+### the second scattering, select haloes from the heaviest according to the scattered value
+org3[:,4]*= 1+np.random.normal(scale=sigma.values[1],size=len(org3))
+LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
+## transfer to the redshift space
 z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
 z_redshift %=boxsize
+## count the galaxy pairs and normalise them
 DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
+## calculate the 2pcf and the multipoles
 mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
 quad = mono * 2.5 * (3 * mu**2 - 1)
 hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-### use trapz to integrate over mu
+## use trapz to integrate over mu
 xi0 = np.trapz(mono, dx=1./nmu, axis=1)
 fig,ax =plt.subplots()
-ax.errorbar(s,s**2*obscf['col2'],s**2*errbar, marker='s',ecolor='k',ls="none")
+ax.errorbar(s,s**2*obscf['col2']*0.5,s**2*errbar, marker='s',ecolor='k',ls="none")
 ax.plot(s,s**2*xi0,c='m',alpha=0.5)
-label = ['$\sigma=$'+str(sigma.values['Sigma'])[:5],'obs']
+label = ['bestfit','obs']
 plt.legend(label,loc=0)
-plt.title('correlation function')
+plt.title('$\sigma_{high}=$'+str(sigma.values[0])[:5]+', $v_{max}=$'+str(sigma.values[2])[:3]+' km/s, $\sigma_{low}=$'+str(sigma.values[1])[:5])
 plt.xlabel('d_cov (Mpc $h^{-1}$)')
 plt.ylabel('d_cov^2 * $\\xi$')
-plt.savefig('cf_mono_bestfits.png',bbox_tight=True)
+plt.savefig('cf_mono_bestfits_ELG.png',bbox_tight=True)
 plt.close()
 
 
