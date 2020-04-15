@@ -33,3 +33,15 @@ for k in range(3):
     ax.scatter(a[k],a[(k+1)%3],a[-1],cmap='Reds')
     plt.show()
 #plt.savefig(file[:-4]+'.png',bbox_tight=True)
+
+file = 'chi2-triple_success.txt'#'E:/Master/OneDrive/master_thesis/master/chi2/ELG/chi2-triple_success.txt'
+name = ['sigma_high','sigma_low','v_max']
+a=np.loadtxt(file,unpack=True)
+# multiple parameters
+for k in range(3):
+    fig,ax = plt.subplots()
+    ax.set_xlabel(name[k])
+    ax.set_ylabel('$\chi^2$')
+    #ax.set_zlim(63,67)
+    ax.scatter(a[k],a[-1])
+    plt.savefig(file[:-4]+'_'+name[k]+'.png',bbox_tight=True)

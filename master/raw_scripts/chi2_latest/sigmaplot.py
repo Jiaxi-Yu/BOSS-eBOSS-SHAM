@@ -108,8 +108,8 @@ for i in range(num):
         LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
         print('LRG used')
     if galtype== 'ELG':
-        var = 'v_max'
-        par  = [np.zeros(num),np.linspace(0.2,0.6,num)*4000,np.zeros(num)]#]
+        var = 'sigma_high'
+        par  = [np.linspace(0,0.6,num),np.ones(num)*800,np.zeros(num)]#np.linspace(0.2,0.6,num)*4000
         sigma_high,v_max,sigma_low = par[0],par[1],par[2]
         datav*=( 1+np.random.normal(scale=sigma_high[i],size=len(datav)))
         org3  = datac[datav<v_max[i]]
@@ -203,11 +203,11 @@ for k,value in enumerate([np.zeros(nbins),xi0[0]]):
         ax[k,0].set_ylabel('$s^2*\\xi$') 
         plt.legend(loc=0)
     else:
-        ax[k,0].set_ylim(-5,10)
-        ax[k,0].set_ylabel('$s^2[\\xi-\\xi$'+'$(v_{max}=800)$')#+str(par[1][0])+')]')
+        ax[k,0].set_ylim(-5,0.1)
+        ax[k,0].set_ylabel('$s^2[\\xi-\\xi(\sigma_high$'+str(par[1][0])+')]')
  
         
-plt.savefig('cf_mono_'+var+'.png',bbox_tight=True)#
+plt.savefig('cf_mono_'+var+'_vmax=800.png',bbox_tight=True)#
 plt.close('all')  
 
 
