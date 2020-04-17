@@ -21,6 +21,7 @@ GC  = 'NGC' # 'NGC' 'SGC'
 zmin     = 0.6
 zmax     = 1.0
 Om       = 0.31
+galtype = 'ELG'  #'ELG', 'LRG'
 multipole= 'mono' # 'mono','quad','hexa'
 mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
 #*********
@@ -58,7 +59,7 @@ mu = (mubins[:-1]+mubins[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
 if (rmax-rmin)/nbins!=1:
 	warnings.warn("the fitting should have 1Mpc/h bin to match the covariance matrices and observation.")
 
-covmatrix(home,mockdir,covfits,GC,rmin,rmax,zmin,zmax,Om,os.path.exists(covfits))
+covmatrix(home,mockdir,covfits,galtype,GC,rmin,rmax,zmin,zmax,Om,os.path.exists(covfits))
 obs(home,GC,obsname,randname,rmin,rmax,nbins,zmin,zmax,Om,os.path.exists(obs2pcf))
 
 # Read the covariance matrix and 
@@ -95,7 +96,6 @@ LS = np.zeros(num)
 MSE = np.zeros(num)
 xi0,xi2,xi4=[x for x in chi2],[x for x in chi2],[x for x in chi2]
 time_start=time.time()
-galtype = 'ELG'  #'ELG', 'LRG'
 
 ### create the catalogues******************
 for i in range(num):

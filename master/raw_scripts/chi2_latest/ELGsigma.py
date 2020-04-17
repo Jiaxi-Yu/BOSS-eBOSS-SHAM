@@ -17,16 +17,17 @@ home      = '/global/cscratch1/sd/jiaxi/master/'
 rscale = 'linear' # 'log'
 GC  = 'NGC' # 'NGC' 'SGC'
 zmin     = 0.6
-zmax     = 1.0
+zmax     = 1.1
 Om       = 0.31
+gal = 'ELG'
 multipole= 'mono' # 'mono','quad','hexa'
-mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
+mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
 #*********
-covfits = home+'2PCF/obs/cov_LRG_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
+covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
 #********
-obsname  = 'eBOSS_LRG_clustering_'+GC+'_v7_2.dat.fits'
-randname = obsname[:-8]+'ran.fits'
-obs2pcf  = home+'2PCF/obs/LRG_'+GC+'.dat'
+#obsname  = 'eBOSS_LRG_clustering_'+GC+'_v7_2.dat.fits'
+#randname = obsname[:-8]+'ran.fits'
+#obs2pcf  = home+'2PCF/obs/LRG_'+GC+'.dat'
 halofile = home+'catalog/halotest120.fits.gz' #home+'catalog/CatshortV.0029.fits.gz'
 z = 0.57
 boxsize  = 2500
@@ -56,8 +57,8 @@ mu = (mubins[:-1]+mubins[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
 if (rmax-rmin)/nbins!=1:
 	warnings.warn("the fitting should have 1Mpc/h bin to match the covariance matrices and observation.")
 
-covmatrix(home,mockdir,covfits,GC,rmin,rmax,zmin,zmax,Om,os.path.exists(covfits))
-obs(home,GC,obsname,randname,rmin,rmax,nbins,zmin,zmax,Om,os.path.exists(obs2pcf))
+covmatrix(home,mockdir,covfits,gal,GC,rmin,rmax,zmin,zmax,Om,os.path.exists(covfits))
+#obs(home,GC,obsname,randname,rmin,rmax,nbins,zmin,zmax,Om,os.path.exists(obs2pcf))
 
 # Read the covariance matrix and 
 hdu = fits.open(covfits) # cov([mono,quadru])
@@ -66,7 +67,7 @@ Nbias = (hdu[1].data[multipole]).shape # Nbins=np.array([Nbins,Nm])
 covR  = np.linalg.inv(cov)*(Nbias[1]-Nbias[0]-2)/(Nbias[1]-1)
 errbar = np.std(hdu[1].data[multipole],axis=1)
 hdu.close()
-obscf = Table.read(obs2pcf,format='ascii.no_header')[rmin:]  # obs 2pcf
+obscf = hdu[1].data[multipole]  # obs 2pcf
 print('the covariance matrix and the observation 2pcf vector are ready.')
 
 # RR calculation
@@ -191,7 +192,7 @@ plt.legend(label,loc=0)
 plt.title('$\sigma_{high}=$'+str(sigma.values[0])[:5]+', $v_{max}=$'+str(sigma.values[2])[:3]+' km/s, $\sigma_{low}=$'+str(sigma.values[1])[:5])
 plt.xlabel('d_cov (Mpc $h^{-1}$)')
 plt.ylabel('d_cov^2 * $\\xi$')
-plt.savefig('cf_mono_bestfits_ELG.png',bbox_tight=True)
+plt.savefig('cf_mono_bestfits_ELG2.png',bbox_tight=True)
 plt.close()
 
 

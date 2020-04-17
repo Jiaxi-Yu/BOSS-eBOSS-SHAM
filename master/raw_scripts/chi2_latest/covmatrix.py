@@ -11,7 +11,7 @@ import os
 import glob
 
 # variables(for functions)
-def covmatrix(home,mockdir,mockfits,GC,rmin,rmax,zmin,zmax,Om,exist):
+def covmatrix(home,mockdir,mockfits,gal,GC,rmin,rmax,zmin,zmax,Om,exist):
 	print('new matrix calculation')
 	if exist ==True:
 		print('The mock covariance file already exists.')
@@ -20,7 +20,7 @@ def covmatrix(home,mockdir,mockfits,GC,rmin,rmax,zmin,zmax,Om,exist):
 		nmu=120
 
 		# read dd , dr and rr files
-		ddpath = glob.glob(mockdir+'*LRG_'+GC+'*.dd')
+		ddpath = glob.glob(mockdir+'*'+gal+'_'+GC+'*.dd')
 		nfile = len(ddpath)
 		# read all the 2pcf data
 		mockmono = [x for x in range(len(ddpath))]
@@ -34,9 +34,9 @@ def covmatrix(home,mockdir,mockfits,GC,rmin,rmax,zmin,zmax,Om,exist):
 			dr[i] = ascii.read(ddpath[i][:-2]+'dr',format='no_header')['col6']
 			rr[i] = ascii.read(ddpath[i][:-2]+'rr',format='no_header')['col6']
 			if (i/nfile*100%10==0):
-				print('LRG_'+GC+'_mock ',np.ceil(i/nfile*100),'% 2pcf completed.')
+				print(gal+'_'+GC+'_mock ',np.ceil(i/nfile*100),'% 2pcf completed.')
 			if (i==nfile-1):
-				print('LRG_'+GC+'_mock ',np.ceil(i/nfile*100),'% 2pcf completed.')
+				print(gal+'_'+GC+'_mock ',np.ceil(i/nfile*100),'% 2pcf completed.')
 				mu =((ascii.read(ddpath[i],format='no_header')['col1']+ascii.read(ddpath[i],format='no_header')['col2'])/2).reshape(nbins,nmu)
 				s = ((ascii.read(ddpath[i],format='no_header')['col3']+ascii.read(ddpath[i],format='no_header')['col4'])/2).reshape(nbins,nmu)[:,0]
 

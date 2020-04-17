@@ -1,0 +1,27 @@
+from itertools import repeat
+
+ndata = length_of_LRG_catalogue
+num_thread = 30
+
+def generate_random(seed):
+  return np.random.RandomState(seed=seed).rand(ndata)
+
+with multiprocessing.Pool(num_thread) as p:
+  uniform_randoms = p.map(generate_random, np.arange(num_thread)+1)
+# now uniform_randoms is a list of random arrays, for seeds from 1 to num_thread
+
+def sham_2pcf(sigma, uniform):
+  normal = Box_Muller(sigma, uniform)  # you have to code here
+  # add scatter to LRG catalogue
+  # compute 2PCF: xi
+  return xi
+
+def chi2(sigma):
+  with multiprocessing.Pool(num_thread) as p:
+    xi = p.starmap(sham_2pcf, zip(repeat(sigma), uniform_randoms)
+  mean = np.mean(xi, axis=0)
+  # now "mean" is the averaged 2PCF from all the threads.
+  # compute chi2
+  return chi2
+
+# do iminuit stuff ...
