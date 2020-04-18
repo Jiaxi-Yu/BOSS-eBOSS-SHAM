@@ -68,55 +68,62 @@ plt.close()
 '''
 
 # Mvir distribution plot
-fig = plt.figure(figsize = (7, 6)) 
-spec = gridspec.GridSpec(ncols=1, nrows=2, height_ratios=[4, 1], hspace=0.3)
-ax = np.empty((2,1), dtype=type(plt.axes))
-for k,value in enumerate([np.ones(50),num2[0]]):
+fig = plt.figure(figsize = (7, 8)) 
+spec = gridspec.GridSpec(ncols=1, nrows=3, height_ratios=[4, 1,1], hspace=0.3)
+ax = np.empty((3,1), dtype=type(plt.axes))
+for k,value in enumerate([np.ones(50),num2[0],num2[0]]):
     ax[k,0] = fig.add_subplot(spec[k,0])
 
     ax[k,0].step(bins[:-1],num1[0]/value,c='r',label = 'MultiDark',alpha=0.5)
     ax[k,0].step(bins[:-1],num2[0]/value,c='b',label = 'UNIT',alpha=0.5)
         
-    ax[k,0].set_xlabel('$M_{vir}$')
+    ax[k,0].set_xlabel('$M_{vir}(M_{sun}/h)$')
     if k==0:
         plt.title('the Mvir distribution comparison') 
         ## title cannot be set for the whole figure(outside of the loop) 
         ## otherwise, subplots will stick together.
         ax[k,0].set_ylim(1e0,1e8)
-        ax[k,0].set_ylabel('# of galoes') 
+        ax[k,0].set_ylabel('# of haloes') 
         plt.xscale('log');
         plt.yscale('log')
         plt.legend(loc=0) 
-    else:
-        ax[k,0].set_ylim(1e-1,10)
+    elif k==1:
+        ax[k,0].set_ylim(0.5,1.5)
         ax[k,0].set_ylabel('halo # ratio')
         plt.xscale('log');
-        plt.yscale('log')
+    else:
+        ax[k,0].set_ylim(0,5)
+        ax[k,0].set_yticks([0,1,2,3,4,5])
+        ax[k,0].set_ylabel('halo # ratio')
+        plt.xscale('log');
             
 plt.savefig(path[:-8]+'Mvir_distribution.png')
 plt.close()
 
 # vmax distribution plot
-fig = plt.figure(figsize = (7, 6)) 
-spec = gridspec.GridSpec(ncols=1, nrows=2, height_ratios=[4, 1], hspace=0.3)
-ax = np.empty((2,1), dtype=type(plt.axes))
-for k,value in enumerate([np.ones(50),num21[0]]):
+fig = plt.figure(figsize = (7, 8)) 
+spec = gridspec.GridSpec(ncols=1, nrows=3, height_ratios=[4,1, 1], hspace=0.3)
+ax = np.empty((3,1), dtype=type(plt.axes))
+for k,value in enumerate([np.ones(50),num21[0],num21[0]]):
     ax[k,0] = fig.add_subplot(spec[k,0])
 
     ax[k,0].step(Vbins[:-1],num11[0]/value,c='r',label = 'MultiDark',alpha=0.5)
     ax[k,0].step(Vbins[:-1],num21[0]/value,c='b',label = 'UNIT',alpha=0.5)
         
-    ax[k,0].set_xlabel('$M_{vir}$')
+    ax[k,0].set_xlabel('$V_{max}(km/s)$')
     if k==0:
         plt.title('the Vmax distribution comparison')
         ax[k,0].set_ylim(1e0,3e8)
-        ax[k,0].set_ylabel('# of galoes') 
+        ax[k,0].set_ylabel('# of haloes') 
         plt.yscale('log')
         plt.legend(loc=0) 
-    else:
-        ax[k,0].set_ylim(1e-1,10)
+    elif k==1:
+        ax[k,0].set_ylim(0.5,1.5)
         ax[k,0].set_ylabel('halo # ratio')
-        plt.yscale('log')
+    else:
+        ax[k,0].set_ylim(0,3)
+        ax[k,0].set_yticks([0,1,2,3])
+        ax[k,0].set_ylabel('halo # ratio')
             
 plt.savefig(path[:-8]+'Vmax_distribution.png')
 plt.close()
