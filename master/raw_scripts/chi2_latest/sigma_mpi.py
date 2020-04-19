@@ -12,7 +12,7 @@ from obs import obs
 import warnings
 import matplotlib.pyplot as plt
 from multiprocessing import Pool 
-from functools import partial
+from itertools import repeat
 
 
 # variables
@@ -41,7 +41,7 @@ mu_max   = 1
 nmu      = 120
 LRGnum   = 5468750
 autocorr = 1
-nseed    = 30
+nseed    = 10
 
 # generate s and mu bins
 if rscale=='linear':
@@ -89,21 +89,35 @@ for i,key in enumerate(['X','Y','Z','vz','vpeak']):
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
+# record the chi2-sigma data
 chifile = 'chi2-sigma.txt'
 f=open(chifile,'w')
 f.write('# sigma_high sigma_low vmax  chi2 \n')
 
-def tpcf(seed,par):
-    np.random.seed(seed)#(seed)
+# generate an array of uniform random numbers for a given seed
+def generate_random(seed):
+    return np.random.RandomState(seed=seed).rand(len(data)*2)
+    #np.random.seed(seed)
+    #a= np.random.rand(len(data))
+    #b= np.random.rand(len(data))
+    #return np.append(a,b)
+
+
+# generate nseed arrays of uniform random numbers    
+with Pool(processes = nseed) as p:
+    uniform_randoms = p.map(generate_random,np.arange(nseed)+1)
+
+
+def sham_tpcf(uniform,sigma):
     datav = np.copy(data['vpeak'])
-    
-    if par[0]=='LRG':
+    # shuffle the halo catalogue and select those have a galaxy inside
+    if gal=='LRG':
         ### shuffle and pick the Nth maximum values
-        sig = par[1]
-        datav*=( 1+np.random.normal(scale=sig,size=len(datav)))
+        rand = sigma*np.sqrt(-2*np.log(uniform[:len(data)]))*np.cos(2*np.pi*uniform[len(data):])
+        datav*=( 1+rand)
         LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
         print('LRG used')
-    if par[0]== 'ELG':
+    if gal== 'ELG':
         sigma_high,v_max,sigma_low = par[1],par[2],par[3]
         datav*=( 1+np.random.normal(scale=sigma_high,size=len(datav)))
         org3  = datac[datav<v_max]
@@ -117,23 +131,24 @@ def tpcf(seed,par):
     ### count the galaxy pairs and normalise them
     DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
     ### calculate the 2pcf and the multipoles
-    return DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
-
-def chi2(Sigma):
-    # calculate mean monopole in parallel
-    pool = Pool(nseed)
-    part = partial(tpcf,par=['LRG',0.326)#Sigma)
-    mono_tmp = pool.map(part,np.arange(nseed))
-    pool.close()
-    pool.join()
-    
-    mono = np.mean(mono_tmp,axis=0)
+    mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
     quad = mono * 2.5 * (3 * mu**2 - 1)
     hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
     ### use trapz to integrate over mu
-    xi0 = np.trapz(mono, dx=1./nmu, axis=-1)
-    xi2 = np.trapz(quad, dx=1./nmu, axis=-1)
-    xi4 = np.trapz(hexa, dx=1./nmu, axis=-1)
+    xi0_single = np.trapz(mono, dx=1./nmu, axis=-1)
+    xi2_single = np.trapz(quad, dx=1./nmu, axis=-1)
+    xi4_single = np.trapz(hexa, dx=1./nmu, axis=-1)
+    return xi0_single,xi2_single,xi4_single
+
+def chi2(Sigma):
+    # calculate mean monopole in parallel
+    with Pool(processes = nseed) as p:
+        xi0_tmp,xi2_tmp,xi4_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(Sigma)))
+    
+    # average the result for multiple seeds
+    xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0),np.mean(xi2_tmp,axis=0),np.mean(xi4_tmp,axis=0)
+    
+    # identify the fitting multipoles
     if multipole=='mono':
         model = xi0
         OBS   = obscf['col2']
@@ -145,7 +160,7 @@ def chi2(Sigma):
    
     ### calculate the covariance, residuals and chi2
     res = OBS-model
-    f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
+    #f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
     return res.dot(covR.dot(res))
 
 # chi2 minimise
@@ -196,7 +211,7 @@ pool.join()
 
 mono = np.mean(mono_tmp,axis=0)
 xi0 = np.trapz(mono, dx=1./nmu, axis=-1)
-fig = plt.figure(figsize = (5, 6))
+fig = plt.figure(figsize = (8, 6))
 import matplotlib.gridspec as gridspec 
 spec = gridspec.GridSpec(ncols=1, nrows=2, height_ratios=[4, 1], hspace=0.3)
 ax = np.empty((2,1), dtype=type(plt.axes))

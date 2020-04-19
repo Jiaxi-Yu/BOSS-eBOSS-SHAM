@@ -9,27 +9,41 @@ from astropy.io import fits
 import matplotlib.gridspec as gridspec
 import os
 
+# data reading
 path =  '/global/cscratch1/sd/jiaxi/master/catalog/'
 MultiDark = fits.open(path+'MD_hlist_0.53780.fits.gz')
 UNIT      = fits.open(path+'UNIT_hlist_0.53780.fits.gz')
-MD = MultiDark[1].data['Mvir']
-UNI =UNIT[1].data['Mvir']
+# halo(PID==-1) or subhalo(PID!=-1)
+MDP = MultiDark[1].data['PID']
+UNIP =UNIT[1].data['PID']
+function = 'subhalo' # 'halo'  'subhalo'
+# Mvir and Vpeak
+if function == 'halo':
+    MD = MultiDark[1].data['Mvir'][MDP==-1]
+    UNI =UNIT[1].data['Mvir'][UNIP==-1]
+    MDV = MultiDark[1].data['Vpeak'][MDP==-1]
+    UNIV =UNIT[1].data['Vpeak'][UNIP==-1]
+else:
+    MD = MultiDark[1].data['Mvir'][MDP!=-1]
+    UNI =UNIT[1].data['Mvir'][UNIP!=-1]
+    MDV = MultiDark[1].data['Vpeak'][MDP!=-1]
+    UNIV =UNIT[1].data['Vpeak'][UNIP!=-1]
 
 # Mvir distribution
 Mbins=np.logspace(np.log10(10**9.3),np.log10(10**15.1),50+1) 
 num1 = np.histogram(UNI,bins=Mbins)#,alpha=0.5,label='UNIT',color='r')
 num2 = np.histogram(MD,bins=Mbins)#,alpha=0.5,label='MultiDark',color='b')
 # store the data
-file = 'Mvir_distribution.txt'
+file = 'Mvir_distribution_'+function+'.txt'
 ascii.write(Table([Mbins[:-1],Mbins[1:],num1[0],num2[0]],names=('M_min', 'M_max', 'MD', 'UNIT')),file,delimiter='\t',overwrite=True)
 
 
 # vpeak distribution function
 Vbins=np.linspace(20,1500,50+1) 
-num11 = np.histogram(UNIT[1].data['Vpeak'],bins=Vbins)#,alpha=0.5,label='UNIT',color='r')
-num21 = np.histogram(MultiDark[1].data['Vpeak'],bins=Vbins)#,alpha=0.5,label='MultiDark',color='b')
+num11 = np.histogram(UNIV,bins=Vbins)#,alpha=0.5,label='UNIT',color='r')
+num21 = np.histogram(MDV,bins=Vbins)#,alpha=0.5,label='MultiDark',color='b')
 # store the data
-file2 = 'vmax_distribution.txt'
+file2 = 'vmax_distribution_'+function+'.txt'
 ascii.write(Table([Vbins[:-1],Vbins[1:],num11[0],num21[0]],names=('V_min', 'V_max', 'MD', 'UNIT')),file2,delimiter='\t',overwrite=True)
 
 
@@ -97,7 +111,7 @@ for k,value in enumerate([np.ones(50),num2[0],num2[0]]):
         ax[k,0].set_ylabel('halo # ratio')
         plt.xscale('log');
             
-plt.savefig(path[:-8]+'Mvir_distribution.png')
+plt.savefig(path[:-8]+'Mvir_distribution_'+function+'.png')
 plt.close()
 
 # vmax distribution plot
@@ -125,5 +139,5 @@ for k,value in enumerate([np.ones(50),num21[0],num21[0]]):
         ax[k,0].set_yticks([0,1,2,3])
         ax[k,0].set_ylabel('halo # ratio')
             
-plt.savefig(path[:-8]+'Vmax_distribution.png')
+plt.savefig(path[:-8]+'Vmax_distribution_'+function+'.png')
 plt.close()
