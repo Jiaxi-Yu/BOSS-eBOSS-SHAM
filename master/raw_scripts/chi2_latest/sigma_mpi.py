@@ -13,6 +13,7 @@ import warnings
 import matplotlib.pyplot as plt
 from multiprocessing import Pool 
 from itertools import repeat
+import glob
 
 
 # variables
@@ -22,14 +23,15 @@ GC  = 'NGC' # 'NGC' 'SGC'
 zmin     = 0.6
 zmax     = 1.0
 Om       = 0.31
-gal      = 'LRG'
+gal      = 'LRG'  
 multipole= 'mono' # 'mono','quad','hexa'
 mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
 covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
 obsname  = 'eBOSS_'+gal+'_clustering_'+GC+'_v7_2.dat.fits'
 randname = obsname[:-8]+'ran.fits'
 obs2pcf  = home+'2PCF/obs/'+gal+'_'+GC+'.dat'
-halofile = home+'catalog/halotest120.fits.gz' #home+'catalog/CatshortV.0029.fits.gz'
+halofile = home+'catalog/halotest120.fits.gz' 
+
 z = 0.57
 boxsize  = 2500
 rmin     = 1
@@ -41,7 +43,7 @@ mu_max   = 1
 nmu      = 120
 LRGnum   = 5468750
 autocorr = 1
-nseed    = 10
+nseed    = 30
 
 # generate s and mu bins
 if rscale=='linear':
@@ -82,86 +84,100 @@ print('reading the halo catalogue for creating the galaxy catalogue...')
 halo = fits.open(halofile)
 data = halo[1].data
 halo.close()
-datac = np.zeros((len(data['vpeak']),5))
+datac = np.zeros((len(data['Vpeak']),5))
 for i,key in enumerate(['X','Y','Z','vz','vpeak']):
     datac[:,i] = np.copy(data[key])
+
+if len(data['Vpeak'])%2==1:
+	datac = datac[:-1,:]
+
 ## find the best parameters
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
-# record the chi2-sigma data
-chifile = 'chi2-sigma.txt'
-f=open(chifile,'w')
-f.write('# sigma_high sigma_low vmax  chi2 \n')
-
-# generate an array of uniform random numbers for a given seed
+# generate random number arrays once and for all
+## generate an array of uniform random numbers for a given seed
 def generate_random(seed):
-    return np.random.RandomState(seed=seed).rand(len(data)*2)
-    #np.random.seed(seed)
-    #a= np.random.rand(len(data))
-    #b= np.random.rand(len(data))
-    #return np.append(a,b)
+	filename = home+'catalog/randnum/random_'+str(seed)+'.fits.gz'
+	uni = np.random.RandomState(seed=seed).rand(len(data))
+	Table([uni[:int(len(data)/2)],uni[int(len(data)/2):]]).write(filename, format='fits',overwrite=True)
+	'''	
+	if len(data)%2==0:
+		uni = np.random.RandomState(seed=seed).rand(len(data))
+		ascii.write(Table([uni[:int(len(data)/2)],uni[int(len(data)/2):]]),filename,delimiter='\t',overwrite=True)
+	else:
+		uni = np.random.RandomState(seed=seed).rand(len(data)+1)
+		ascii.write(Table([uni[:int(len(data)/2+1)],uni[int(len(data)/2+1):]]),filename,delimiter='\t',overwrite=True)
+	'''
 
 
 # generate nseed arrays of uniform random numbers    
-with Pool(processes = nseed) as p:
-    uniform_randoms = p.map(generate_random,np.arange(nseed)+1)
+if os.path.exists(home+'catalog/randnum')==False:	
+	with Pool(processes = nseed) as p:
+		uniform_randoms = p.map(generate_random,np.arange(nseed)+1)
+else:
+	ranpath = glob.glob(home+'catalog/randnum/*')
+	uniform_randoms = [x for x in range(nseed)]
+	for i,files in enumerate(ranpath):
+		hdu=fits.open(files)
+		uniform_randoms[i] = hdu[1].data
+
 
 
 def sham_tpcf(uniform,sigma):
-    datav = np.copy(data['vpeak'])
-    # shuffle the halo catalogue and select those have a galaxy inside
-    if gal=='LRG':
-        ### shuffle and pick the Nth maximum values
-        rand = sigma*np.sqrt(-2*np.log(uniform[:len(data)]))*np.cos(2*np.pi*uniform[len(data):])
-        datav*=( 1+rand)
-        LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
-        print('LRG used')
-    if gal== 'ELG':
-        sigma_high,v_max,sigma_low = par[1],par[2],par[3]
-        datav*=( 1+np.random.normal(scale=sigma_high,size=len(datav)))
-        org3  = datac[datav<v_max]
-        ### the second scattering, select haloes from the heaviest according to the scattered value
-        org3[:,4]*= 1+np.random.normal(scale=sigma_low,size=len(org3))
-        LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
-        print('ELG used')
-    ### transfer to the redshift space
-    z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
-    z_redshift %=boxsize
-    ### count the galaxy pairs and normalise them
-    DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
-    ### calculate the 2pcf and the multipoles
-    mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
-    quad = mono * 2.5 * (3 * mu**2 - 1)
-    hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-    ### use trapz to integrate over mu
-    xi0_single = np.trapz(mono, dx=1./nmu, axis=-1)
-    xi2_single = np.trapz(quad, dx=1./nmu, axis=-1)
-    xi4_single = np.trapz(hexa, dx=1./nmu, axis=-1)
-    return xi0_single,xi2_single,xi4_single
+	datav = np.copy(data['vpeak'])
+    	# shuffle the halo catalogue and select those have a galaxy inside
+    	if gal=='LRG':
+        	### shuffle and pick the Nth maximum values
+        	rand = sigma*np.sqrt(-2*np.log(uniform['col0']))*np.cos(2*np.pi*uniform['col1'])
+        	datav*=( 1+rand)
+	        LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
+        	print('LRG used')
+	if gal== 'ELG':
+        	sigma_high,v_max,sigma_low = par[1],par[2],par[3]
+        	datav*=( 1+np.random.normal(scale=sigma_high,size=len(datav)))
+        	org3  = datac[datav<v_max]
+        	### the second scattering, select haloes from the heaviest according to the scattered value
+        	org3[:,4]*= 1+np.random.normal(scale=sigma_low,size=len(org3))
+        	LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
+        	print('ELG used')
+    	### transfer to the redshift space
+	z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
+	z_redshift %=boxsize
+   	 ### count the galaxy pairs and normalise them
+	DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
+    	### calculate the 2pcf and the multipoles
+    	mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
+	quad = mono * 2.5 * (3 * mu**2 - 1)
+	hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+	### use trapz to integrate over mu
+	xi0_single = np.trapz(mono, dx=1./nmu, axis=-1)
+	xi2_single = np.trapz(quad, dx=1./nmu, axis=-1)
+	xi4_single = np.trapz(hexa, dx=1./nmu, axis=-1)
+	return xi0_single,xi2_single,xi4_single
 
 def chi2(Sigma):
-    # calculate mean monopole in parallel
-    with Pool(processes = nseed) as p:
-        xi0_tmp,xi2_tmp,xi4_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(Sigma)))
+    	# calculate mean monopole in parallel
+	with Pool(processes = nseed) as p:
+        	xi0_tmp,xi2_tmp,xi4_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(Sigma)))
     
-    # average the result for multiple seeds
-    xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0),np.mean(xi2_tmp,axis=0),np.mean(xi4_tmp,axis=0)
+	# average the result for multiple seeds
+	xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0),np.mean(xi2_tmp,axis=0),np.mean(xi4_tmp,axis=0)
     
-    # identify the fitting multipoles
-    if multipole=='mono':
-        model = xi0
-        OBS   = obscf['col2']
-    elif multipole=='quad':
-        model = np.append(xi0,xi2)
-        OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
-    else:
-        model = np.append(xi0,xi2,xi4)
+	# identify the fitting multipoles
+    	if multipole=='mono':
+        	model = xi0
+        	OBS   = obscf['col2']
+    	elif multipole=='quad':
+        	model = np.append(xi0,xi2)
+        	OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
+    	else:
+        	model = np.append(xi0,xi2,xi4)
    
-    ### calculate the covariance, residuals and chi2
-    res = OBS-model
-    #f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
-    return res.dot(covR.dot(res))
+    	### calculate the covariance, residuals and chi2
+    	res = OBS-model
+	#f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
+    	return res.dot(covR.dot(res))
 
 # chi2 minimise
 time_start=time.time()
