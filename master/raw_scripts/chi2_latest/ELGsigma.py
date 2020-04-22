@@ -25,6 +25,7 @@ mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z'+str(zmin)+
 covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
 #********
 obsname  = '/global/homes/z/zhaoc/work/SHAM/data_PIP/nersc_mps_ELG_v7/'
+obscf  = '  '
 halofile = home+'catalog/halotest120.fits.gz' #home+'catalog/CatshortV.0029.fits.gz'
 #*********
 z = 0.57
@@ -70,16 +71,22 @@ Nbias = (hdu[1].data[multipole]).shape # Nbins=np.array([Nbins,Nm])
 covR  = np.linalg.inv(cov)*(Nbias[1]-Nbias[0]-2)/(Nbias[1]-1)
 errbar = np.std(hdu[1].data[multipole],axis=1)
 hdu.close()
+
+# ELG observation:
 #*******************************
-obspc = ascii.read(obsname,format = 'no_header')  # obs pair counts
-mon = obspc['col??????'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
-qua = mon * 2.5 * (3 * mu**2 - 1)
-hexad = mon * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-## use trapz to integrate over mu
-obs  = [1,2,3] 
-obs[0] = np.trapz(mon, dx=1./nmu, axis=1)
-obs[1] = np.trapz(qua, dx=1./nmu, axis=1)
-obs[2] = np.trapz(hexad, dx=1./nmu, axis=1)
+if os.path.exist(obscf):
+	obs = ascii.read(obscf,format = 'no_header')
+	obs0,obs1,obs2 = obs['col0'],obs['col1'],obs['col2']
+else:
+	obspc = ascii.read(obsname,format = 'no_header')  # obs pair counts
+	mon = obspc['col??????'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
+	qua = mon * 2.5 * (3 * mu**2 - 1)
+	hexad = mon * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+	## use trapz to integrate over mu
+	obs0 = np.trapz(mon, dx=1./nmu, axis=1)
+	obs1 = np.trapz(qua, dx=1./nmu, axis=1)
+	obs2 = np.trapz(hexad, dx=1./nmu, axis=1)
+	Table([obs0,obs1,obs2],names=['mono','quad','hexa']).write(obscf,delimiter='\t',overwrite=True)
 #***********************************
 print('the covariance matrix and the observation 2pcf vector are ready.')
 
@@ -129,13 +136,13 @@ def chi2(sigma_high,sigma_low,v_max):#(par):#
     xi4 = np.trapz(hexa, dx=1./nmu, axis=1)
     if multipole=='mono':
         model = xi0#.mean(axis=-1)
-        OBS   = obs[0]
+        OBS   = obs0
     elif multipole=='quad':
         model = np.append(xi0,xi2)
-        OBS   = np.append(obs[0],obs[1])  # obs([mono,quadru])
+        OBS   = np.append(obs0,obs1)  # obs([mono,quadru])
     else:
         model = np.append(xi0,xi2,xi4)
-	OBS   = np.appen(obs[0],obs[1],obs[2])
+	OBS   = np.appen(obs0,obs1,obs2)
    
     ### calculate the covariance, residuals and chi2
     res = OBS-model
