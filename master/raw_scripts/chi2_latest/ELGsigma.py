@@ -22,13 +22,11 @@ Om       = 0.31
 gal = 'ELG'
 multipole= 'mono' # 'mono','quad','hexa'
 mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
-#*********
 covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
 #********
-#obsname  = 'eBOSS_LRG_clustering_'+GC+'_v7_2.dat.fits'
-#randname = obsname[:-8]+'ran.fits'
-#obs2pcf  = home+'2PCF/obs/LRG_'+GC+'.dat'
+obsname  = '/global/homes/z/zhaoc/work/SHAM/data_PIP/nersc_mps_ELG_v7/'
 halofile = home+'catalog/halotest120.fits.gz' #home+'catalog/CatshortV.0029.fits.gz'
+#*********
 z = 0.57
 boxsize  = 2500
 rmin     = 1
@@ -53,41 +51,56 @@ s = (bins[:-1]+bins[1:])/2
 mubins = np.linspace(0,mu_max,nmu+1)
 mu = (mubins[:-1]+mubins[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
 
+# RR calculation
+RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)	
+rr=(RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu
+print('the analytical random pair counts are ready.')
+
+
 #covariance matrix and the observation 2pcf calculation
 if (rmax-rmin)/nbins!=1:
 	warnings.warn("the fitting should have 1Mpc/h bin to match the covariance matrices and observation.")
 
 covmatrix(home,mockdir,covfits,gal,GC,rmin,rmax,zmin,zmax,Om,os.path.exists(covfits))
-#obs(home,GC,obsname,randname,rmin,rmax,nbins,zmin,zmax,Om,os.path.exists(obs2pcf))
 
-# Read the covariance matrix and 
+# Read the covariance matrix 
 hdu = fits.open(covfits) # cov([mono,quadru])
 cov = hdu[1].data['cov'+multipole]
 Nbias = (hdu[1].data[multipole]).shape # Nbins=np.array([Nbins,Nm])
 covR  = np.linalg.inv(cov)*(Nbias[1]-Nbias[0]-2)/(Nbias[1]-1)
 errbar = np.std(hdu[1].data[multipole],axis=1)
 hdu.close()
-obscf = hdu[1].data[multipole]  # obs 2pcf
+#*******************************
+obspc = ascii.read(obsname,format = 'no_header')  # obs pair counts
+mon = obspc['col??????'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
+qua = mon * 2.5 * (3 * mu**2 - 1)
+hexad = mon * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+## use trapz to integrate over mu
+obs  = [1,2,3] 
+obs[0] = np.trapz(mon, dx=1./nmu, axis=1)
+obs[1] = np.trapz(qua, dx=1./nmu, axis=1)
+obs[2] = np.trapz(hexad, dx=1./nmu, axis=1)
+#***********************************
 print('the covariance matrix and the observation 2pcf vector are ready.')
 
-# RR calculation
-RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)	
-rr=(RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu
-print('the analytical random pair counts are ready.')
 
 # create the halo catalogue and plot their 2pcf***************
 print('reading the halo catalogue for creating the galaxy catalogue...')
 halo = fits.open(halofile)
 data = halo[1].data
 halo.close()
-datac = np.zeros((len(data['vpeak']),5))
-for i,key in enumerate(['X','Y','Z','vz','vpeak']):
+for i,key in enumerate(['X','Y','Z','VZ','Vpeak']):
     datac[:,i] = np.copy(data[key])
+
+if len(data['Vpeak'])%2==1:
+	datac = datac[:-1,:]
+
 ## find the best parameters
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
-
+# better ways being tested in sigma_mpi
+'''
 chifile = 'chi2-triple_2.txt'
 f=open(chifile,'w')
 f.write('# sigma_high sigma_low vmax  chi2 \n')
@@ -116,37 +129,30 @@ def chi2(sigma_high,sigma_low,v_max):#(par):#
     xi4 = np.trapz(hexa, dx=1./nmu, axis=1)
     if multipole=='mono':
         model = xi0#.mean(axis=-1)
-        OBS   = obscf['col2']*0.5
+        OBS   = obs[0]
     elif multipole=='quad':
         model = np.append(xi0,xi2)
-        OBS   = np.append(obscf['col2'],obscf['col3'])*0.5  # obs([mono,quadru])
+        OBS   = np.append(obs[0],obs[1])  # obs([mono,quadru])
     else:
         model = np.append(xi0,xi2,xi4)
+	OBS   = np.appen(obs[0],obs[1],obs[2])
    
     ### calculate the covariance, residuals and chi2
     res = OBS-model
     f.write('{} {} {} {} \n'.format(sigma_high,sigma_low,v_max,res.dot(covR.dot(res))))
     return res.dot(covR.dot(res))
     #return model
-
+'''
 # chi2 minimise
 time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
 from iminuit import Minuit
-sigma = Minuit(chi2,sigma_high=0.3,sigma_low=0.336,v_max=800,limit_sigma_high=(0,2),limit_sigma_low=(0,0.7),limit_v_max=(500,2000),errordef=1) 
+sigma = Minuit(chi2,sigma_high=0.3,sigma_low=0.336,v_max=100,limit_sigma_high=(0,2),limit_sigma_low=(0,2),limit_v_max=(0,1000),errordef=1) 
 # 3 parameters: 1 or 2 param needed to be fix to see the trend
 # fix_v_max=True,error_sigma_high = 0.01,error_sigma_low = 0.05,error_v_max = 100,
 sigma.migrad(precision=0.01)  # run optimiser
 print('the best LRG distribution sigma is ',sigma.values)
-'''
-# method 2： minimizer 
-from scipy.optimize import minimize
-ini = [0.1,0.3,1800]
-sigma = minimize(chi2, ini,bounds=[(0,0.3),(0.2,0.4),(1500,2000)])
-print('Best-fit:')
-print('sigma = ',sigma.x)
-'''
 print('chi-square fitting finished.')
 time_end=time.time()
 print('Creating LRG catalogue costs',time_end-time_start,'s')
