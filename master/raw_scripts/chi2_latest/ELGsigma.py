@@ -16,35 +16,40 @@ import matplotlib.pyplot as plt
 home      = '/global/cscratch1/sd/jiaxi/master/'
 rscale = 'linear' # 'log'
 GC  = 'NGC' # 'NGC' 'SGC'
+gal = 'ELG'
+multipole= 'mono' # 'mono','quad','hexa'
 zmin     = 0.6
 zmax     = 1.1
 Om       = 0.31
-gal = 'ELG'
-multipole= 'mono' # 'mono','quad','hexa'
-mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
-covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
-#********
-obsname  = '/global/homes/z/zhaoc/work/SHAM/data_PIP/nersc_mps_ELG_v7/'
-obscf  = '  '
-halofile = home+'catalog/halotest120.fits.gz' #home+'catalog/CatshortV.0029.fits.gz'
-#*********
-z = 0.57
-boxsize  = 2500
-rmin     = 1
+z = 0.8594
+boxsize  = 1000
+rmin     = 5
 rmax     = 50
-nbins    = 49
 nthread  = 64
 autocorr = 1
 mu_max   = 1
 nmu      = 120
-LRGnum   = 5468750
-autocorr =1
+LRGnum   = 0
+autocorr = 1
+nseed    = 30
+
+mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
+covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
+#********
+obsname  = home+'catalog/pair_counts_s-mu_pip_eBOSS_'+gal+'_'+GC+'_v7.dat'
+randname = obsname[:-8]+'ran.fits'
+obs2pcf  = home+'2PCF/obs/'+gal+'_'+GC+'.dat'
+halofile = home+'catalog/UNIT_hlist_0.53780-cut.fits.gz' 
+
+
 
 # generate s and mu bins
 if rscale=='linear':
-	bins=np.linspace(rmin,rmax,nbins+1)
+	bins  = np.arange(rmin,rmax+1,1)
+	nbins = len(bins)-1
 
 if rscale=='log':
+	nbins = 50
 	bins=np.logspace(np.log10(rmin),np.log10(rmax),nbins+1)
 	print('Note: the covariance matrix should also change to log scale.')
 
@@ -63,6 +68,7 @@ if (rmax-rmin)/nbins!=1:
 	warnings.warn("the fitting should have 1Mpc/h bin to match the covariance matrices and observation.")
 
 covmatrix(home,mockdir,covfits,gal,GC,rmin,rmax,zmin,zmax,Om,os.path.exists(covfits))
+obs(home,gal,GC,obsname,randname,obs2pcf,rmin,rmax,nbins,zmin,zmax,Om,os.path.exists(obs2pcf))
 
 # Read the covariance matrix 
 hdu = fits.open(covfits) # cov([mono,quadru])
@@ -74,19 +80,9 @@ hdu.close()
 
 # ELG observation:
 #*******************************
-if os.path.exist(obscf):
-	obs = ascii.read(obscf,format = 'no_header')
-	obs0,obs1,obs2 = obs['col0'],obs['col1'],obs['col2']
-else:
-	obspc = ascii.read(obsname,format = 'no_header')  # obs pair counts
-	mon = obspc['col??????'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
-	qua = mon * 2.5 * (3 * mu**2 - 1)
-	hexad = mon * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-	## use trapz to integrate over mu
-	obs0 = np.trapz(mon, dx=1./nmu, axis=1)
-	obs1 = np.trapz(qua, dx=1./nmu, axis=1)
-	obs2 = np.trapz(hexad, dx=1./nmu, axis=1)
-	Table([obs0,obs1,obs2],names=['mono','quad','hexa']).write(obscf,delimiter='\t',overwrite=True)
+obs = ascii.read(obs2pcf,format = 'no_header')
+obs0,obs1,obs2 = obs['col0'],obs['col1'],obs['col2']
+
 #***********************************
 print('the covariance matrix and the observation 2pcf vector are ready.')
 
@@ -155,7 +151,7 @@ time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
 from iminuit import Minuit
-sigma = Minuit(chi2,sigma_high=0.3,sigma_low=0.336,v_max=100,limit_sigma_high=(0,2),limit_sigma_low=(0,2),limit_v_max=(0,1000),errordef=1) 
+sigma = Minuit(chi2,sigma_high=0.3,sigma_low=0.336,v_max=100,limit_sigma_high=(0,2),limit_sigma_low=(0,2),limit_v_max=(0,500),errordef=1) 
 # 3 parameters: 1 or 2 param needed to be fix to see the trend
 # fix_v_max=True,error_sigma_high = 0.01,error_sigma_low = 0.05,error_v_max = 100,
 sigma.migrad(precision=0.01)  # run optimiser
