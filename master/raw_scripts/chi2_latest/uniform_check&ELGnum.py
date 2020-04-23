@@ -31,17 +31,30 @@ plt.savefig('uniform-trans_validate.png')
 
 
 # calculate the number of ELG selected in the UNIT catalogue
-areadeg = np.array([177.5,240,237.5,131.9])
-arearad = areadeg/360**2*np.pi**2
+area = np.array([177.5,240,237.5,131.9])
+areadeg = np.array([417.5,369.4])
 
 z=np.linspace(0.6,1.1,21)
 c=299792.458
 Om=0.31
-dcom = np.trapz(c/100/np.sqrt(Om*(1+z)**3+1-Om),dx = (z[-1]-z[0])/20)
+dfin = c/100/np.sqrt(Om*(1+0.6)**3+1-Om)
+dint = c/100/np.sqrt(Om*(1+1.1)**3+1-Om)
+V = 4/3*np.pi*(dfin**3-dint**3)*np.sum(areadeg)/36000
 
+for i,GC in enumerate(['NGC','SGC']):
+	hdu = fits.open('/media/jiaxi/disk/Master/obs/eBOSS_ELG_clustering_'+GC+'_v7.dat.fits')[1].data
+	galnum=np.sum(hdu['WEIGHT_SYSTOT']*hdu['WEIGHT_CP']*hdu['WEIGHT_NOZ']*hdu['WEIGHT_FKP'])
+	print(GC+' have {:2.7} galaxies'.format(galnum))
+	print('its number density is {:2.7} gal/(Mpc)**3'.format(galnum/V))
 
-
-
+## results:
+'''
+NGC have 45367.24 galaxies
+its number density is 8.526405e-05 gal/(Mpc)**3
+SGC have 44901.41 galaxies
+its number density is 8.438856e-05 gal/(Mpc)**3
+difference is within 1%
+'''
 
 
 
