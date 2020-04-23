@@ -11,7 +11,7 @@ import os
 import glob
 
 # variables(for functions)
-def covmatrix(home,mockdir,mockfits,gal,GC,rmin,rmax,zmin,zmax,Om,exist):
+def covmatrix(home,mockdir,mockfits,gal,GC,zmin,zmax,Om,exist):
 	print('new matrix calculation')
 	if exist ==True:
 		print('The mock covariance file already exists.')
@@ -79,9 +79,9 @@ def covmatrix(home,mockdir,mockfits,gal,GC,rmin,rmax,zmin,zmax,Om,exist):
 				print('LRG_'+GC+'_mock ',np.ceil(i/10),'% 2pcf completed.')
 		"""  
 		# calculate the covariance
-		mockmono  = mono_tmp.T[rmin:rmax]
-		mockquad  = np.vstack((mockmono,quad_tmp.T[rmin:rmax]))
-		mockhexa  = np.vstack((mockquad,hexa_tmp.T[rmin:rmax]))
+		mockmono  = mono_tmp.T
+		mockquad  = np.vstack((mockmono,quad_tmp.T))
+		mockhexa  = np.vstack((mockquad,hexa_tmp.T))
 		covmono   = np.cov(mockmono)
 		covquad = np.cov(mockquad)
 		covhexa = np.cov(mockhexa)
@@ -96,7 +96,7 @@ def covmatrix(home,mockdir,mockfits,gal,GC,rmin,rmax,zmin,zmax,Om,exist):
 			cols.append(fits.Column(name='cov'+name,format=str(len(cova))+'D',array=cova))
 			
 			hdulist = fits.BinTableHDU.from_columns(cols)
-			hdulist.header.update(rmin=rmin,rmax=rmax,sbins=nbins,nmu=nmu)
+			hdulist.header.update(rmin=0,rmax=50,sbins=nbins,nmu=nmu)
 			hdulist.writeto(mockfits[:51]+name+mockfits[-8:], overwrite=True)
 
 		time_end=time.time()
