@@ -97,7 +97,7 @@ def covmatrix(home,mockdir,mockfits,gal,GC,zmin,zmax,Om,exist):
 			
 			hdulist = fits.BinTableHDU.from_columns(cols)
 			hdulist.header.update(rmin=0,rmax=50,sbins=nbins,nmu=nmu)
-			hdulist.writeto(mockfits[:51]+name+mockfits[-8:], overwrite=True)
+			hdulist.writeto(mockfits[:55]+name+mockfits[-8:], overwrite=True)
 
 		time_end=time.time()
 		print('Covariance matrix calculation costs',time_end-time_start,'s')
