@@ -23,10 +23,8 @@ GC  = 'NGC' # 'NGC' 'SGC'
 gal      = 'LRG'  
 multipole= 'mono' # 'mono','quad','hexa'
 
-zmin     = 0.6
-zmax     = 1.0
+
 Om       = 0.31
-z = 0.8594
 boxsize  = 1000
 rmin     = 5
 rmax     = 50
@@ -34,29 +32,36 @@ nthread  = 64
 autocorr = 1
 mu_max   = 1
 nmu      = 120
-LRGnum   = 5468750
+LRGnum   = 4e5
 autocorr = 1
 nseed    = 30
 
 home      = '/global/cscratch1/sd/jiaxi/master/'
 if gal=='LRG':
+	zmin     = 0.6
+	zmax     = 1.0
+	z = 0.8594
 	mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
 	obsname  = home+'catalog/eBOSS_'+gal+'_clustering_'+GC+'_v7_2.dat.fits'
+	halofile = home+'catalog/UNIT_hlist_0.53780-cut.fits.gz' 
 else:
+	zmin     = 0.6
+	zmax     = 1.1
+	z = 0.8594
 	mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
 	obsname  = home+'catalog/pair_counts_s-mu_pip_eBOSS_'+gal+'_'+GC+'_v7.dat'
+	halofile = home+'catalog/UNIT_hlist_0.53780-cut.fits.gz' 
 
 covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'   #cov_'+GC+'_->corrcoef
 randname = obsname[:-8]+'ran.fits'
 obs2pcf  = home+'2PCF/obs/'+gal+'_'+GC+'.dat'
-halofile = home+'catalog/UNIT_hlist_0.53780-cut.fits.gz' 
-
-
 
 # generate s and mu bins
 if rscale=='linear':
 	bins  = np.arange(rmin,rmax+1,1)
 	nbins = len(bins)-1
+    binmin = rmin
+    binmax = rmax
 
 if rscale=='log':
 	nbins = 50
@@ -77,11 +82,10 @@ obs(home,gal,GC,obsname,randname,obs2pcf,rmin,rmax,nbins,zmin,zmax,Om,True)
 # Read the covariance matrix and 
 hdu = fits.open(covfits) # cov([mono,quadru])
 cov = hdu[1].data['cov'+multipole]
-Nbias = (hdu[1].data[multipole]).shape # Nbins=np.array([Nbins,Nm])
-covR  = np.linalg.inv(cov)*(Nbias[1]-Nbias[0]-2)/(Nbias[1]-1)
+Nbins,Nmock = (hdu[1].data[multipole]).shape # Nbins=np.array([Nbins,Nm])
 errbar = np.std(hdu[1].data[multipole],axis=1)
 hdu.close()
-obscf = Table.read(obs2pcf,format='ascii.no_header')[rmin:]  # obs 2pcf
+obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax-1]  # obs 2pcf
 print('the covariance matrix and the observation 2pcf vector are ready.')
 
 # RR calculation
@@ -92,68 +96,47 @@ print('the analytical random pair counts are ready.')
 # create the halo catalogue and plot their 2pcf***************
 print('reading the halo catalogue for creating the galaxy catalogue...')
 halo = fits.open(halofile)
-data = halo[1].data
+if len(halo[1].data)%2==1:
+	data = halo[1].data[:-1]
 halo.close()
 datac = np.zeros((len(data),5))
 for i,key in enumerate(['X','Y','Z','VZ','Vpeak']):
     datac[:,i] = np.copy(data[key])
 
-if len(data['Vpeak'])%2==1:
-	datac = datac[:-1,:]
-
+half = int(len(data)/2)
 ## find the best parameters
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # generate random number arrays once and for all
-## generate an array of uniform random numbers for a given seed
-def generate_random(seed):
-	filename = home+'catalog/randnum/random_'+str(seed)+'.fits.gz'
-	uni = np.random.RandomState(seed=seed).rand(len(data))
-	Table([uni[:int(len(data)/2)],uni[int(len(data)/2):]],dtype=[np.float32,np.float32]).write(filename, format='fits',overwrite=True)
-	return Table([uni[:int(len(data)/2)],uni[int(len(data)/2):]],dtype=[np.float32,np.float32])
-## read the existing data
-def read_random(seed):
-	filename = home+'catalog/randnum/random_'+str(seed)+'.fits.gz'
-	return fits.open(filename)[1].data
+uniform_randoms = [np.random.RandomState(seed=int(x+1)).rand(len(data)) for x in range(nseed)]
 
-# generate nseed arrays of uniform random numbers    
-if os.path.exists(home+'catalog/randnum/')==False:
-	os.mkdir(home+'catalog/randnum/')
-	print('writing random number files...')
-	with Pool(processes = nseed) as p:
-		uniform_randoms = p.map(generate_random,np.arange(nseed)+1)
-else:
-	#ranpath = glob.glob(home+'catalog/randnum/*')
-	print('reading random number files...')
-	with Pool(processes = nseed) as p:
-		uniform_randoms = p.map(read_random,np.arange(nseed)+1)
-
-
-
-def sham_tpcf(uniform,sigma):
+# HAM application
+def sham_tpcf(uniform,sigma):v 
 	datav = np.copy(data['Vpeak'])
     	# shuffle the halo catalogue and select those have a galaxy inside
+
 	if gal=='LRG':
         	### shuffle and pick the Nth maximum values
-		rand = np.append(sigma*np.sqrt(-2*np.log(uniform['col0']))*np.cos(2*np.pi*uniform['col1']),sigma*np.sqrt(-2*np.log(uniform['col0']))*np.sin(2*np.pi*uniform['col1'])) 
+		rand = np.append(sigma*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
 		datav*=( 1+rand)
 		LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
 		print('LRG used')
+
 	if gal== 'ELG':
-		sigma_high,v_max,sigma_low = par[1],par[2],par[3]
-		rand1 = np.append(sigma*np.sqrt(-2*np.log(uniform['col0']))*np.cos(2*np.pi*uniform['col1']),sigma*np.sqrt(-2*np.log(uniform['col0']))*np.sin(2*np.pi*uniform['col1'])) 
+		sigma_high,v_max,sigma_low = sigma[0],sigma[1],par[2]
+		rand1 = np.append(sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
 		datav*=( 1+rand1)
 		org3  = datac[datav<v_max]
 		if len(org3)%2==1:
 			org3 = org3[:-1]
+		length = int(len(org3)/2)
         	### the second scattering, select haloes from the heaviest according to the scattered value
-		rand2 = np.append(sigma*np.sqrt(-2*np.log(uniform['col0'][:int(len(org3)+1)]))*np.cos(2*np.pi*uniform['col1']),sigma*np.sqrt(-2*np.log(uniform['col0']))*np.sin(2*np.pi*uniform['col1'])) 
-
-		datav*=( 1+rand)
-		org3[:,4]*= 1+np.random.normal(scale=sigma_low,size=len(org3))
+		rand2 = np.append(sigma_low*np.sqrt(-2*np.log(uniform[:length]))*np.cos(2*np.pi*uniform[-length:]),sigma_low*np.sqrt(-2*np.log(uniform[:length]))*np.sin(2*np.pi*uniform[-length:])) 
+		org3[:,4]*=( 1+rand2)
 		LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
 		print('ELG used')
+
     	### transfer to the redshift space
 	z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
 	z_redshift %=boxsize
@@ -180,9 +163,14 @@ def chi2(Sigma):
 	# identify the fitting multipoles
 	if multipole=='mono':
 		model = xi0
+        covcut = cov[binmin:binmax-1,binmin:binmax-1]
+        covR  = np.linalg.inv(covcut)*(Nmock-(Nbins-binmin)-2)/(Nmock-1)
 		OBS   = obscf['col2']
 	elif multipole=='quad':
 		model = np.append(xi0,xi2)
+        cov_tmp = np.vstack((cov[binmin:binmax-1,:],cov[binmin+binmax:binmax+binmax-1,:]))
+        covcut  = np.hstack((cov[:,binmin:binmax-1],cov_tmp[:,binmin+binmax:binmax+binmax-1]))
+        covR  = np.linalg.inv(covcut)*(Nmock-(Nbins-binmin)-2)/(Nmock-1)
 		OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
 	else:
 		model = np.append(xi0,xi2,xi4)
@@ -196,7 +184,6 @@ def chi2(Sigma):
 time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
-
 sigma = Minuit(chi2,Sigma=0.3,limit_Sigma=(0,0.7),error_Sigma=0.1,errordef=1)
 sigma.migrad(precision=0.001)  # run optimiser
 print('the best LRG distribution sigma is ',sigma.values[0])
@@ -227,7 +214,7 @@ plt.legend(label,loc=0)
 plt.title('correlation function')
 plt.xlabel('d_cov (Mpc $h^{-1}$)')
 plt.ylabel('d_cov^2 * $\\xi$')
-plt.savefig('cf_mono_bestfits_extra.png',bbox_tight=True)
+plt.savefig('cf_mono_bestfits_multiprocessing.png',bbox_tight=True)
 plt.close()
 
 '''
