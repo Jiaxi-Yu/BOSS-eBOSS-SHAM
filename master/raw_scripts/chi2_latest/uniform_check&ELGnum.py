@@ -54,6 +54,11 @@ its number density is 8.526405e-05 gal/(Mpc)**3
 SGC have 44901.41 galaxies
 its number density is 8.438856e-05 gal/(Mpc)**3
 difference is within 1%
+
+UNIT ELG numbers
+NGC:85264.05
+SGC:84388.56
+
 '''
 
 
