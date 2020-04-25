@@ -15,7 +15,7 @@ def obs(home,gal,GC,obsname,randname,obsout,rmin,rmax,nbins,zmin,zmax,Om,exist):
 	elif (gal=='ELG')&(exist==False):
                 obspc = ascii.read(obsname,format = 'no_header')  # obs pair counts
                 mu = np.linspace(0,1,200)
-                mon = ((obspc['col3']-2*obspc['col4']+obspc['col5'])/obspc['col5']/200).reshape(250,200)
+                mon = ((obspc['col3']-2*obspc['col4']+obspc['col5'])/obspc['col5']).reshape(250,200)
                 qua = mon * 2.5 * (3 * mu**2 - 1)
                 hexad = mon * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
 		## use trapz to integrate over mu
