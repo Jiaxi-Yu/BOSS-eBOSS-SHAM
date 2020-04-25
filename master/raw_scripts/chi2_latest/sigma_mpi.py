@@ -32,9 +32,9 @@ nthread  = 64
 autocorr = 1
 mu_max   = 1
 nmu      = 120
-LRGnum   = 4e5
+LRGnum   = int(4e5)
 autocorr = 1
-nseed    = 30
+nseed    = 5
 
 home      = '/global/cscratch1/sd/jiaxi/master/'
 if gal=='LRG':
@@ -58,8 +58,8 @@ obs2pcf  = home+'2PCF/obs/'+gal+'_'+GC+'.dat'
 
 # generate s and mu bins
 if rscale=='linear':
-	bins  = np.arange(rmin,rmax+1,1)
-	nbins = len(bins)-1
+    bins  = np.arange(rmin,rmax+1,1)
+    nbins = len(bins)-1
     binmin = rmin
     binmax = rmax
 
@@ -97,7 +97,10 @@ print('the analytical random pair counts are ready.')
 print('reading the halo catalogue for creating the galaxy catalogue...')
 halo = fits.open(halofile)
 if len(halo[1].data)%2==1:
-	data = halo[1].data[:-1]
+    data = halo[1].data[:-1]
+else:
+    data = halo[1].data
+    
 halo.close()
 datac = np.zeros((len(data),5))
 for i,key in enumerate(['X','Y','Z','VZ','Vpeak']):
@@ -110,75 +113,77 @@ H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # generate random number arrays once and for all
 uniform_randoms = [np.random.RandomState(seed=int(x+1)).rand(len(data)) for x in range(nseed)]
+print('uniform random number arrays are ready.')
 
 # HAM application
-def sham_tpcf(uniform,sigma):v 
-	datav = np.copy(data['Vpeak'])
+def sham_tpcf(uniform,sigma):
+    datav = np.copy(data['Vpeak'])
     	# shuffle the halo catalogue and select those have a galaxy inside
 
-	if gal=='LRG':
-        	### shuffle and pick the Nth maximum values
-		rand = np.append(sigma*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
-		datav*=( 1+rand)
-		LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
-		print('LRG used')
+    if gal=='LRG':
+        ### shuffle and pick the Nth maximum values
+        rand = np.append(sigma*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
+        datav*=( 1+rand)
+        LRGscat = datac[np.argpartition(-datav,LRGnum)[:LRGnum]]
+        print('LRG used')
 
-	if gal== 'ELG':
-		sigma_high,v_max,sigma_low = sigma[0],sigma[1],par[2]
-		rand1 = np.append(sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
-		datav*=( 1+rand1)
-		org3  = datac[datav<v_max]
-		if len(org3)%2==1:
-			org3 = org3[:-1]
-		length = int(len(org3)/2)
-        	### the second scattering, select haloes from the heaviest according to the scattered value
-		rand2 = np.append(sigma_low*np.sqrt(-2*np.log(uniform[:length]))*np.cos(2*np.pi*uniform[-length:]),sigma_low*np.sqrt(-2*np.log(uniform[:length]))*np.sin(2*np.pi*uniform[-length:])) 
-		org3[:,4]*=( 1+rand2)
-		LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
-		print('ELG used')
+    if gal== 'ELG':
+        sigma_high,v_max,sigma_low = sigma[0],sigma[1],par[2]
+        rand1 = np.append(sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
+        datav*=( 1+rand1)
+        org3  = datac[datav<v_max]
+        if len(org3)%2==1:
+            org3 = org3[:-1]		
+        length = int(len(org3)/2)
+        ### the second scattering, select haloes from the heaviest according to the scattered value
+        rand2 = np.append(sigma_low*np.sqrt(-2*np.log(uniform[:length]))*np.cos(2*np.pi*uniform[-length:]),sigma_low*np.sqrt(-2*np.log(uniform[:length]))*np.sin(2*np.pi*uniform[-length:])) 
+        org3[:,4]*=( 1+rand2)
+        LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
+        print('ELG used')
 
-    	### transfer to the redshift space
-	z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
-	z_redshift %=boxsize
-   	 ### count the galaxy pairs and normalise them
-	DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
-    	### calculate the 2pcf and the multipoles
-	mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
-	quad = mono * 2.5 * (3 * mu**2 - 1)
-	hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-	### use trapz to integrate over mu
-	xi0_single = np.trapz(mono, dx=1./nmu, axis=-1)
-	xi2_single = np.trapz(quad, dx=1./nmu, axis=-1)
-	xi4_single = np.trapz(hexa, dx=1./nmu, axis=-1)
-	return [xi0_single,xi2_single,xi4_single]
+    ### transfer to the redshift space
+    z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
+    z_redshift %=boxsize
+     ### count the galaxy pairs and normalise them
+    DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
+        ### calculate the 2pcf and the multipoles
+    mono = DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1
+    quad = mono * 2.5 * (3 * mu**2 - 1)
+    hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+    ### use trapz to integrate over mu
+    xi0_single = np.trapz(mono, dx=1./nmu, axis=-1)
+    xi2_single = np.trapz(quad, dx=1./nmu, axis=-1)
+    xi4_single = np.trapz(hexa, dx=1./nmu, axis=-1)
+    return [xi0_single,xi2_single,xi4_single]
 
+#from functools import partial
 def chi2(Sigma):
-    	# calculate mean monopole in parallel
-	with Pool(processes = nseed) as p:
-        	xi_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(Sigma)))
-    
+# calculate mean monopole in parallel
+    with Pool(processes = nseed) as p:
+        xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(Sigma)))
+        
 	# average the result for multiple seeds
-	xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0)[0],np.mean(xi2_tmp,axis=0)[1],np.mean(xi4_tmp,axis=0)[2]
-    
-	# identify the fitting multipoles
-	if multipole=='mono':
-		model = xi0
+    xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0)[0],np.mean(xi2_tmp,axis=0)[1],np.mean(xi4_tmp,axis=0)[2]
+
+    # identify the fitting multipoles
+    if multipole=='mono':
+        model = xi0
         covcut = cov[binmin:binmax-1,binmin:binmax-1]
         covR  = np.linalg.inv(covcut)*(Nmock-(Nbins-binmin)-2)/(Nmock-1)
-		OBS   = obscf['col2']
-	elif multipole=='quad':
-		model = np.append(xi0,xi2)
+        OBS   = obscf['col2']
+    elif multipole=='quad':
+        model = np.append(xi0,xi2)
         cov_tmp = np.vstack((cov[binmin:binmax-1,:],cov[binmin+binmax:binmax+binmax-1,:]))
         covcut  = np.hstack((cov[:,binmin:binmax-1],cov_tmp[:,binmin+binmax:binmax+binmax-1]))
         covR  = np.linalg.inv(covcut)*(Nmock-(Nbins-binmin)-2)/(Nmock-1)
-		OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
-	else:
-		model = np.append(xi0,xi2,xi4)
-   
-    	### calculate the covariance, residuals and chi2
-	res = OBS-model
-	#f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
-	return res.dot(covR.dot(res))
+        OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
+    else:
+        model = np.append(xi0,xi2,xi4)
+
+        ### calculate the covariance, residuals and chi2
+    res = OBS-model
+    #f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
+    return res.dot(covR.dot(res))
 
 # chi2 minimise
 time_start=time.time()
