@@ -1,0 +1,8 @@
+LRG NGC: 
+parallel calculation best param 0.122 
+chi-square fitting finished, costing 2798.3 s 
+the total LRG SHAM costs 3162.59 s
+LRG NGC: 
+parallel calculation best param 0.119 
+chi-square fitting finished, costing 2716.5 s 
+the total LRG SHAM costs 3109.06 s
