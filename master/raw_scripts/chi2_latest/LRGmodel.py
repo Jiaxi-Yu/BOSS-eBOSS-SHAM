@@ -1,6 +1,7 @@
 import matplotlib 
 matplotlib.use('agg')
 import time
+init = time.time()
 import numpy as np
 from astropy.table import Table
 from astropy.io import ascii
@@ -25,7 +26,7 @@ gal      = 'LRG'
 Om       = 0.31
 boxsize  = 1000
 rmin     = 5
-rmax     = 50
+rmax     = 30
 nthread  = 64
 autocorr = 1
 mu_max   = 1
@@ -104,7 +105,7 @@ obs(home,gal,GC,obsname,randname,obs2pcf,rmin,rmax,nbins,zmin,zmax,Om,os.path.ex
 hdu = fits.open(covfits) # cov([mono,quadru])
 cov = hdu[1].data['cov'+multipole]
 Nbins,Nmock = (hdu[1].data[multipole]).shape # Nbins=np.array([Nbins,Nm])
-errbar = np.std(hdu[1].data[multipole],axis=1)[binmin:binmax]
+errbar = np.std(hdu[1].data[multipole],axis=1)
 hdu.close()
 obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]  # obs 2pcf
 print('the covariance matrix and the observation 2pcf vector are ready.')
@@ -205,48 +206,70 @@ def chi2_slow(Sigma):
     
         ### calculate the covariance, residuals and chi2
     res = OBS-model
-    #f.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
+    fc.write('{} {} \n'.format(Sigma,res.dot(covR.dot(res))))
     return res.dot(covR.dot(res))
     
 # chi2 minimise
-chifile = gal+'_chi2_parallel.txt'
+chifile = gal+'_results_1scat.txt'
 f=open(chifile,'a')
 f.write(gal+' '+GC+': \n')
+chifile1 = gal+'_param+chi2_1scat.txt'
+fc=open(chifile1,'a')
+fc.write('# sigma chi2 \n')
 time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
 sigma = Minuit(chi2,Sigma=0.3,limit_Sigma=(0,0.7),error_Sigma=0.1,errordef=1)
 sigma.migrad(precision=0.001)  # run optimiser
-print('parallel calculation best param {:.3} \n'.format(sigma.values[0]))
+#print('parallel calculation best param {:.3} \n'.format(sigma.values[0]))
 time_end=time.time()
-f.write('chi-square fitting finished, costing {:.5} s \n'.format(time_end-time_start))
 f.write('parallel calculation best param {:.3} \n'.format(sigma.values[0]))
-
-
-# chi2 minimise
-time_start=time.time()
-print('chi-square fitting starts...')
-## method 1：Minute-> failed because it seems to be lost 
-sigma = Minuit(chi2_slow,Sigma=0.3,limit_Sigma=(0,0.7),error_Sigma=0.1,errordef=1)
-sigma.migrad(precision=0.001)  # run optimiser
-print('parallel calculation best param {:.3} \n'.format(sigma.values[0]))
-time_end=time.time()
 f.write('chi-square fitting finished, costing {:.5} s \n'.format(time_end-time_start))
-f.write('loop calculation best param {:.3} \n'.format(sigma.values[0]))
-f.close()
+fc.close()
 
 # plot the best fit result
 with Pool(processes = nseed) as p:
     xi_LRG = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma.values[0])))
-fig,ax =plt.subplots()
-ax.errorbar(s,s**2*obscf['col2'],s**2*errbar, marker='^',ecolor='k',ls="none")
-ax.plot(s,s**2*np.mean(xi_LRG,axis=0)[0],c='m',alpha=0.5)
-label = ['best fit','obs']
-plt.legend(label,loc=0)
-plt.title('SHAM for LRG: $\sigma=$'+str(sigma.values['Sigma'])[:5])
-plt.xlabel('d_cov (Mpc $h^{-1}$)')
-plt.ylabel('d_cov^2 * $\\xi$')
-plt.savefig('cf_mono_bestfit_'+gal+'_'+GC+'.png',bbox_tight=True)
-plt.close()
+    
+if multipole=='mono':    
+    fig,ax =plt.subplots(figsize=(8,6))
+    ax.errorbar(s,s**2*obscf['col2'],s**2*errbar[binmin:binmax], marker='^',ecolor='k',ls="none")
+    ax.plot(s,s**2*np.mean(xi_LRG,axis=0)[0],c='m',alpha=0.5)
+    label = ['best fit','obs']
+    plt.legend(label,loc=0)
+    plt.title('LRG in {}: sigma={:.4}'.format(GC,sigma.values[0]))
+    plt.xlabel('d_cov (Mpc $h^{-1}$)')
+    plt.ylabel('d_cov^2 * $\\xi$')
+    plt.savefig('cf_mono_bestfit_'+gal+'_'+GC+'.png',bbox_tight=True)
+    plt.close()
+if multipole=='quad':
+    fig =plt.figure(figsize=(16,6))
+    for col,covbin,k in zip(['col3','col4'],[int(0),int(200)],range(2)):
+        ax = plt.subplot2grid((1,2),(0,k)) 
+        ax.errorbar(s,s**2*obscf[col],s**2*errbar[binmin+covbin:binmax+covbin], marker='^',ecolor='k',ls="none")
+        ax.plot(s,s**2*np.mean(xi_LRG,axis=0)[k],c='m',alpha=0.5)
+        label = ['best fit','obs']
+        plt.legend(label,loc=0)
+        plt.title('LRG in {}: sigma={:.4}'.format(GC,sigma.values[0]))
+        plt.xlabel('d_cov (Mpc $h^{-1}$)')
+        plt.ylabel('d_cov^2 * $\\xi$')
+    plt.savefig('cf_quad_bestfit_'+gal+'_'+GC+'.png',bbox_tight=True)
+    plt.close()
+if multipole=='hexa':
+    fig =plt.figure(figsize=(24,6))
+    for col,covbin,k in zip(['col3','col4','col5'],[int(0),int(200),int(400)],range(3)):
+        ax = plt.subplot2grid((1,3),(0,k)) 
+        ax.errorbar(s,s**2*obscf[col],s**2*errbar[binmin+covbin:binmax+covbin], marker='^',ecolor='k',ls="none")
+        ax.plot(s,s**2*np.mean(xi_LRG,axis=0)[k],c='m',alpha=0.5)
+        label = ['best fit','obs']
+        plt.legend(label,loc=0)
+        plt.title('LRG in {}: sigma={:.4}'.format(GC,sigma.values[0]))
+        plt.xlabel('d_cov (Mpc $h^{-1}$)')
+        plt.ylabel('d_cov^2 * $\\xi$')
+    plt.savefig('cf_hexa_bestfit_'+gal+'_'+GC+'.png',bbox_tight=True)
+    plt.close()
 
+fin = time.time()  
+f.write('the total LRG SHAM costs {:.6} s \n'.format(fin-init))
+f.close()
 

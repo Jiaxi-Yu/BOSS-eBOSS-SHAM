@@ -111,20 +111,14 @@ print('the covariance matrix and the observation 2pcf vector are ready.')
 
 
 # HAM application
-def sham_tpcf(uniform,sigma_high,v_max,sigma_low):
+def sham_tpcf(uniform,sigma_high,v_high):
     datav = np.copy(data['Vpeak'])
     
     # shuffle the halo catalogue and select those have a galaxy inside    
     rand1 = np.append(sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
     datav*=( 1+rand1)
-    org3  = datac[datav<v_max]
-    if len(org3)%2==1:
-        org3 = org3[:-1]		
-    length = int(len(org3)/2)
-    ### the second scattering, select haloes from the heaviest according to the scattered value
-    rand2 = np.append(sigma_low*np.sqrt(-2*np.log(uniform[:length]))*np.cos(2*np.pi*uniform[-length:]),sigma_low*np.sqrt(-2*np.log(uniform[:length]))*np.sin(2*np.pi*uniform[-length:])) 
-    org3[:,4]*=( 1+rand2)
-    LRGscat = org3[np.argpartition(-org3[:,4],LRGnum)[:LRGnum]]
+    org3  = datac[(datav<v_high)]
+    LRGscat = org3[np.argpartition(-datav[(datav<v_high)],LRGnum)[:LRGnum]]
 
     ### transfer to the redshift space
     z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
@@ -142,11 +136,11 @@ def sham_tpcf(uniform,sigma_high,v_max,sigma_low):
     return [xi0_single,xi2_single,xi4_single]
 
 #from functools import partial
-def chi2(sigma_high,v_max,sigma_low):
+def chi2(sigma_high,v_high):
 # calculate mean monopole in parallel
     print('parallel calculation')
     with Pool(processes = nseed) as p:
-        xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma_high),repeat(v_max),repeat(sigma_low)))
+        xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma_high),repeat(v_high)))
     
     # average the result for multiple seeds
     xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0)[0],np.mean(xi0_tmp,axis=0)[1],np.mean(xi0_tmp,axis=0)[2]
@@ -174,31 +168,31 @@ def chi2(sigma_high,v_max,sigma_low):
 
         ### calculate the covariance, residuals and chi2
     res = OBS-model
-    fc.write('{} {} {} {} \n'.format(sigma_high,v_max,sigma_low,res.dot(covR.dot(res))))
+    fc.write('{} {} {} \n'.format(sigma_high,v_high,res.dot(covR.dot(res))))
     return res.dot(covR.dot(res))
 
  
 # chi2 minimise
-chifile = gal+'_results_2scat.txt'
+chifile = gal+'_results_1scat.txt'
 f=open(chifile,'a')
 f.write(gal+' '+GC+': \n')
-chifile1 = gal+'_param+chi2_2scat.txt'
+chifile1 = gal+'_param+chi2_1scat.txt'
 fc=open(chifile1,'a')
-fc.write('# sigma_high  v_max  sigma_low  chi2 \n')
+fc.write('# sigma_high  v_high  chi2 \n')
 time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
-sigma = Minuit(chi2,sigma_high=0.3,sigma_low=0.336,v_max=100,limit_sigma_high=(0,2),limit_sigma_low=(0,2),limit_v_max=(0,500),errordef=1) 
-sigma.migrad(precision=0.001)  # run optimiser
+sigma = Minuit(chi2,sigma_high=0.3,v_high=100.0,limit_sigma_high=(0,2),limit_v_high=(100,500),errordef=1) 
+sigma.migrad(precision=0.01)  # run optimiser
 time_end=time.time()
-f.write('parallel calculation best param sigma_high, v_max, sigma_low = {:.4},{:.6},{:.4} km/s \n'.format(sigma.values[0],sigma.values[1],sigma.values[2]))
-f.write('chi-square fitting finished, costing {:.5} s \n'.format(time_end-time_start))
+f.write('parallel calculation best param sigma_high, v_high = {:.3},{:.6} km/s \n'.format(sigma.values[0],sigma.values[1]))
 #
+f.write('chi-square fitting finished, costing {:.5} s \n'.format(time_end-time_start))
 fc.close()
 
 # plot the best fit result
 with Pool(processes = nseed) as p:
-    xi_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma.values[0]),repeat(sigma.values[1]),repeat(sigma.values[2])))
+    xi_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma.values[0]),repeat(sigma.values[1])))
 
     
 if multipole=='mono':    
@@ -207,10 +201,10 @@ if multipole=='mono':
     ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[0],c='m',alpha=0.5)
     label = ['best fit','obs']
     plt.legend(label,loc=0)
-    plt.title('ELG in {}: sigmahigh={:.4}, vcut={:.6} km/s, sigmalow={:.4}'.format(GC,sigma.values[0],sigma.values[1],sigma.values[2]))
+    plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values[0],sigma.values[1]))
     plt.xlabel('d_cov (Mpc $h^{-1}$)')
     plt.ylabel('d_cov^2 * $\\xi$')
-    plt.savefig('cf_mono_bestfit_'+gal+'_'+GC+'_2scat.png',bbox_tight=True)
+    plt.savefig('cf_mono_bestfit_'+gal+'_'+GC+'_1scat.png',bbox_tight=True)
     plt.close()
 if multipole=='quad':
     fig =plt.figure(figsize=(16,6))
@@ -220,10 +214,10 @@ if multipole=='quad':
         ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[k],c='m',alpha=0.5)
         label = ['best fit','obs']
         plt.legend(label,loc=0)
-        plt.title('ELG in {}: sigmahigh={:.4}, vcut={:.6} km/s, sigmalow={:.4}'.format(GC,sigma.values[0],sigma.values[1],sigma.values[2]))
+        plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values[0],sigma.values[1]))
         plt.xlabel('d_cov (Mpc $h^{-1}$)')
         plt.ylabel('d_cov^2 * $\\xi$')
-    plt.savefig('cf_quad_bestfit_'+gal+'_'+GC+'_2scat.png',bbox_tight=True)
+    plt.savefig('cf_quad_bestfit_'+gal+'_'+GC+'_1scat.png',bbox_tight=True)
     plt.close()
 if multipole == 'hexa':
     fig =plt.figure(figsize=(24,6))
@@ -233,10 +227,10 @@ if multipole == 'hexa':
         ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[k],c='m',alpha=0.5)
         label = ['best fit','obs']
         plt.legend(label,loc=0)
-        plt.title('ELG in {}: sigmahigh={:.4}, vcut={:.6} km/s, sigmalow={:.4}'.format(GC,sigma.values[0],sigma.values[1],sigma.values[2]))
+        plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values[0],sigma.values[1]))
         plt.xlabel('d_cov (Mpc $h^{-1}$)')
         plt.ylabel('d_cov^2 * $\\xi$')
-    plt.savefig('cf_hexa_bestfit_'+gal+'_'+GC+'_2scat.png',bbox_tight=True)
+    plt.savefig('cf_hexa_bestfit_'+gal+'_'+GC+'_1scat.png',bbox_tight=True)
     plt.close()
 
 # also plot the galaxy probability distribution 
@@ -247,21 +241,16 @@ for uniform in uniform_randoms:
     datav = np.copy(data['Vpeak'])   
     rand1 = np.append(sigma.values[0]*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma.values[0]*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
     datav*=( 1+rand1)
-    org3  = datac[datav<sigma.values[1]]
-    if len(org3)%2==1:
-        org3 = org3[:-1]		
-    length = int(len(org3)/2)
-    rand2 = np.append(sigma.values[2]*np.sqrt(-2*np.log(uniform[:length]))*np.cos(2*np.pi*uniform[-length:]),sigma.values[2]*np.sqrt(-2*np.log(uniform[:length]))*np.sin(2*np.pi*uniform[-length:]))
-    datavc = np.copy(org3[:,4])
-    datavc*=( 1+rand2)
-    LRGorg = org3[:,4][np.argpartition(-datavc,LRGnum)[:LRGnum]]
+    org3  = datac[(datav<sigma.values[1])]
+    LRGorg = org3[:,4][np.argpartition(-datav[(datav<sigma.values[1])],LRGnum)[:LRGnum]]
     n2,bins2=np.histogram(LRGorg,bins=50,range=(10,1000))
+    
     ax.plot(bins[:-1],n2/n,alpha=0.5,lw=0.5)
-plt.title('ELG {} distribution: sigmahigh={:.4}, vcut={:.6} km/s, sigmalow={:.4}'.format(GC,sigma.values[0],sigma.values[1],sigma.values[2]))
+plt.title('ELG {} distribution: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values[0],sigma.values[1]))
 plt.ylabel('# of galaxies in 1 halo')
 plt.xlabel('Vmax (km/s)')
 ax.set_xlim(1000,10)
-plt.savefig('distributions'+gal+'_'+GC+'_2scat.png',bbox_tight=True)
+plt.savefig('distributions'+gal+'_'+GC+'_1scat.png',bbox_tight=True)
 plt.close()
 
 
