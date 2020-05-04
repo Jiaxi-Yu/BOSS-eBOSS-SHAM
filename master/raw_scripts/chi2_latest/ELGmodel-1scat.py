@@ -185,14 +185,14 @@ print('chi-square fitting starts...')
 sigma = Minuit(chi2,sigma_high=0.3,v_high=100.0,limit_sigma_high=(0,2),limit_v_high=(100,500),errordef=0.5) 
 sigma.migrad(precision=0.001)  # run optimiser
 time_end=time.time()
-f.write('parallel calculation best param sigma_high, v_high = {:.3},{:.6} km/s \n'.format(sigma.values[0],sigma.values[1]))
+f.write('parallel calculation best param sigma_high, v_high = {:.3},{:.6} km/s \n'.format(sigma.values['sigma_high'],sigma.values['v_high']))
 #
 f.write('chi-square fitting finished, costing {:.5} s \n'.format(time_end-time_start))
 fc.close()
 
 # plot the best fit result
 with Pool(processes = nseed) as p:
-    xi_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma.values['sigma_high']),repeat(sigma.values['v_cut'])))
+    xi_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma.values['sigma_high']),repeat(sigma.values['v_high'])))
 
     
 if multipole=='mono':    
@@ -201,7 +201,7 @@ if multipole=='mono':
     ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[0],c='m',alpha=0.5)
     label = ['best fit','obs']
     plt.legend(label,loc=0)
-    plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values[0],sigma.values[1]))
+    plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values['sigma_high'],sigma.values['v_high']))
     plt.xlabel('d_cov (Mpc $h^{-1}$)')
     plt.ylabel('d_cov^2 * $\\xi$')
     plt.savefig('cf_mono_bestfit_'+gal+'_'+GC+'_1scat.png',bbox_tight=True)
@@ -214,7 +214,7 @@ if multipole=='quad':
         ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[k],c='m',alpha=0.5)
         label = ['best fit','obs']
         plt.legend(label,loc=0)
-        plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values[0],sigma.values[1]))
+        plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values['sigma_high'],sigma.values['v_high']))
         plt.xlabel('d_cov (Mpc $h^{-1}$)')
         plt.ylabel('d_cov^2 * $\\xi$')
     plt.savefig('cf_quad_bestfit_'+gal+'_'+GC+'_1scat.png',bbox_tight=True)
@@ -227,7 +227,7 @@ if multipole == 'hexa':
         ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[k],c='m',alpha=0.5)
         label = ['best fit','obs']
         plt.legend(label,loc=0)
-        plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values[0],sigma.values[1]))
+        plt.title('ELG in {}: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values['sigma_high'],sigma.values['v_high']))
         plt.xlabel('d_cov (Mpc $h^{-1}$)')
         plt.ylabel('d_cov^2 * $\\xi$')
     plt.savefig('cf_hexa_bestfit_'+gal+'_'+GC+'_1scat.png',bbox_tight=True)
@@ -239,14 +239,14 @@ n,bins=np.histogram(datav,bins=50,range=(10,1000))
 fig,ax=plt.subplots()
 for uniform in uniform_randoms:
     datav = np.copy(data['Vpeak'])   
-    rand1 = np.append(sigma.values[0]*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma.values[0]*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
+    rand1 = np.append(sigma.values['sigma_high']*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma.values['sigma_high']*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
     datav*=( 1+rand1)
-    org3  = datac[(datav<sigma.values[1])]
-    LRGorg = org3[:,4][np.argpartition(-datav[(datav<sigma.values[1])],LRGnum)[:LRGnum]]
+    org3  = datac[(datav<sigma.values['v_high'])]
+    LRGorg = org3[:,4][np.argpartition(-datav[(datav<sigma.values['v_high'])],LRGnum)[:LRGnum]]
     n2,bins2=np.histogram(LRGorg,bins=50,range=(10,1000))
     
     ax.plot(bins[:-1],n2/n,alpha=0.5,lw=0.5)
-plt.title('ELG {} distribution: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values[0],sigma.values[1]))
+plt.title('ELG {} distribution: sigmahigh={:.4}, vhigh={:.6} km/s'.format(GC,sigma.values['sigma_high'],sigma.values['v_high']))
 plt.ylabel('# of galaxies in 1 halo')
 plt.xlabel('Vmax (km/s)')
 ax.set_xlim(1000,10)
@@ -256,6 +256,7 @@ plt.close()
 
 fin = time.time()  
 f.write('the total ELG SHAM costs {:.6} s \n'.format(fin-init))
+f.write(sigma.get_fmin())
 f.close()
 
 fig,ax = plt.subplots()
