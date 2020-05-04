@@ -173,17 +173,17 @@ def chi2(sigma_high,v_high):
 
  
 # chi2 minimise
-chifile = gal+'_results_1scat.txt'
+chifile = gal+'_'+GC+'_results_1scat.txt'
 f=open(chifile,'a')
 f.write(gal+' '+GC+': \n')
-chifile1 = gal+'_param+chi2_1scat.txt'
+chifile1 = gal+'_'+GC+'_param+chi2_1scat.txt'
 fc=open(chifile1,'a')
 fc.write('# sigma_high  v_high  chi2 \n')
 time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
-sigma = Minuit(chi2,sigma_high=0.3,v_high=100.0,limit_sigma_high=(0,2),limit_v_high=(100,500),errordef=1) 
-sigma.migrad(precision=0.01)  # run optimiser
+sigma = Minuit(chi2,sigma_high=0.3,v_high=100.0,limit_sigma_high=(0,2),limit_v_high=(100,500),errordef=0.5) 
+sigma.migrad(precision=0.001)  # run optimiser
 time_end=time.time()
 f.write('parallel calculation best param sigma_high, v_high = {:.3},{:.6} km/s \n'.format(sigma.values[0],sigma.values[1]))
 #
@@ -192,7 +192,7 @@ fc.close()
 
 # plot the best fit result
 with Pool(processes = nseed) as p:
-    xi_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma.values[0]),repeat(sigma.values[1])))
+    xi_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(sigma.values['sigma_high']),repeat(sigma.values['v_cut'])))
 
     
 if multipole=='mono':    
@@ -258,4 +258,7 @@ fin = time.time()
 f.write('the total ELG SHAM costs {:.6} s \n'.format(fin-init))
 f.close()
 
-## LRG observation consistency
+fig,ax = plt.subplots()
+sigma.draw_contour('sigma_high','v_high', show_sigma=True)
+plt.savefig(gal+'_'+GC+'_chi2_contour.png',bbox_tight=True)
+plt.close()

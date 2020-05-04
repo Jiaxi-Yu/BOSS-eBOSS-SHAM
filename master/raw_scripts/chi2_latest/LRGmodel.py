@@ -210,22 +210,23 @@ def chi2_slow(Sigma):
     return res.dot(covR.dot(res))
     
 # chi2 minimise
-chifile = gal+'_results_1scat.txt'
+chifile = gal+'_'+GC+'_results_1scat.txt'
 f=open(chifile,'a')
 f.write(gal+' '+GC+': \n')
-chifile1 = gal+'_param+chi2_1scat.txt'
+chifile1 = gal+'_'+GC+'_param+chi2_1scat.txt'
 fc=open(chifile1,'a')
 fc.write('# sigma chi2 \n')
 time_start=time.time()
 print('chi-square fitting starts...')
 ## method 1：Minute-> failed because it seems to be lost 
-sigma = Minuit(chi2,Sigma=0.3,limit_Sigma=(0,0.7),error_Sigma=0.1,errordef=1)
+sigma = Minuit(chi2,Sigma=0.3,limit_Sigma=(0,0.7),error_Sigma=0.1,errordef=0.5)
 sigma.migrad(precision=0.001)  # run optimiser
 #print('parallel calculation best param {:.3} \n'.format(sigma.values[0]))
 time_end=time.time()
 f.write('parallel calculation best param {:.3} \n'.format(sigma.values[0]))
 f.write('chi-square fitting finished, costing {:.5} s \n'.format(time_end-time_start))
 fc.close()
+
 
 # plot the best fit result
 with Pool(processes = nseed) as p:
@@ -273,3 +274,7 @@ fin = time.time()
 f.write('the total LRG SHAM costs {:.6} s \n'.format(fin-init))
 f.close()
 
+fig,ax = plt.subplots()
+sigma.draw_profile('Sigma')
+plt.savefig(gal+'_'+GC+'_chi2.png',bbox_tight=True)
+plt.close()
