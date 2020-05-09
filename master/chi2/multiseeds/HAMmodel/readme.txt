@@ -36,4 +36,21 @@ it's not converged, so it cannot be produced.
 3. chi2 robust test:
 there are multipule local minimums. =>chi2 is non-parabola, so we should use another minimizer
 
+4. until the 5th run, we didn't use the correct UNIT simulation redshift slice.
+
+*****************************
+the 6th run:
+*****************************
+1. chi2 in the same range for nseed=3 and nseed=30 produce different chi2-sigma relation.
+plot nseed=3,10,20,30 with range 5-25Mpc/h to see the difference->chi2 is smaller(fewer data points), but still non-parabolic
+(but use the z=0.895 slice)
+
+it means that the statistical fluctuation will affect the chi2 relation, nseed=30 is enough, but still non-parabolic
+
+2. use Vpeak instead of Vmax:
+
+
+
+
+
 
