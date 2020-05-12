@@ -47,10 +47,34 @@ plot nseed=3,10,20,30 with range 5-25Mpc/h to see the difference->chi2 is smalle
 
 it means that the statistical fluctuation will affect the chi2 relation, nseed=30 is enough, but still non-parabolic
 
-2. use Vpeak instead of Vmax: 
+2. use Vpeak instead of Vmax in quadrupole: 
 It successfully converged! But the galaxy distribution is not as good as Vmax.
+nseed = 30 is converged, but nseed=3,10,20 all have potential problems for being non-parabolic.
+
+*********************************
+the 7th run: the correct UNIT slice + quadrupole fitting 5-25 Mpc/h +nseed=30(except for stability test)
+*********************************
+1. preference for quadrupole??????
+covariance matrices are correct=> different due to float precision
+quadrupoles is not suseptible to sigma, and LRG quadrupole is completely out. => maybe the wrong z?????? no
+
+2. Vpeak vs Vmax quadrupole fitting
+Vmax best fitting is only a local minimum instead of a global minimum.
 
 
+3. SGC Vmax converged, but quadrupole still away from good. chi2 zoom-in is not parabolic.
+
+*********************************
+
+*********************************
+
+
+s=np.array(*post_equal*.dat) # remove the chi2
+
+s = MCSamples(samples = s, labels=parameters) # !!!!!??????
+#s = MCSamples(samples = s)
+g = plots.getSubplotPlotter()
+g.triangle_plot(s, filled=True)
 
 
 
