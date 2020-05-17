@@ -1,4 +1,4 @@
-import matplotl/ib 
+import matplotlib 
 matplotlib.use('agg')
 import time
 import numpy as np
@@ -63,20 +63,39 @@ its number density is 0.000232783 gal/(Mpc)**3
 
 their number density difference is around 9%
 
-
-
-
-
-
 UNIT ELG numbers
 SGC:349256
 NGC:410223
 
+finally use 4e5 for NGC/SGC LRG/ELG
 '''
 
 
+# calculate neff
+c=299792.458
+Om=0.31
+nz = np.loadtxt('/media/jiaxi/disk/Master/obs/nbar_eBOSS_ELG_v7.dat')
+chi = np.zeros(len(nz)*4)
+
+zbins = np.hstack((nz[:,0],nz[:,2],nz[:,4],nz[:,6]))
+for j,dz in enumerate(zbins):
+    z = np.linspace(0,dz,201)
+    chi[j] = np.trapz(c/100/np.sqrt(Om*(1+z)**3+1-Om),dx = z[1]-z[0])
+
+chibins = np.vstack((chi[:len(nz)],chi[len(nz):len(nz)*2],chi[len(nz)*2:len(nz)*3],chi[len(nz)*3:len(nz)*4])).T
+nchi    = np.vstack((nz[:,1],nz[:,3],nz[:,5],nz[:,7])).T
+
+nchi_chi2 = nchi**2*chibins**2
+chi2  = chibins**2
+int_nchi2_chi2 = np.sum((nchi_chi2[:-1,:]+nchi_chi2[1:,:])/2*(chibins[1:,:]-chibins[:-1,:]),axis=0)
+int_chi2 = np.sum((chi2[:-1,:]+chi2[1:,:])/2*(chibins[1:,:]-chibins[:-1,:]),axis=0)
 
 
+neff = np.sqrt(int_nchi2_chi2/int_chi2)
 
-
+'''
+ELG chunk densities are 
+chunk 21        22            23          25
+0.00018605, 0.00020091, 0.00017203, 0.00019391
+'''
 
