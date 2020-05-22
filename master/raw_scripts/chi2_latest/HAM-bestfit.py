@@ -42,6 +42,7 @@ if gal == 'ELG':
     zmin     = 0.6
     zmax     = 1.1
     z = 0.8594
+    precut   =80
     mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
     obsname  = home+'catalog/pair_counts_s-mu_pip_eBOSS_'+gal+'_'+GC+'_v7.dat'
     halofile = home+'catalog/UNIT_hlist_0.53780.fits.gz' 
@@ -49,6 +50,7 @@ if gal == 'LRG':
     LRGnum   = int(6.26e4)
     zmin     = 0.6
     zmax     = 1.0
+    precut=160
     z = 0.7018
     mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
     obsname  = home+'catalog/eBOSS_'+gal+'_clustering_'+GC+'_v7_2.dat.fits'
@@ -83,9 +85,8 @@ print('the analytical random pair counts are ready.')
 # create the halo catalogue and plot their 2pcf
 print('reading the halo catalogue for creating the galaxy catalogue...')
 halo = fits.open(halofile)
-if gal=='LRG':
-    sel=(halo[1].data[var]>precut)
-    halo[1].data = halo[1].data[sel]
+sel=(halo[1].data[var]>precut)
+halo[1].data = halo[1].data[sel]
 # make sure len(data) is even
 if len(halo[1].data)%2==1:
     data = halo[1].data[:-1]
@@ -103,9 +104,10 @@ datac = datac.astype('float32')
 half = int(len(data)/2)
 
 # generate nseed Gaussian random number arrays in a list
-print('generating uniform random number arrays...')
-uniform_randoms = [np.random.RandomState(seed=int(time.time()*x)).rand(len(datac)).astype('float32') for x in np.random.uniform(0,1,size=nseed)] 
-uniform_randoms1 = [np.random.RandomState(seed=int(time.time()*x)).rand(len(datac)).astype('float32') for x in np.random.uniform(0,1,size=nseed)] 
+print('reading uniform random number arrays...')
+
+uniform_randoms = [np.random.RandomState(seed=1000*x).rand(len(data)).astype('float32') for x in range(nseed)] 
+uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(data)).astype('float32') for x in range(nseed)] 
 print('the uniform random number dtype is ',uniform_randoms[0].dtype)
 
 # generate covariance matrices and observations
