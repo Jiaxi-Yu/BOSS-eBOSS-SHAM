@@ -64,9 +64,25 @@ Vmax best fitting is only a local minimum instead of a global minimum.
 
 3. SGC Vmax converged, but quadrupole still away from good. chi2 zoom-in is not parabolic.
 
-*********************************
 
-*********************************
+************************************
+the 8th run: the same as 7th run + use Vpeak + the same model for LRG & ELG +nseed 60
+************************************
+LRG_2cuts: poor fitting and large error -> LRG_1cut still poor fitting and smaller error (error meaningless due to un-convergence)
+-> tune the number density for LRG_2cuts to solve the poor fitting
+
+ELG_nseeds60 : out of memory ->nseed40: large error
+
+use ELG: neff = 2.93e-4 & LRG: neff = 6.26e-5 for the best fit and MCMC
+
+LRG precut =170km/s: speed up the code and didn't strongly affect the result. 
+for 1 chi2 calculation:
+t_previous =1min 37s ; t_cut = 18.6 s
+chi2_previous = 73.34(69.41); chi2_cut=63.17971(74.74)=>chi2 changes if we use different uniform random arrays=> save one
+
+
+
+
 
 
 s=np.array(*post_equal*.dat) # remove the chi2
