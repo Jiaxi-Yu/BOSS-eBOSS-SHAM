@@ -1,0 +1,19 @@
+multinest run in multiple nodes:
+
+************************************
+the 1st run:0522
+************************************
+1. reload mpi4py3.1.0 to make sure pymultinest can run on multiple nodes. 
+2. use Vpeak and precut LRG by V<160km/s and ELG by V<80km/s
+3. use the 1scat 1cut model for both ELG and LRG:
+
+4. all the posteriors are double peaks: 2nd run investigate whether it is caused by precut or 1cut (use LRG)
+5. LRG-SGC and ELG-NGC match the iminuit result mainly due to their large error bars
+
+************************************
+the 2nd run:0523
+************************************
+1. compare LRG NGC&SGC: no-pre+1cut vs pre+1cut(the effect of precut)
+2. compare LRG NGC&SGC: no-pre+1cut vs no-pre+0cut(the effect of 1cut for LRG)
+
+
