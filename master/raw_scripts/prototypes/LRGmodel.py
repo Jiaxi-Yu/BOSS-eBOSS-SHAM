@@ -21,8 +21,9 @@ import sys
 
 # variables
 rscale = 'linear' # 'log'
-multipole= 'mono' # 'mono','quad','hexa'
+multipole= 'quad' # 'mono','quad','hexa'
 gal      = 'LRG' 
+var      = 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
 rmin     = 5
@@ -67,18 +68,27 @@ print('the analytical random pair counts are ready.')
 
 # create the halo catalogue and plot their 2pcf***************
 print('reading the halo catalogue for creating the galaxy catalogue...')
+ini = time.time()
 halofile = home+'catalog/UNIT_hlist_0.58760.fits.gz' 
 halo = fits.open(halofile)
 
 if len(halo[1].data)%2==1:
     data = halo[1].data[:-1]
 else:
-    data = halo[1].data
-    
+    data = halo[1].data    
 halo.close()
+'''
 datac = np.zeros((len(data),5))
-for i,key in enumerate(['X','Y','Z','VZ','Vpeak']):
+for i,key in enumerate(['X','Y','Z','VZ',var]):
     datac[:,i] = np.copy(data[key])
+'''
+datac = np.zeros((len(data),4))
+for i,key in enumerate(['X','Y','Z','VZ']):
+    datac[:,i] = np.copy(data[key])    
+V = np.copy(data[var])
+
+end = time.time()
+print('{:.5} s'.format(end-ini))
 
 half = int(len(datac)/2)
 ## find the best parameters
@@ -86,8 +96,21 @@ Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # generate random number arrays once and for all
+print('generating uniform random number arrays...')
+uniform_randoms = [np.random.RandomState(seed=int(time.time()*x)).rand(len(datac)).astype('float32') for x in np.random.uniform(0,1,size=nseed)] 
+uniform_randoms1 = [np.random.RandomState(seed=int(time.time()*x)).rand(len(datac)).astype('float32') for x in np.random.uniform(0,1,size=nseed)] 
+print('the uniform random number dtype is ',uniform_randoms[0].dtype)
+
+'''
 uniform_randoms = [np.random.RandomState(seed=int(x+1)).rand(len(datac)) for x in range(nseed)]
-print('uniform random number arrays are ready.')
+#still float64
+tmax = 1<<np.finfo(np.float32).nmant
+uniform_randoms = [np.random.RandomState(seed=int(time.time()*x)).randint(0,tmax,size=len(datac),dtype='int32')/ np.float32(tmax) for x in np.random.uniform(0,1,size=nseed)]
+# there are 0 values that will affect np.log(uniform)
+uniform_randoms = [np.random.RandomState(seed=int(time.time()*x)).rand(len(datac)).astype('float32') for x in np.random.uniform(0,1,size=nseed)]
+#print('the uniform random number dtype is ',uniform_randoms[0].dtype)
+#print('uniform random number arrays are ready.')
+'''
 
 
 #for GC in ['NGC','SGC']:
@@ -105,7 +128,6 @@ obs(home,gal,GC,obsname,randname,obs2pcf,rmin,rmax,nbins,zmin,zmax,Om,os.path.ex
 
 # Read the covariance matrix and 
 hdu = fits.open(covfits) # cov([mono,quadru])
-cov = hdu[1].data['cov'+multipole]
 Nmock = (hdu[1].data[multipole]).shape[1] # Nbins=np.array([Nbins,Nm])
 errbar = np.std(hdu[1].data[multipole],axis=1)
 hdu.close()
@@ -115,9 +137,9 @@ print('the covariance matrix and the observation 2pcf vector are ready.')
 
 # HAM application
 def sham_tpcf(uniform,sigma):
-    datav = np.copy(data['Vpeak'])
-        # shuffle the halo catalogue and select those have a galaxy inside
-
+    #datav = np.copy(data[var])
+    datav = np.copy(V)
+    # shuffle the halo catalogue and select those have a galaxy inside
     if gal=='LRG':
         ### shuffle and pick the Nth maximum values
         rand = np.append(sigma*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
@@ -142,29 +164,39 @@ def sham_tpcf(uniform,sigma):
 #from functools import partial
 def chi2(Sigma):
 # calculate mean monopole in parallel
-    print('parallel calculation')
+    '''
     with Pool(processes = nseed) as p:
         xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(Sigma)))
     
     # average the result for multiple seeds
     xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0)[0],np.mean(xi0_tmp,axis=0)[1],np.mean(xi0_tmp,axis=0)[2]
-
+    '''
+    with Pool(processes = nseed) as p:
+        xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(np.float32(Sigma))))
+    print('the second calculation')
+    with Pool(processes = nseed) as p:
+        xi1_tmp = p.starmap(sham_tpcf,zip(uniform_randoms1,repeat(np.float32(Sigma))))
+    
+    # average the result for multiple seeds
+    xi0,xi2,xi4 = (np.mean(xi0_tmp,axis=0,dtype='float32')[0]+np.mean(xi1_tmp,axis=0,dtype='float32')[0])/2,(np.mean(xi0_tmp,axis=0,dtype='float32')[1]+np.mean(xi1_tmp,axis=0,dtype='float32')[1])/2,(np.mean(xi0_tmp,axis=0,dtype='float32')[2]+np.mean(xi1_tmp,axis=0,dtype='float32')[2])/2
+    #xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0,dtype='float32')[0],np.mean(xi0_tmp,axis=0,dtype='float32')[1],np.mean(xi0_tmp,axis=0,dtype='float32')[2]
+    
+    
     # identify the fitting multipoles
     if multipole=='mono':
         model = xi0
-        covcut = cov[binmin:binmax,binmin:binmax]
-        OBS   = obscf['col2']
-    elif multipole=='quad':
+        mocks = hdu[1].data[multipole][binmin:binmax,:]
+        covcut = np.cov(mocks)
+        OBS   = obscf['col3']
+    if multipole=='quad':
         model = np.append(xi0,xi2)
-        covlen = int(len(cov)/2)
-        cov_tmp = np.vstack((cov[binmin:binmax,:],cov[binmin+covlen:binmax+covlen,:]))
-        covcut  = np.hstack((cov_tmp[:,binmin:binmax],cov_tmp[:,binmin+covlen:binmax+covlen]))
-        OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
-    else:
+        mocks = np.vstack((hdu[1].data[multipole][binmin:binmax,:],hdu[1].data[multipole][binmin+200:binmax+200,:]))
+        covcut  = np.cov(mocks)
+        OBS   = np.append(obscf['col3'],obscf['col4'])  # obs([mono,quadru])
+    if multipole=='hexa':
         model = np.append(xi0,xi2,xi4)
-        covlen = int(len(cov)/3)
-        cov_tmp = np.vstack((cov[binmin:binmax,:],cov[binmin+covlen:binmax+covlen,:],cov[binmin+2*covlen:binmax+2*covlen,:]))
-        covcut  = np.hstack((cov_tmp[:,binmin:binmax],cov_tmp[:,binmin+covlen:binmax+covlen],cov_tmp[:,binmin+2*covlen:binmax+2*covlen]))
+        mocks = np.vstack((hdu[1].data[multipole][binmin:binmax,:],hdu[1].data[multipole][binmin+200:binmax+200,:],hdu[1].data[multipole][binmin+400:binmax+400,:]))
+        covcut  = np.cov(mocks)
         OBS   = np.append(obscf['col3'],obscf['col4'],obscf['col5'])
     
     ### calculate the covariance, residuals and chi2
@@ -193,10 +225,10 @@ if sys.argv[2]=='scipy':
     f.write(str(opt.success)+'\n')
     f.write(str(opt.x)+'\n')
 else:
-    chifile = gal+'_'+GC+'_results.txt'
+    chifile = gal+'_'+GC+'_'+var+'_results.txt'
     f=open(chifile,'a')
     f.write(gal+' '+GC+': \n')
-    chifile1 = gal+'_'+GC+'_param+chi2.txt'
+    chifile1 = gal+'_'+GC+'_'+var+'_param+chi2.txt'
     fc=open(chifile1,'a')
     fc.write('# sigma chi2 \n')
     sigma = Minuit(chi2,Sigma=0.3,limit_Sigma=(0,0.7),error_Sigma=0.1,errordef=0.5)
@@ -215,6 +247,10 @@ time_end=time.time()
 
 f.write('chi-square fitting finished, costing {:.5} s \n'.format(time_end-time_start))
 
+fin = time.time()  
+f.write('the total LRG SHAM costs {:.6} s \n'.format(fin-init))
+f.close()
+
 
 # plot the best fit result
 with Pool(processes = nseed) as p:
@@ -222,14 +258,14 @@ with Pool(processes = nseed) as p:
     
 if multipole=='mono':    
     fig,ax =plt.subplots(figsize=(8,6))
-    ax.errorbar(s,s**2*obscf['col2'],s**2*errbar[binmin:binmax], marker='^',ecolor='k',ls="none")
+    ax.errorbar(s,s**2*obscf['col3'],s**2*errbar[binmin:binmax], marker='^',ecolor='k',ls="none")
     ax.plot(s,s**2*np.mean(xi_LRG,axis=0)[0],c='m',alpha=0.5)
     label = ['best fit','obs']
     plt.legend(label,loc=0)
-    plt.title('LRG in {}: sigma={:.4} using Vpeak'.format(GC,sigma.values['Sigma']))
+    plt.title('LRG in {}: sigma={:.4} using {}'.format(GC,sigma.values['Sigma'],var))
     plt.xlabel('d_cov (Mpc $h^{-1}$)')
     plt.ylabel('d_cov^2 * $\\xi$')
-    plt.savefig('cf_mono_bestfit_'+gal+'_'+GC+'_vpeak.png',bbox_tight=True)
+    plt.savefig('cf_mono_bestfit_'+gal+'_'+GC+'_'+var+'.png',bbox_tight=True)
     plt.close()
 if multipole=='quad':
     fig =plt.figure(figsize=(16,6))
@@ -239,10 +275,10 @@ if multipole=='quad':
         ax.plot(s,s**2*np.mean(xi_LRG,axis=0)[k],c='m',alpha=0.5)
         label = ['best fit','obs']
         plt.legend(label,loc=0)
-        plt.title('LRG in {}: sigma={:.4} using Vpeak'.format(GC,sigma.values['Sigma']))
+        plt.title('LRG in {}: sigma={:.4} using {}'.format(GC,sigma.values['Sigma'],var))
         plt.xlabel('d_cov (Mpc $h^{-1}$)')
         plt.ylabel('d_cov^2 * $\\xi$')
-    plt.savefig('cf_quad_bestfit_'+gal+'_'+GC+'_vpeak.png',bbox_tight=True)
+    plt.savefig('cf_quad_bestfit_'+gal+'_'+GC+'_'+var+'.png',bbox_tight=True)
     plt.close()
 if multipole=='hexa':
     fig =plt.figure(figsize=(24,6))
@@ -252,49 +288,44 @@ if multipole=='hexa':
         ax.plot(s,s**2*np.mean(xi_LRG,axis=0)[k],c='m',alpha=0.5)
         label = ['best fit','obs']
         plt.legend(label,loc=0)
-        plt.title('LRG in {}: sigma={:.4} using vpeak'.format(GC,sigma.values['Sigma']))
+        plt.title('LRG in {}: sigma={:.4} using {}'.format(GC,sigma.values['Sigma'],var))
         plt.xlabel('d_cov (Mpc $h^{-1}$)')
         plt.ylabel('d_cov^2 * $\\xi$')
-    plt.savefig('cf_hexa_bestfit_'+gal+'_'+GC+'_vpeak.png',bbox_tight=True)
+    plt.savefig('cf_hexa_bestfit_'+gal+'_'+GC+'_'+var+'.png',bbox_tight=True)
     plt.close()
 
-fin = time.time()  
-f.write('the total LRG SHAM costs {:.6} s \n'.format(fin-init))
-f.close()
-
-
 # also plot the galaxy probability distribution 
-datav = np.copy(data['Vpeak']) 
+#datav = np.copy(data[var]) 
+datav = np.copy(V)
 n,bins=np.histogram(datav,bins=50,range=(10,1000))
 fig,ax=plt.subplots()
 for uniform in uniform_randoms:
-    datav = np.copy(data['Vpeak'])   
+    #datav = np.copy(data[var]) 
+    datav=np.copy(V)
     rand1 = np.append(sigma.values['Sigma']*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma.values['Sigma']*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
     datav*=( 1+rand1)
-    LRGorg = datac[:,4][np.argpartition(-datav,LRGnum)[:LRGnum]]
+    #LRGorg = datac[:,4][np.argpartition(-datav,LRGnum)[:LRGnum]]
+    LRGorg = V[np.argpartition(-datav,LRGnum)[:LRGnum]]
     n2,bins2=np.histogram(LRGorg,bins=50,range=(10,1000))
     
     ax.plot(bins[:-1],n2/n,alpha=0.5,lw=0.5)
-plt.title('LRG {} distribution: Sigma={:.4} using Vpeak'.format(GC,sigma.values['Sigma']))
+plt.title('LRG {} distribution: Sigma={:.4} using {}'.format(GC,sigma.values['Sigma'],var))
 plt.ylabel('# of galaxies in 1 halo')
-plt.xlabel('Vpeak (km/s)')
+plt.xlabel(var+' (km/s)')
 ax.set_xlim(1000,10)
-plt.savefig(gal+'_'+GC+'_1scat_Vpeak_distr.png',bbox_tight=True)
+plt.savefig(gal+'_'+GC+'_1scat_'+var+'_distr.png',bbox_tight=True)
 plt.close()
 
+'''
+# plot the mono+quad multipoles and present the scattering from 
+'''
 
 
 '''
-fig,ax = plt.subplots()
-sigma.draw_profile('Sigma')
-plt.savefig(gal+'_'+GC+'_chi2.png',bbox_tight=True)
-plt.close()
-
-
+# calculate mean multipoles in loop
 #from functools import partial
 xi0_tmp=[x for x in np.arange(nseed)]
 def chi2_slow(Sigma):
-# calculate mean monopole in parallel
     print('loop calculation')
     for i,uni in enumerate(uniform_randoms):
         xi0_tmp[i] = sham_tpcf(uni,Sigma)
@@ -307,14 +338,14 @@ def chi2_slow(Sigma):
         model = xi0
         covcut = cov[binmin:binmax,binmin:binmax]
         covR  = np.linalg.inv(covcut)*(Nmock-(Nbins-binmin)-2)/(Nmock-1)
-        OBS   = obscf['col2']
+        OBS   = obscf['col3']
     elif multipole=='quad':
         model = np.append(xi0,xi2)
         covlen = int(len(cov)/2)
         cov_tmp = np.vstack((cov[binmin:binmax,:],cov[binmin+covlen:binmax+covlen,:]))
         covcut  = np.hstack((cov_tmp[:,binmin:binmax],cov_tmp[:,binmin+covlen:binmax+covlen]))
         covR  = np.linalg.inv(covcut)*(Nmock-(Nbins-binmin)-2)/(Nmock-1)
-        OBS   = np.append(obscf['col2'],obscf['col3'])  # obs([mono,quadru])
+        OBS   = np.append(obscf['col3'],obscf['col4'])  # obs([mono,quadru])
     else:
         model = np.append(xi0,xi2,xi4)
         covlen = int(len(cov)/3)
