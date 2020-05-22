@@ -211,8 +211,6 @@ plt.savefig('cf_mono_'+var+'_vmax=800.png',bbox_tight=True)#
 plt.close('all')  
 
 
-
-
 # covariance matrix 
 fig = plt.figure(figsize=(18,9))
 pole=['mono','quad','hexa']
@@ -228,4 +226,39 @@ for i,pole in enumerate(pole):
 	plt.close()
 
 
+# plot different random seeds correlation functions
+fig = plt.figure(figsize = (14, 8))
+import matplotlib.gridspec as gridspec 
+spec = gridspec.GridSpec(ncols=2, nrows=2, height_ratios=[4, 1], hspace=0.3, wspace=0.4)
+ax = np.empty((2,2), dtype=type(plt.axes))
+for j in range(2):
+    a=[np.zeros(nbins),np.mean(xi_LRG,axis=0)[j]]
+    for k,pole in zip(range(2),['mono','quad']):
+        ax[k,j] = fig.add_subplot(spec[k,j])
+        value =a[k]
+        for i,xi in enumerate(xi_LRG):
+            ax[k,j].plot(s,s**2*(xi[j]-value),lw=0.3,alpha=0.6)
+        
+        ax[k,j].plot(s,s**2*(np.mean(xi_LRG,axis=0)[j]-value),c='k',label='mean')
+        ax[k,j].errorbar(s,s**2*(np.mean(xi_LRG,axis=0)[j]-value),s**2*np.std(xi_LRG,axis=0)[j],ecolor='k',ls="none")
+        if (k==0)&(j==0):
+            ax[k,j].set_ylim(75,105)
+            ax[k,j].set_ylabel('$s^2*\\xi_0$') 
+        if (k==0)&(j==1):
+            ax[k,j].set_ylim(-80,0)
+            ax[k,j].set_ylabel('$s^2*\\xi_2$')     
+        if (k==1)&(j==0):
+            ax[k,j].set_ylim(-2,2)
+            ax[k,j].set_ylabel('$s^2[\\xi_0-mean(\\xi_0)]$')
+        if (k==1)&(j==1):
+            ax[k,j].set_ylim(-5,5)
+            ax[k,j].set_ylabel('$s^2[\\xi_2-mean(\\xi_2)]$')
+        plt.legend(loc=0)
+        plt.xlabel('s (Mpc $h^{-1}$)')
+    plt.title('LRG {} in {} using {}'.format(pole,GC,var))
+        
+plt.savefig('a_LRG_{}_{}_{}_large'.format(pole,GC,var),bbox_tight=True)#
+plt.close('all')  
+
+# save the uniform array to a fits file
 
