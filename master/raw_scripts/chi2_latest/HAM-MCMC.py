@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool 
 from itertools import repeat
 import glob
-from iminuit import Minuit
 from getdist import plots, MCSamples, loadMCSamples
 import getdist
 import sys
@@ -25,7 +24,7 @@ gal      = sys.argv[1]
 GC       = sys.argv[2]
 date     = sys.argv[3]
 mode     = sys.argv[4]
-npoints  = 100#int(sys.argv[3])
+npoints  = 200#int(sys.argv[3])
 nseed    = 15
 rscale   = 'linear' # 'log'
 multipole= 'quad' # 'mono','quad','hexa'
@@ -40,9 +39,9 @@ mu_max   = 1
 nmu      = 120
 autocorr = 1
 home      = '/global/cscratch1/sd/jiaxi/master/'
-fileroot = 'MCMCout/'+date+'/'+gal+'_'+GC+'_'+mode+'/'+gal+'_'+GC+'_'+var+'_'
-if os.path.exists('MCMCout/'+date+'/'+gal+'_'+GC+'_'+var)==False:
-    os.makedirs('MCMCout/'+date+'/'+gal+'_'+GC+'_'+var)
+fileroot = 'MCMCout/'+date+'/HAM_'+gal+'_'+GC+'_'+mode+'/multinest_'
+if os.path.exists('MCMCout/'+date+'/HAM_'+gal+'_'+GC+'_'+mode)==False:
+    os.makedirs('MCMCout/'+date+'/HAM_'+gal+'_'+GC+'_'+mode)
 
 # covariance matrix and the observation 2pcf path
 if gal == 'ELG':
@@ -97,8 +96,6 @@ halo = fits.open(halofile)
 if mode=='precut':
     sel=(halo[1].data[var]>precut)
     halo[1].data = halo[1].data[sel]
-if mode=='nocut':
-    halo[1].data = halo[1].data
     
 # make sure len(data) is even
 if len(halo[1].data)%2==1:
@@ -106,6 +103,7 @@ if len(halo[1].data)%2==1:
 else:
     data = halo[1].data
 halo.close()
+
 print('selecting only the necessary variables...')
 datac = np.zeros((len(data),4))
 for i,key in enumerate(['X','Y','Z','VZ']):
@@ -117,7 +115,7 @@ half = int(len(data)/2)
 # generate nseed Gaussian random number arrays in a list
 print('generating uniform random number arrays...')
 uniform_randoms = [np.random.RandomState(seed=1000*x).rand(len(data)).astype('float32') for x in range(nseed)] 
-#uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(data)).astype('float32') for x in range(nseed)] 
+uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(data)).astype('float32') for x in range(nseed)] 
 print('the uniform random number dtype is ',uniform_randoms[0].dtype)
 
 # generate covariance matrices and observations
@@ -137,30 +135,15 @@ print('the covariance matrix and the observation 2pcf vector are ready.')
 
 # HAM application
 def sham_tpcf(uniform,sigma_high,v_high):
-    #ini=time.time()
     datav = np.copy(V)
-    #fin=time.time()
-    #print('copy starts {} s'.format(fin-ini))
-    #ini=time.time()
     # shuffle the halo catalogue and select those have a galaxy inside
     rand1 = np.append(sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),sigma_high*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) # 2.9s
-    #fin=time.time()
-    #print('{} s,rand1.dtype {}'.format(fin-ini,rand1.dtype))
-    #ini=time.time()
     datav*=( 1+rand1) #0.5s
-    #fin=time.time()
-    #print('{} s,datav.dtype {}'.format(fin-ini,datav.dtype))
-    #ini=time.time()
     org3  = datac[(datav<v_high)]  # 4.89s
-    #fin=time.time()
-    #print('{} s,org3.dtype {}'.format(fin-ini,org3.dtype))
-    #ini=time.time()
     LRGscat = org3[np.argpartition(-datav[(datav<v_high)],LRGnum)[:LRGnum]] #3.06s
     # transfer to the redshift space
     z_redshift  = (LRGscat[:,2]+LRGscat[:,3]*(1+z)/H)
     z_redshift %=boxsize
-    #fin=time.time()
-    #print('{} s'.format(fin-ini))
     # count the galaxy pairs and normalise them
     DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
     # calculate the 2pcf and the multipoles
@@ -178,13 +161,12 @@ def chi2(sigma_high,v_high):
 # calculate mean monopole in parallel
     with Pool(processes = nseed) as p:
         xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(np.float32(sigma_high)),repeat(np.float(v_high))))
-    print('the second calculation')
-    #with Pool(processes = nseed) as p:
-        #xi1_tmp = p.starmap(sham_tpcf,zip(uniform_randoms1,repeat(np.float32(sigma_high)),repeat(np.float(v_high))))
+    print('a second calculation')
+    with Pool(processes = nseed) as p:
+        xi1_tmp = p.starmap(sham_tpcf,zip(uniform_randoms1,repeat(np.float32(sigma_high)),repeat(np.float(v_high))))
     
-    # average the result for multiple seeds
-    #xi0,xi2,xi4 = (np.mean(xi0_tmp,axis=0,dtype='float32')[0]+np.mean(xi1_tmp,axis=0,dtype='float32')[0])/2,(np.mean(xi0_tmp,axis=0,dtype='float32')[1]+np.mean(xi1_tmp,axis=0,dtype='float32')[1])/2,(np.mean(xi0_tmp,axis=0,dtype='float32')[2]+np.mean(xi1_tmp,axis=0,dtype='float32')[2])/2
-    xi0,xi2,xi4 = np.mean(xi0_tmp,axis=0,dtype='float32')[0],np.mean(xi0_tmp,axis=0,dtype='float32')[1],np.mean(xi0_tmp,axis=0,dtype='float32')[2]
+     # average the result for multiple seeds
+    xi0,xi2,xi4 = (np.mean(xi0_tmp,axis=0,dtype='float32')[0]+np.mean(xi1_tmp,axis=0,dtype='float32')[0])/2,(np.mean(xi0_tmp,axis=0,dtype='float32')[1]+np.mean(xi1_tmp,axis=0,dtype='float32')[1])/2,(np.mean(xi0_tmp,axis=0,dtype='float32')[2]+np.mean(xi1_tmp,axis=0,dtype='float32')[2])/2
 
     # identify the fitting multipoles
     if multipole=='mono':
@@ -221,21 +203,18 @@ def loglike(cube, ndim, nparams):
     
 # number of dimensions our problem has
 parameters = ["sigma","vcut"]
-n_params = len(parameters)
+npar = len(parameters)
 
 # run MultiNest & write the parameter's name
-pymultinest.run(loglike, prior, n_params,n_live_points= npoints, outputfiles_basename=fileroot, resume =True , verbose = True,n_iter_before_update=5,write_output=True)#,init_MPI =True)
+pymultinest.run(loglike, prior, npar,n_live_points= npoints, outputfiles_basename=fileroot, resume =True , verbose = True,n_iter_before_update=5,write_output=True)
 f=open(fileroot+'.paramnames', 'w')
 for param in parameters:
     f.write(param+'\n')
-f.close()# save parameter names
-'''
-# get the analyse results
-a = pymultinest.Analyzer(outputfiles_basename=fileroot, n_params = n_params)
-stats = a.get_stats()    
-bestfit_params = a.get_best_fit()    
-a.get_best_fit()
-'''
+f.close()
+
+fin = time.time()  
+print('the total {} in {} SHAM costs {:.6} s \n'.format(gal,GC,fin-init))
+
 # getdist plot
 sample = loadMCSamples(fileroot)
 plt.rcParams['text.usetex'] = False
@@ -245,11 +224,99 @@ g.settings.alpha_filled_add=0.4
 g.settings.title_limit_fontsize = 14
 g = plots.get_subplot_plotter()
 g.triangle_plot(sample,['sigma', 'vcut'], filled=True,title_limit=1)
-g.export('{}_{}_'+mode+'_posterior.pdf'.format(gal,GC))
+g.export('HAM-posterior_{}_{}_{}_nseed{}.pdf'.format(gal,GC,mode,nseed*2))
 plt.close('all')
+# results
+print('Results:')
+stats = sample.getMargeStats()
+best = np.zeros(npar)
+lower = np.zeros(npar)
+upper = np.zeros(npar)
+mean = np.zeros(npar)
+sigma = np.zeros(npar)
+for i in range(npar):
+    par = stats.parWithName(parameters[i])
+    #best[i] = par.bestfit_sample
+    mean[i] = par.mean
+    sigma[i] = par.err
+    lower[i] = par.limits[0].lower
+    upper[i] = par.limits[0].upper
+    best[i] = (lower[i] + upper[i]) * 0.5
+    print('{0:s}: {1:.5f} + {2:.6f} - {3:.6f}, or {4:.5f} +- {5:.6f}'.format( \
+        parameters[i], best[i], upper[i]-best[i], best[i]-lower[i], mean[i], \
+        sigma[i]))
+'''   
+# plot the best-fit
+with Pool(processes = nseed) as p:
+    xi_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,repeat(np.float32(mean[0])),repeat(np.float32(mean[1]))))
 
-fin = time.time()  
-print('the total {} in {} SHAM costs {:.6} s \n'.format(gal,GC,fin-init))
+if multipole=='mono':    
+    fig,ax =plt.subplots(figsize=(8,6))
+    ax.errorbar(s,s**2*obscf['col3'],s**2*errbar[binmin:binmax], marker='^',ecolor='k',ls="none")
+    ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[0],c='m',alpha=0.5)
+    label = ['best fit','obs']
+    plt.legend(label,loc=0)
+    plt.title('{} in {}: sigmahigh={:.3}, vhigh={:.6} km/s'.format(gal,GC,mean[0],mean[1]))
+    plt.xlabel('s (Mpc $h^{-1}$)')
+    plt.ylabel('s^2 * $\\xi_0$')
+    plt.savefig('HAM-MCMC_cf_mono_bestfit_'+gal+'_'+GC+'.png',bbox_tight=True)
+    plt.close()
+if multipole=='quad':
+    fig =plt.figure(figsize=(16,6))
+    for col,covbin,k in zip(['col3','col4'],[int(0),int(200)],range(2)):
+        ax = plt.subplot2grid((1,2),(0,k)) 
+        ax.errorbar(s,s**2*obscf[col],s**2*errbar[binmin+covbin:binmax+covbin], marker='^',ecolor='k',ls="none")
+        ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[k],c='m',alpha=0.5)
+        label = ['best fit','obs']
+        plt.legend(label,loc=0)
+        plt.title('{} in {}: sigmahigh={:.3}, vhigh={:.6} km/s'.format(gal,GC,mean[0],mean[1]))
+        plt.xlabel('s (Mpc $h^{-1}$)')
+        plt.ylabel('s^2 * $\\xi_{}$'.format(k*2))
+    plt.savefig('HAM-MCMC_cf_quad_bestfit_'+gal+'_'+GC+'.png',bbox_tight=True)
+    plt.close()
+if multipole == 'hexa':
+    fig =plt.figure(figsize=(24,6))
+    for col,covbin,k in zip(['col3','col4','col5'],[int(0),int(200),int(400)],range(3)):
+        ax = plt.subplot2grid((1,3),(0,k)) 
+        ax.errorbar(s,s**2*obscf[col],s**2*errbar[binmin+covbin:binmax+covbin], marker='^',ecolor='k',ls="none")
+        ax.plot(s,s**2*np.mean(xi_ELG,axis=0)[k],c='m',alpha=0.5)
+        label = ['best fit','obs']
+        plt.legend(label,loc=0)
+        plt.title('{} in {}: sigmahigh={:.3}, vhigh={:.6} km/s'.format(gal,GC,sigma.values['sigma_high'],sigma.values['v_high']))
+        plt.xlabel('s (Mpc $h^{-1}$)')
+        plt.ylabel('s^2 * $\\xi_{}$'.format(k*2))
+    plt.savefig('HAM-MCMC_cf_hexa_bestfit_'+gal+'_'+GC+'.png',bbox_tight=True)
+    plt.close()
+
+# plot the galaxy probability distribution and the real galaxy number distribution 
+n,bins=np.histogram(V,bins=50,range=(0,1000))
+fig =plt.figure(figsize=(16,6))
+for uniform in uniform_randoms:
+    datav = np.copy(V)   
+    rand1 = np.append(mean[0]*np.sqrt(-2*np.log(uniform[:half]))*np.cos(2*np.pi*uniform[half:]),mean[0]*np.sqrt(-2*np.log(uniform[:half]))*np.sin(2*np.pi*uniform[half:])) 
+    datav*=( 1+rand1)
+    org3  = V[(datav<mean[1])]
+    LRGorg = org3[np.argpartition(-datav[(datav<mean[1])],LRGnum)[:LRGnum]]
+    n2,bins2=np.histogram(LRGorg,bins=50,range=(0,1000))
+    ax = plt.subplot2grid((1,2),(0,0))
+    ax.plot(bins[:-1],n2/n,alpha=0.5,lw=0.5)
+    plt.ylabel('prob. to have 1 galaxy in 1 halo')
+	plt.title('{} {} distribution: sigmahigh={:.3}, vhigh={:.6} km/s'.format(gal,GC,mean[0],mean[1]))
+	plt.xlabel(var+' (km/s)')
+	ax.set_xlim(1000,10)
+
+	ax = plt.subplot2grid((1,2),(0,1))
+	ax.plot(bins[:-1],n2,alpha=0.5,lw=0.5)
+	ax.plot(bins[:-1],n,alpha=0.5,lw=0.5)
+	plt.yscale('log')
+	plt.ylabel('galaxy numbers')
+	plt.title('{} {} distribution: sigmahigh={:.3}, vhigh={:.6} km/s'.format(gal,GC,mean[0],mean[1]))
+	plt.xlabel(var+' (km/s)')
+	ax.set_xlim(1000,10)
 
 
+plt.savefig('HAM-MCMC_distr_'gal+'_'+GC+'.png',bbox_tight=True)
+plt.close()
+
+''' 
 
