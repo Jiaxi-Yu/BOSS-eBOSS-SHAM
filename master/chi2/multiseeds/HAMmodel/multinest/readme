@@ -1,7 +1,7 @@
 multinest run in multiple nodes:
 
 ************************************
-the 1st run:0522
+the 1st run:0522 (only for code tests)
 ************************************
 1. reload mpi4py3.1.0 to make sure pymultinest can run on multiple nodes. 
 2. use Vpeak and precut LRG by V<160km/s and ELG by V<80km/s
@@ -16,4 +16,8 @@ the 2nd run:0523
 1. compare LRG NGC&SGC: no-pre+1cut vs pre+1cut(the effect of precut)
 2. compare LRG NGC&SGC: no-pre+1cut vs no-pre+0cut(the effect of 1cut for LRG)
 
+************************************
+the 3nd run:0524
+************************************
+1. repeat all the tests finished above with nseed=30(=15 before)
 
