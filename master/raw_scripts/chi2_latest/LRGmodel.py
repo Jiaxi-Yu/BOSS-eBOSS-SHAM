@@ -177,7 +177,7 @@ def chi2(sigma_high):
 # chi2 minimise: record parameter sets and chi2
 chifile1 = 'LRG-bestfit_'+gal+'_'+GC+'_param-chi2.txt' 
 fc=open(chifile1,'a')    
-fc.write('# sigma_high  v_high  chi2 \n')
+fc.write('# sigma_high chi2 \n')
 # run optimiser
 time_start=time.time()
 sigma = Minuit(chi2,sigma_high=0.3,limit_sigma_high=(0,1),error_sigma_high=0.03,errordef=0.5) 
@@ -259,18 +259,18 @@ for uniform in uniform_randoms:
     ax = plt.subplot2grid((1,2),(0,0))
     ax.plot(bins[:-1],n2/n,alpha=0.5,lw=0.5)
     plt.ylabel('prob. to have 1 galaxy in 1 halo')
-	plt.title('{} {} distribution: sigma={:.3}'.format(gal,GC,sigma.values['sigma_high']))
-	plt.xlabel(var+' (km/s)')
-	ax.set_xlim(1000,10)
-
-	ax = plt.subplot2grid((1,2),(0,1))
-	ax.plot(bins[:-1],n2,alpha=0.5,lw=0.5)
-	ax.plot(bins[:-1],n,alpha=0.5,lw=0.5)
-	plt.yscale('log')
-	plt.ylabel('galaxy numbers')
-	plt.title('{} in {}: sigma={:.3}'.format(gal,GC,sigma.values['sigma_high']))
-	plt.xlabel(var+' (km/s)')
-	ax.set_xlim(1000,10)
+    plt.title('{} {} distribution: sigma={:.3}'.format(gal,GC,sigma.values['sigma_high']))
+    plt.xlabel(var+' (km/s)')
+    ax.set_xlim(1000,10)
+    
+    ax = plt.subplot2grid((1,2),(0,1))
+    ax.plot(bins[:-1],n2,alpha=0.5,lw=0.5)
+    ax.plot(bins[:-1],n,alpha=0.5,lw=0.5)
+    plt.yscale('log')
+    plt.ylabel('galaxy numbers')
+    plt.title('{} in {}: sigma={:.3}'.format(gal,GC,sigma.values['sigma_high']))
+    plt.xlabel(var+' (km/s)')
+    ax.set_xlim(1000,10)
 
 
 plt.savefig('LRG-bestfit_distr_'gal+'_'+GC+'.png',bbox_tight=True)
