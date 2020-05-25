@@ -87,8 +87,8 @@ the final result:
 **************************************
 Vpeak, range 5-30Mpc/h, nseed=15*2=30, use n_eff to determine gal_num 
 
-1.ELG LRG quadrupole errorbar inconsistent with the values before!!!!!!!
-2. LRG 1scat model is poorly fitted; HAM-LRG didn't behave well for SGC
+1.ELG LRG quadrupole errorbar inconsistent with the values before!!!!!!!(plot error)
+2. LRG 1scat model is poorly fitted(discarded); HAM-LRG didn't behave well for SGC
 
 
 
