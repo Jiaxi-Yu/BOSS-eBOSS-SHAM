@@ -29,12 +29,22 @@ ax.plot(s,gaussian(s,*a),'k-',label='Gaussian fit: a=%5.3f, b=%5.3f, c=%5.3f' % 
 plt.legend(loc=0)
 plt.savefig('uniform-trans_validate.png')
 
+# save the uniform array to a fits file
+cols = []
+for i,arr in zip(range(20),uniform_randoms):
+    cols.append(fits.Column(name=str(i*2),format='f4',array=arr))
+    #cols.append(fits.Column(name=str(i*2+1),format='f4',array=arr1))
+    print('double complete')
+hdulist = fits.BinTableHDU.from_columns(cols)
+hdulist.writeto(home+'uniform_'+gal+'0.fits.gz', overwrite=True)
 
+
+
+
+===============================================================================
 # calculate the number of ELG selected in the UNIT catalogue
 area = np.array([177.5,240,237.5,131.9])
 areadeg = np.array([417.5,369.4])
-
-
 c=299792.458
 Om=0.31
 z1 = np.linspace(0,1.1,201)
