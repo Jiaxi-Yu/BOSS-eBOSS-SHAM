@@ -82,6 +82,16 @@ chi2_previous = 73.34(69.41); chi2_cut=63.17971(74.74)=>chi2 changes if we use d
 
 
 
+**************************************
+the final result:
+**************************************
+Vpeak, range 5-30Mpc/h, nseed=15*2=30, use n_eff to determine gal_num 
+
+1.ELG LRG quadrupole errorbar inconsistent with the values before!!!!!!!
+2. LRG 1scat model is poorly fitted; HAM-LRG didn't behave well for SGC
+
+
+
 
 
 

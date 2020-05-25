@@ -11,13 +11,17 @@ the 1st run:0522 (only for code tests)
 5. LRG-SGC and ELG-NGC match the iminuit result mainly due to their large error bars
 
 ************************************
-the 2nd run:0523
+the 2nd run:0523 & 0523-1(producing the results.)
 ************************************
-1. compare LRG NGC&SGC: no-pre+1cut vs pre+1cut(the effect of precut)
-2. compare LRG NGC&SGC: no-pre+1cut vs no-pre+0cut(the effect of 1cut for LRG)
+1. iminuit: function the same as multinest; no precut; nseeds: 15*2; bestfit plots (prob & halo numbers)
+   calculate HAM-bestfit.py(1scat1cut); 
+2. multinest: function the same as multinest; no precut; nseeds: 10*2; bestfit plots (prob & halo numbers)
+   calculate HAM-MCMC.py(1scat1cut);;
+3. LRGmodel.py(1scat0cut)& LRGmodel-MCMC.py(1scat0cut) are discarded because the small number density of LRG
+   (results in a large scattering, thus a poor fitting of monopole and still poor quadrupole)
 
-************************************
-the 3nd run:0524
-************************************
-1. repeat all the tests finished above with nseed=30(=15 before)
+aim:
+1. check iminuit & multinest consistency
+2. check the fitting goodness
+1. compare: no-pre+1cut vs pre+1cut(the effect of precut)
 
