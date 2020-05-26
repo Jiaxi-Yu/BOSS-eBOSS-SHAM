@@ -52,8 +52,8 @@ if gal == 'LRG':
     zmax     = 1.0
     z = 0.7018
     precut   = 160
-    mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'
-    obsname  = home+'catalog/eBOSS_'+gal+'_clustering_'+GC+'_v7_2.dat.fits'
+    mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z'+str(zmin)+'z'+str(zmax)+'/2PCF/'    
+    obsname  = home+'catalog/pair_counts_s-mu_pip_eBOSS+SEQUELS_'+gal+'_'+GC+'_v7_2.dat'
     halofile = home+'catalog/UNIT_hlist_0.58760.fits.gz' 
 
 # cosmological parameters
@@ -109,10 +109,10 @@ print('the uniform random number dtype is ',uniform_randoms[0].dtype)
 
 # generate covariance matrices and observations
 covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'  
-randname = obsname[:-8]+'ran.fits'
+#randname = obsname[:-8]+'ran.fits'
 obs2pcf  = home+'2PCF/obs/'+gal+'_'+GC+'.dat'
 covmatrix(home,mockdir,covfits,gal,GC,zmin,zmax,Om,os.path.exists(covfits))
-obs(home,gal,GC,obsname,randname,obs2pcf,rmin,rmax,nbins,zmin,zmax,Om,os.path.exists(obs2pcf))
+obs(home,gal,GC,obsname,obs2pcf,rmin,rmax,nbins,zmin,zmax,Om,os.path.exists(obs2pcf))
 # Read the covariance matrices and observations
 hdu = fits.open(covfits) # cov([mono,quadru])
 Nmock = (hdu[1].data[multipole]).shape[1] # Nbins=np.array([Nbins,Nm])
