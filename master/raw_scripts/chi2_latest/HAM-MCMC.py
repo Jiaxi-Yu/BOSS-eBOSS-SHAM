@@ -29,7 +29,6 @@ nseed    = 10
 rscale   = 'linear' # 'log'
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
-Om       = 0.31
 boxsize  = 1000
 rmin     = 5
 rmax     = 25
@@ -38,10 +37,11 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
+Om = 0.31
 home      = '/global/cscratch1/sd/jiaxi/master/'
-fileroot = 'MCMCout/'+date+'/HAM_'+gal+'_'+GC+'/multinest_'
-if os.path.exists('MCMCout/'+date+'/HAM_'+gal+'_'+GC)==False:
-    os.makedirs('MCMCout/'+date+'/HAM_'+gal+'_'+GC)
+fileroot = 'MCMCout/'+date+'/'+gal+'_'+GC+'/multinest_'
+#if os.path.exists('MCMCout/'+date+'/HAM_'+gal+'_'+GC)==False:
+#    os.makedirs('MCMCout/'+date+'/HAM_'+gal+'_'+GC) #easily cause error
 
 # covariance matrix and the observation 2pcf path
 if gal == 'ELG':
@@ -193,8 +193,12 @@ def chi2(sigma_high,v_high):
 
 # prior
 def prior(cube, ndim, nparams):
-    #cube[0] = cube[0]  # uniform between [0,1]
-    cube[1] = 900*cube[1]+100  # uniform between [0,1000]
+    if gal=='LRG':
+        cube[0] = 0.7*cube[0]+0.3 # uniform between [0.3,1.0]
+        cube[1] = 900*cube[1]+600  # uniform between [600,1500]
+    if gal=='ELG':
+        cube[0] = 1.5*cube[0] # uniform between [0,1.5]
+        cube[1] = 600*cube[1]  # uniform between [0,600]
 
 # loglikelihood = -0.5*chi2    
 def loglike(cube, ndim, nparams):
@@ -202,7 +206,7 @@ def loglike(cube, ndim, nparams):
     return -0.5*chi2(sigma,vcut)   
     
 # number of dimensions our problem has
-parameters = ["sigma","vcut"]
+parameters = ["sigma","Vceil"]
 npar = len(parameters)
 
 # run MultiNest & write the parameter's name
@@ -221,10 +225,10 @@ plt.rcParams['text.usetex'] = False
 g = plots.get_single_plotter()
 g.settings.figure_legend_frame = False
 g.settings.alpha_filled_add=0.4
-g.settings.title_limit_fontsize = 14
+#g.settings.title_limit_fontsize = 14
 g = plots.get_subplot_plotter()
-g.triangle_plot(sample,['sigma', 'vcut'], filled=True,title_limit=1)
-g.export('HAM-posterior_{}_{}_nseed{}.pdf'.format(gal,GC,nseed*2))
+g.triangle_plot(sample,['sigma', 'Vceil'], filled=True)#,title_limit=1)
+g.export('posterior_{}_{}_nseed{}.pdf'.format(gal,GC,nseed*2))
 plt.close('all')
 # results
 print('Results:')
@@ -242,6 +246,28 @@ for i in range(npar):
     lower[i] = par.limits[0].lower
     upper[i] = par.limits[0].upper
     best[i] = (lower[i] + upper[i]) * 0.5
-    print('{0:s}: {1:.5f} + {2:.6f} - {3:.6f}, or {4:.5f} +- {5:.6f}'.format( \
-        parameters[i], best[i], upper[i]-best[i], best[i]-lower[i], mean[i], \
-        sigma[i]))
+    print('getdist {0:s}: [{1:.6f}, {2:.6f}]'.format( \
+        parameters[i],  lower[i], upper[i]))
+
+
+a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
+stats = a.get_stats()    
+    
+file = 'HAM-MCMC_'+gal+'_'+GC+'_report.txt'
+f = open(file,'a')
+f.write('{} {} multinest: \n'.format(gal,GC))
+f.write('(-2)* max loglike: {} \n'.format(-2*a.get_best_fit()['log_likelihood']))
+f.write('max-loglike params: {}\n'.format(a.get_best_fit()['parameters']))
+
+f.write('getdist 1-sigma errors: sigma [{:.6},{:.6}], vcut [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1]))
+f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, vcut {3:.6}+{4:.6}{5:.6}km/s \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1]))
+
+    
+for j in range(npar):
+    lower[j], upper[j] = stats['marginals'][j]['1sigma']
+    print('getdist {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  upper[j], lower[j]))
+
+f.write('multinest analyser 1-sigma errors: sigma [{0:.6},{1:.6}], vcut [{2:.6},{3:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1]))
+f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, vcut {3:.6}+{4:.6}{5:.6}km/s \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1]))    
+
+f.close()

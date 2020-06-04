@@ -21,7 +21,7 @@ import pymultinest
 # variables
 gal      = sys.argv[1]
 GC       = sys.argv[2]
-date     = '0523-1' #'0523' '0523-1'
+date     = '0526' #'0523' '0523-1'
 func = 'HAM'
 mean = [x for x in range(2)]
 mean[0] = np.float(sys.argv[3])
@@ -41,7 +41,7 @@ mu_max   = 1
 nmu      = 120
 autocorr = 1
 home      = '/global/cscratch1/sd/jiaxi/master/'
-fileroot = 'MCMCout/'+date+'/'+func+'_'+gal+'_'+GC+'/multinest_'
+fileroot = 'MCMCout/'+date+'/'+gal+'_'+GC+'/multinest_'
 
 # covariance matrix and the observation 2pcf path
 if gal == 'ELG':
@@ -115,6 +115,7 @@ covfits = home+'2PCF/obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz'
 obs2pcf  = home+'2PCF/obs/'+gal+'_'+GC+'.dat'
 covmatrix(home,mockdir,covfits,gal,GC,zmin,zmax,Om,os.path.exists(covfits))
 obs(home,gal,GC,obsname,obs2pcf,rmin,rmax,nbins,zmin,zmax,Om,os.path.exists(obs2pcf))
+
 # Read the covariance matrices and observations
 hdu = fits.open(covfits) # cov([mono,quadru])
 Nmock = (hdu[1].data[multipole]).shape[1] # Nbins=np.array([Nbins,Nm])
@@ -152,7 +153,6 @@ def sham_tpcf(uniform,sigma_high,v_high):
 parameters = ["sigma","vcut"]
 npar = len(parameters)
 a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
-
 
 # plot the best-fit
 with Pool(processes = nseed) as p:
@@ -197,7 +197,7 @@ if multipole=='quad':
             ax[j,k].plot(s,s**2*(np.mean(xi1_ELG,axis=0)[k]-values[j]),c='c',alpha=0.6)
             plt.xlabel('s (Mpc $h^{-1}$)')
             if (j==0):
-                ax[j,k].set_ylabel('s^2 * $\\xi_{}$'.format(k*2))
+                ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
                 label = ['iminuit','Multinest','obs']
                 plt.legend(label,loc=1)
                 plt.title('correlation function {}: {} in {}'.format(name,gal,GC))

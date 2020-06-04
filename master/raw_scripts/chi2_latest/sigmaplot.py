@@ -241,18 +241,12 @@ for j in range(2):
         
         ax[k,j].plot(s,s**2*(np.mean(xi_LRG,axis=0)[j]-value),c='k',label='mean')
         ax[k,j].errorbar(s,s**2*(np.mean(xi_LRG,axis=0)[j]-value),s**2*np.std(xi_LRG,axis=0)[j],ecolor='k',ls="none")
-        if (k==0)&(j==0):
-            ax[k,j].set_ylim(75,105)
-            ax[k,j].set_ylabel('$s^2*\\xi_0$') 
-        if (k==0)&(j==1):
-            ax[k,j].set_ylim(-80,0)
-            ax[k,j].set_ylabel('$s^2*\\xi_2$')     
-        if (k==1)&(j==0):
-            ax[k,j].set_ylim(-2,2)
-            ax[k,j].set_ylabel('$s^2[\\xi_0-mean(\\xi_0)]$')
-        if (k==1)&(j==1):
-            ax[k,j].set_ylim(-5,5)
-            ax[k,j].set_ylabel('$s^2[\\xi_2-mean(\\xi_2)]$')
+        if (k==0):
+            #ax[k,j].set_ylim(75,105)
+            ax[k,j].set_ylabel('$s^2*\\xi_{}$'.format(j*2))     
+        if (k==1):
+            ##ax[k,j].set_ylim(-2,2)
+            ax[k,j].set_ylabel('$s^2[\\xi_{}-\overline (\\xi_{})]$'.format(j*2))
         plt.legend(loc=0)
         plt.xlabel('s (Mpc $h^{-1}$)')
     plt.title('LRG {} in {} using {}'.format(pole,GC,var))

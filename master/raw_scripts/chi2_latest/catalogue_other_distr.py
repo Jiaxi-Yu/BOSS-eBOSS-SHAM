@@ -103,3 +103,42 @@ plt.legend(loc=0)
 plt.title('Vpeak - M500c relation for subhaloes')
 plt.savefig('Vpeak - M500c.png')
 
+# plot subhalo & halo Vpeak only for UNIT comparison
+quantity ='Vpeak'
+color = ['b','r']
+rout='E:/Master/OneDrive/master_thesis/master/halo_catalogue_comparison/halo-subhalo-mix_other_columns'
+fig = plt.figure(figsize = (7, 8))
+spec = gridspec.GridSpec(ncols=1, nrows=2, height_ratios=[4,1], hspace=0.3)
+ax = np.empty((2,1), dtype=type(plt.axes))
+num2 = [1,2]
+for i,function in enumerate(['subhalo','halo']):
+    if function == 'halo':
+        UNI =UNIT[1].data[quantity][UNIP==-1]
+    elif function =='subhalo':
+        UNI =UNIT[1].data[quantity][UNIP!=-1]
+    Mbins=np.linspace(20,1500,50+1) 
+    num2[i],a = np.histogram(UNI,bins=Mbins)
+
+    # quantity distribution plot
+    for k,value in enumerate([np.ones(50),num2[0]]):
+        ax[k,0] = fig.add_subplot(spec[k,0])
+        ax[k,0].step((Mbins[:-1]+Mbins[1:])/2,num2[i]/(value+1),c=color[i],label = function)
+        ax[k,0].set_xlabel(quantity+'$(km/s)$')
+        ax[k,0].set_xlim(Mbins[0],Mbins[-1])
+        if k==0:
+            plt.title('the '+function+' '+quantity+' distribution comparison') 
+            ## title cannot be set for the whole figure(outside of the loop) 
+            ## otherwise, subplots will stick together.
+            ax[k,0].set_ylim(1e0,1e8)
+            ax[k,0].set_ylabel('# of haloes')
+            plt.yscale('log')
+            plt.legend(loc=0) 
+        elif k==1:
+            ax[k,0].set_ylabel('halo # ratio')
+            
+            plt.yscale('log')
+            
+plt.savefig(quantity+'.png')
+plt.close()
+
+

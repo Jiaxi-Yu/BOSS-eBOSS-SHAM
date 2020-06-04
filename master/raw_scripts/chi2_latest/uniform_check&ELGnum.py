@@ -13,9 +13,10 @@ import glob
 # validate the uniform parameter used in sigma_mpi
 home      = '/global/cscratch1/sd/jiaxi/master/'
 filename = home+'catalog/randnum/random_10.fits.gz'
-uniform =  fits.open(filename)[1].data
+uniform =  np.random.RandomState(seed=1000).rand(170000000).astype('float32')
+half = int(170000000/2)
 sigma = 0.3
-rand = np.append(sigma*np.sqrt(-2*np.log(uniform['col0']))*np.cos(2*np.pi*uniform['col1']),sigma*np.sqrt(-2*np.log(uniform['col0']))*np.sin(2*np.pi*uniform['col1'])) 
+rand = np.append(sigma*np.sqrt(-2*np.log(uniform[half:]))*np.cos(2*np.pi*uniform[:half]),sigma*np.sqrt(-2*np.log(uniform[half:]))*np.sin(2*np.pi*uniform[:half])) 
 nums,bin = np.histogram(rand,bins=200,range=(-1.5,1.5))
 s = (bin[:-1]+bin[1:])/2
 def gaussian(x,*par):
@@ -25,21 +26,10 @@ a,b = curve_fit(gaussian,s,nums,p0=(1200000,0,0.2))
 
 fig,ax = plt.subplots()
 ax.hist(rand,bins=200,range=(-1.5,1.5),color='r',label='rand distr.')
-ax.plot(s,gaussian(s,*a),'k-',label='Gaussian fit: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(a))
+ax.plot(s,gaussian(s,*a),'k-',label='Gaussian fit')
+plt.title('Gausian fit parameters: A=%5.3f, $\mu$=%5.3f, $\sigma$=%5.3f' % tuple(a))
 plt.legend(loc=0)
-plt.savefig('uniform-trans_validate.png')
-
-# save the uniform array to a fits file
-cols = []
-for i,arr in zip(range(20),uniform_randoms):
-    cols.append(fits.Column(name=str(i*2),format='f4',array=arr))
-    #cols.append(fits.Column(name=str(i*2+1),format='f4',array=arr1))
-    print('double complete')
-hdulist = fits.BinTableHDU.from_columns(cols)
-hdulist.writeto(home+'uniform_'+gal+'0.fits.gz', overwrite=True)
-
-
-
+plt.savefig('../../../thesis_plot/uniform-trans_validate.png')
 
 ===============================================================================
 # calculate the number of ELG selected in the UNIT catalogue
