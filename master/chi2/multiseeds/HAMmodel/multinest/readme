@@ -25,3 +25,8 @@ aim:
 2. check the fitting goodness
 1. compare: no-pre+1cut vs pre+1cut(the effect of precut)
 
+**************************************
+the 3rd_run: redirect to comparison 3rd_run
+**************************************
+the same as 2nd run, but change the LRG observation to PIP weighted and change its prior to [500,1200]
+should print multinest chi2 somewhere. 

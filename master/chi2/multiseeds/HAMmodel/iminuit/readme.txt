@@ -39,7 +39,7 @@ there are multipule local minimums. =>chi2 is non-parabola, so we should use ano
 4. until the 5th run, we didn't use the correct UNIT simulation redshift slice.
 
 *****************************
-the 6th run:
+the 6th run: (but files are in 7th run)
 *****************************
 1. chi2 in the same range for nseed=3 and nseed=30 produce different chi2-sigma relation.
 plot nseed=3,10,20,30 with range 5-25Mpc/h to see the difference->chi2 is smaller(fewer data points), but still non-parabolic
@@ -83,12 +83,18 @@ chi2_previous = 73.34(69.41); chi2_cut=63.17971(74.74)=>chi2 changes if we use d
 
 
 **************************************
-the final result:
+the 9th_run:
 **************************************
-Vpeak, range 5-30Mpc/h, nseed=15*2=30, use n_eff to determine gal_num 
+Vpeak, range 5-25Mpc/h, nseed=15*2=30, use n_eff to determine gal_num 
 
 1.ELG LRG quadrupole errorbar inconsistent with the values before!!!!!!!(plot error)
 2. LRG 1scat model is poorly fitted(discarded); HAM-LRG didn't behave well for SGC
+
+
+**************************************
+the 10th_run: (redirect to comparison 3rd_run)
+**************************************
+the same as 9th run, but change the LRG observation to PIP weighted and change its prior to [500,1200]
 
 
 
