@@ -1,0 +1,1 @@
+Vz *=1+random is not appropriate because \delta Vz should follow Gaussian distribution
