@@ -1,0 +1,57 @@
+ELG SGC multinest: 
+prior: [0,1] [100,500]
+(-2)* max loglike: 51.52600860595703 
+max-loglike params: [0.7896600001087524, 342.6593190990616]
+getdist 1-sigma errors: sigma [0.504224,0.989758], vcut [281.185,400.354] km/s 
+another way around: sigma 0.78966+0.200098-0.285436, vcut 342.659+57.6948-61.4746km/s 
+multinest analyser 1-sigma errors: sigma [0.496396,0.932659], vcut [256.994,380.857] km/s 
+another way around: sigma 0.78966+0.142999-0.293264, vcut 342.659+38.1977-85.6651km/s 
+ELG SGC multinest: 
+(-2)* max loglike: 51.52600860595703 
+max-loglike params: [0.7896600001087524, 342.6593190990616]
+getdist 1-sigma errors: sigma [0.504224,0.989758], vcut [281.185,400.354] km/s 
+another way around: sigma 0.78966+0.200098-0.285436, vcut 342.659+57.6948-61.4746km/s 
+multinest analyser 1-sigma errors: sigma [0.496396,0.932659], vcut [256.994,380.857] km/s 
+another way around: sigma 0.78966+0.142999-0.293264, vcut 342.659+38.1977-85.6651km/s 
+ELG SGC multinest: 
+(-2)* max loglike: 51.52600860595703 
+max-loglike params: [0.7896600001087524, 342.6593190990616]
+getdist 1-sigma errors: sigma [0.504224,0.989758], vcut [281.185,400.354] km/s 
+another way around: sigma 0.78966+0.200098-0.285436, vcut 342.659+57.6948-61.4746km/s 
+multinest analyser 1-sigma errors: sigma [0.496396,0.932659], vcut [256.994,380.857] km/s 
+another way around: sigma 0.78966+0.142999-0.293264, vcut 342.659+38.1977-85.6651km/s 
+ELG SGC multinest: 
+(-2)* max loglike: 51.52600860595703 
+max-loglike params: [0.7896600001087524, 342.6593190990616]
+getdist 1-sigma errors: sigma [0.504224,0.989758], vcut [281.185,400.354] km/s 
+another way around: sigma 0.78966+0.200098-0.285436, vcut 342.659+57.6948-61.4746km/s 
+multinest analyser 1-sigma errors: sigma [0.496396,0.932659], vcut [256.994,380.857] km/s 
+another way around: sigma 0.78966+0.142999-0.293264, vcut 342.659+38.1977-85.6651km/s 
+ELG SGC multinest: 
+(-2)* max loglike: 51.52600860595703 
+max-loglike params: [0.7896600001087524, 342.6593190990616]
+getdist 1-sigma errors: sigma [0.504224,0.989758], vcut [281.185,400.354] km/s 
+another way around: sigma 0.78966+0.200098-0.285436, vcut 342.659+57.6948-61.4746km/s 
+multinest analyser 1-sigma errors: sigma [0.496396,0.932659], vcut [256.994,380.857] km/s 
+another way around: sigma 0.78966+0.142999-0.293264, vcut 342.659+38.1977-85.6651km/s 
+ELG SGC multinest: 
+(-2)* max loglike: 51.52600860595703 
+max-loglike params: [0.7896600001087524, 342.6593190990616]
+getdist 1-sigma errors: sigma [0.504224,0.989758], vcut [281.185,400.354] km/s 
+another way around: sigma 0.78966+0.200098-0.285436, vcut 342.659+57.6948-61.4746km/s 
+multinest analyser 1-sigma errors: sigma [0.496396,0.932659], vcut [256.994,380.857] km/s 
+another way around: sigma 0.78966+0.142999-0.293264, vcut 342.659+38.1977-85.6651km/s 
+ELG SGC multinest: 
+(-2)* max loglike: 51.52600860595703 
+max-loglike params: [0.7896600001087524, 342.6593190990616]
+getdist 1-sigma errors: sigma [0.504224,0.989758], vcut [281.185,400.354] km/s 
+another way around: sigma 0.78966+0.200098-0.285436, vcut 342.659+57.6948-61.4746km/s 
+multinest analyser 1-sigma errors: sigma [0.496396,0.932659], vcut [256.994,380.857] km/s 
+another way around: sigma 0.78966+0.142999-0.293264, vcut 342.659+38.1977-85.6651km/s 
+ELG SGC multinest: 
+(-2)* max loglike: 51.52600860595703 
+max-loglike params: [0.7896600001087524, 342.6593190990616]
+getdist 1-sigma errors: sigma [0.504224,0.989758], vcut [281.185,400.354] km/s 
+another way around: sigma 0.78966+0.200098-0.285436, vcut 342.659+57.6948-61.4746km/s 
+multinest analyser 1-sigma errors: sigma [0.496396,0.932659], vcut [256.994,380.857] km/s 
+another way around: sigma 0.78966+0.142999-0.293264, vcut 342.659+38.1977-85.6651km/s 
