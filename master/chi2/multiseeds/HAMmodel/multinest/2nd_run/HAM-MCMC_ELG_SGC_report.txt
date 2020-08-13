@@ -1,7 +1,0 @@
-ELG SGC multinest: 
-(-2)* max loglike: 51.568817138671875 
-max-loglike params: [0.7988559212244567, 347.5640530490527]
-getdist 1-sigma errors: sigma [0.639692,0.995345], vcut [296.229,401.529] km/s 
-another way around: sigma 0.798856+0.196489-0.159164, vcut 347.564+53.965-51.3355km/s 
-multinest analyser 1-sigma errors: sigma [0.449761,0.933201], vcut [251.045,381.25] km/s 
-another way around: sigma 0.798856+0.134345-0.349095, vcut 347.564+33.6857-96.5188km/s 

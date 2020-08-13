@@ -1,4 +1,0 @@
-ELG SGC: 
-parallel calculation best param sigma_high, v_high = 0.178,220.679 km/s 
-chi-square fitting finished, costing 5009.0 s 
-the total ELG SHAM costs 5551.07 s 
