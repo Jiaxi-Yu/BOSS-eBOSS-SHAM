@@ -188,9 +188,15 @@ def chi2(sigma_M,sigma_V,M_ceil):
 # prior
 def prior(cube, ndim, nparams):
     if gal=='LRG':
-        cube[0] = 1.0*cube[0]+0.4 # uniform between [0.4,1.4]
-        cube[1] = 50*cube[1]+80  # uniform between [80,130]
-        cube[2] = 1000*cube[2]+800  # uniform between [800,1800]
+        if GC == 'NGC':
+            cube[0] = 1.0*cube[0]+0.4 # uniform between [0.4,1.4]
+            cube[1] = 50*cube[1]+80  # uniform between [80,130]
+            cube[2] = 1000*cube[2]+800  # uniform between [800,1800]
+        if GC == 'SGC':
+            cube[0] = 1.1*cube[0]+0.4 # uniform between [0.4,1.5]
+            cube[1] = 50*cube[1]+80  # uniform between [80,130]
+            cube[2] = 1400*cube[2]+600  # uniform between [600,2000]
+    
     if gal=='ELG':
         cube[0] = 1.5*cube[0]    # uniform between [0,1.5]
         cube[1] = 100*cube[1]      # uniform between [0,100]
@@ -224,7 +230,7 @@ g.settings.alpha_filled_add=0.4
 #g.settings.title_limit_fontsize = 14
 g = plots.get_subplot_plotter()
 g.triangle_plot(sample,parameters, filled=True)#,title_limit=1)
-g.export('{}_{}_posterior.pdf'.format(gal,GC))
+g.export('{}_{}_{}_posterior.pdf'.format(date,gal,GC))
 plt.close('all')
 # results
 print('Results:')
