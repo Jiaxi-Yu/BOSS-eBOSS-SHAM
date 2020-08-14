@@ -1,0 +1,16 @@
+16 nodes in 4.5 hours
+ELG SGC multinest: 
+(-2)* max loglike: 53.05698013305664 
+max-loglike params: [0.9249202113960395, 8.329991404656257, 385.5155221361193]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma [0.716551,1.34731], sigma_smear [2.4269,28.5939] km/s, Vceil [312.065,503.944] km/s 
+another way around: sigma 0.92492+0.422394-0.208369, sigma_smear 8.32999+20.2639-5.90309km/s,Vceil 385.516+118.428-73.4502km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma [0.638111,1.29941], sigma_smear [5.63532,34.5707] km/s, Vceil [289.674,494.737] km/s 
+another way around: sigma 0.92492+0.374487-0.28681, sigma_smear 8.32999+26.2407-2.69467km/s,Vceil 385.516+109.221-95.8414km/s  
+ELG SGC multinest: 
+(-2)* max loglike: 53.05698013305664 
+max-loglike params: [0.9249202113960395, 8.329991404656257, 385.5155221361193]
+
