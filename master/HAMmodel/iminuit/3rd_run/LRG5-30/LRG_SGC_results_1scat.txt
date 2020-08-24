@@ -1,4 +1,0 @@
-LRG SGC: 
-parallel calculation best param 0.182 
-chi-square fitting finished, costing 2587.6 s 
-the total LRG SHAM costs 2977.07 s 
