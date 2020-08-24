@@ -13,12 +13,12 @@ source: MCMCout/0523-1 for LRG; MCMCout/0523-1 for ELG
 3rd_plot:
 1. change LRG prior and observation.
 2. print the chi2 for both Multinest and iminuit for comparison
-source: MCMCout/0526 for LRG
+source: MCMCout/0526 for LRG, master thesis
 
 4th_plot:
 1. change ELG prior [0,1] [100,500]
 2. print the chi2 for both Multinest and iminuit for comparison
-source: MCMCout/0526 for ELG
+source: MCMCout/0526 for ELG,master thesis
 
 5th_plot:
 1. change ELG prior[0,1.5] [0,600] 
