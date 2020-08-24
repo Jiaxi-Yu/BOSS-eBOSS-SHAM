@@ -1,0 +1,4 @@
+ELG NGC: 
+parallel calculation best param sigma_high, v_high = 0.49,289.353 km/s 
+chi-square fitting finished, costing 5871.8 s 
+the total ELG SHAM costs 6433.66 s 

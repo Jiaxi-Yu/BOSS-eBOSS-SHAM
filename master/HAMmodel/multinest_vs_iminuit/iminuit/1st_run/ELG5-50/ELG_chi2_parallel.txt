@@ -1,0 +1,6 @@
+ELG NGC:
+sigma_high, sigma_low,vmax = 0.273,0.0007,123.269
+
+ELG SGC:
+sigma_high, sigma_low,vmax = 0.369,0.482,139.863
+ time cost: 1.75 CPU hours
