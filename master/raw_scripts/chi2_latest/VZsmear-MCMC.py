@@ -187,6 +187,7 @@ def chi2(sigma_M,sigma_V,M_ceil):
 
 # prior
 def prior(cube, ndim, nparams):
+    global prior_min,prior_max
     if gal=='LRG':
         if GC == 'NGC':
             cube[0] = 1.0*cube[0]+0.4 # uniform between [0.4,1.4]
@@ -201,12 +202,15 @@ def prior(cube, ndim, nparams):
         cube[0] = 1.5*cube[0]    # uniform between [0,1.5]
         cube[1] = 100*cube[1]      # uniform between [0,100]
         cube[2] = 550*cube[2]+50     # uniform between [50,600]
+    prior_min = [cube[0][0],cube[1][0],cube[2][0]]
+    prior_max = [cube[0][1],cube[1][1],cube[2][1]]
+
 
 # loglikelihood = -0.5*chi2    
 def loglike(cube, ndim, nparams):
     sigma_high,sigma,vhigh = cube[0],cube[1],cube[2]
     return -0.5*chi2(sigma_high,sigma,vhigh)   
-    
+
 # number of dimensions our problem has
 parameters = ["sigma","Vsmear","Vceil"]
 npar = len(parameters)
@@ -216,6 +220,15 @@ pymultinest.run(loglike, prior, npar,n_live_points= npoints, outputfiles_basenam
 f=open(fileroot+'.paramnames', 'w')
 for param in parameters:
     f.write(param+'\n')
+f.close()
+
+# prior ranges
+prior_min = [x*0 for x in range(npar)]
+prior_max = [x*0 for x in range(npar)]
+prior([np.array([0,1]),np.array([0,1]),np.array([0,1])],None,None)
+f=open(fileroot+'.ranges', 'w')
+for i,param in enumerate(parameters):
+    f.write('{}  {} {}\n'.format(param,prior_min[i],prior_max[i]))
 f.close()
 
 fin = time.time()  
