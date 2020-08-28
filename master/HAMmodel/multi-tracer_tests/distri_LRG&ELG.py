@@ -23,7 +23,7 @@ import pymultinest
 #GC = 'NGC'#
 GC       = sys.argv[1] #
 date2    = '0810'
-nseed    = 30
+nseed    = 1
 rscale   = 'linear' # 'log'
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
@@ -179,7 +179,7 @@ n2,bins2=np.histogram(datac2[:,-1],bins=50,range=(0,PDFmax))
 fig =plt.figure(figsize=(20,6))
 ax = plt.subplot2grid((1,3),(0,1))
 binmid = (bins1[:-1]+bins1[1:])/2
-ax.errorbar(binmid,np.mean(narray,axis=-1)/LRGnum1,yerr = np.std(narray,axis=-1)/LRGnum1,color='m',alpha=0.7,ecolor='m',label='LRG-{}'.format(GC),ds='steps-mid')
+ax.errorbar(bins1[:-1],np.mean(narray,axis=-1)/LRGnum1,yerr = np.std(narray,axis=-1)/LRGnum1,color='m',alpha=0.7,ecolor='m',label='LRG-{}'.format(GC),ds='steps-mid')
 ax.errorbar(binmid,np.mean(n1array,axis=-1)/LRGnum2,yerr=np.std(n1array,axis=-1)/LRGnum2,color='c',alpha=0.7,ecolor='c',label='ELG-{}'.format(GC),ds='steps-mid')
 plt.ylabel('$V_{peak}$ frequency')
 plt.legend(loc=2)
@@ -188,8 +188,7 @@ plt.xlabel(var+' (km/s)')
 ax.set_xlim(PDFmax,10)
 
 ax = plt.subplot2grid((1,3),(0,0))
-binmid = (bins1[:-1]+bins1[1:])/2
-ax.errorbar(binmid,np.mean(narray,axis=-1)/(n1),yerr = np.std(narray,axis=-1)/(n1),color='m',alpha=0.7,ecolor='m',label='LRG-{}'.format(GC),ds='steps-mid')
+ax.errorbar(bins1[:-1],np.mean(narray,axis=-1)/(n1),yerr = np.std(narray,axis=-1)/(n1),color='m',alpha=0.7,ecolor='m',label='LRG-{}'.format(GC),ds='steps-mid')
 ax.errorbar(binmid,np.mean(n1array,axis=-1)/(n2),yerr=np.std(n1array,axis=-1)/(n2),color='c',alpha=0.7,ecolor='c',label='ELG-{}'.format(GC),ds='steps-mid')
 plt.ylabel('prob. to have 1 galaxy in 1 halo')
 plt.legend(loc=1)
@@ -198,10 +197,10 @@ plt.xlabel(var+' (km/s)')
 ax.set_xlim(PDFmax,10)
 
 ax = plt.subplot2grid((1,3),(0,2))
-ax.errorbar(binmid,np.mean(narray,axis=-1),yerr = np.std(narray,axis=-1),color='m',alpha=0.7,ecolor='m',label='LRG-{}'.format(GC),ds='steps-mid')
-ax.step(binmid,n1,color='k',label='UNIT z1={:.3} LRG'.format(z1))
+ax.errorbar(bins1[:-1],np.mean(narray,axis=-1),yerr = np.std(narray,axis=-1),color='m',alpha=0.7,ecolor='m',label='LRG-{}'.format(GC),ds='steps-mid')
+ax.step(binmid,n1,color='k',label='UNIT z1={:.3}'.format(z1))
 ax.errorbar(binmid,np.mean(n1array,axis=-1),yerr=np.std(n1array,axis=-1),color='c',alpha=0.7,ecolor='c',label='ELG-{}'.format(GC),ds='steps-mid')
-ax.step(binmid,n2,color='k',alpha = 0.5,label='UNIT z2={:.3} ELG'.format(z2))
+ax.step(binmid,n2,color='k',alpha = 0.5,label='UNIT z2={:.3} '.format(z2))
 plt.yscale('log')
 plt.ylabel('galaxy numbers')
 plt.legend(loc=2)
