@@ -21,7 +21,7 @@ import pymultinest
 
 # variables
 date2    = '0810'
-nseed    = 20
+nseed    = 2
 rscale   = 'linear' # 'log'
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
@@ -187,6 +187,11 @@ for GC in ['NGC','SGC']:
             plt.ylabel('probability')
             plt.xlabel(unit)
             plt.title('{} {} {} in {} '.format(label,unit,types,GC))
+            if i==0:
+                ax.set_yscale('log')
+                ax.set_ylim(1e-8,1)
+                if j!=1:
+                    ax.set_xlim(3,7)
     plt.savefig('prob_distr_ELG_'+GC+'.png',bbox_tight=True)
     plt.close()
     
