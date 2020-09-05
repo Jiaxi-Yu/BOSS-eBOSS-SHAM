@@ -15,7 +15,9 @@ import corner
 
 gal      = sys.argv[1]
 GC       = sys.argv[2]
-prefix = 'MCMCout/3-param_0810/'+gal+'_'+GC+'/multinest_'
+date     = sys.argv[3]
+prefix = 'MCMCout/3-param_'+date+'/'+gal+'_'+GC+'/multinest_'
+#prefix = 'MCMCout/0526/HAM_'+gal+'_'+GC+'/multinest_'
 print('model "%s"' % prefix)
 parameters = ["sigma","Vsmear","Vceil"]
 n_params = len(parameters)
@@ -23,6 +25,7 @@ n_params = len(parameters)
 a = pymultinest.Analyzer(n_params = n_params, outputfiles_basename = prefix)
 A=a.get_equal_weighted_posterior()
 figure = corner.corner(A[:,:3],labels=[r"$sigma$",r"$Vsmear$", r"$Vceil$"])
+#figure = corner.corner(A[:,:2],labels=[r"$sigma$", r"$Vceil$"])
 axes = np.array(figure.axes).reshape((3,3))
 for yi in range(3): 
     for xi in range(yi):
