@@ -34,8 +34,8 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-PDFmax   = 7
-PDFmin   = 2
+PDFmax   = 3.5
+PDFmin   = 1.5
 home      = '/global/cscratch1/sd/jiaxi/master/'
 
 # data for ELG
@@ -84,18 +84,19 @@ data = np.zeros(0)
 # HAM application
 def sham_tpcf(dat,uni,uni1,sigM,sigV,Mtrun):
     if dat==1:
-        x00,x20,x40,n20=sham_cal(datac1,z1,LRGnum1,uni,sigM,sigV,Mtrun)
-        x01,x21,x41,n21=sham_cal(datac1,z1,LRGnum1,uni1,sigM,sigV,Mtrun)
+        x00,x20,x40,n20,n22,=sham_cal(datac1,z1,LRGnum1,uni,sigM,sigV,Mtrun)
+        x01,x21,x41,n21,n23=sham_cal(datac1,z1,LRGnum1,uni1,sigM,sigV,Mtrun)
     if dat==2:
-        x00,x20,x40,n20=sham_cal(datac2,z2,LRGnum2,uni,sigM,sigV,Mtrun)
-        x01,x21,x41,n21=sham_cal(datac2,z2,LRGnum2,uni1,sigM,sigV,Mtrun)
-    return [(x00+x01)/2,(x20+x21)/2,(x40+x41)/2,(n20+n21)/2]
+        x00,x20,x40,n20,n22=sham_cal(datac2,z2,LRGnum2,uni,sigM,sigV,Mtrun)
+        x01,x21,x41,n21,n23=sham_cal(datac2,z2,LRGnum2,uni1,sigM,sigV,Mtrun)
+    return [(x00+x01)/2,(x20+x21)/2,(x40+x41)/2,(n20+n21)/2,(n22+n23)/2]
 
 def sham_cal(DATAC,z,LRGnum,uniform,sigma_high,sigma,v_high):
     half = int(len(DATAC)/2)
     datav = DATAC[:,-1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
     LRGscat = (DATAC[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]
-    n,bins0=np.histogram(np.log10(LRGscat[:,-1]**2),bins=50,range=(PDFmin,PDFmax))
+    n,bins0=np.histogram(np.log10(LRGscat[:,-1]),bins=50,range=(PDFmin,PDFmax))
+    n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=50,range=(PDFmin/2,PDFmax*2))
     #n1,b1 = np.histogram(LRGscat[:,-1],bins=50,range=(0,1500))
     #n2,b2 = np.histogram((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]],bins=50,range=(0,1500))
 
@@ -115,7 +116,7 @@ def sham_cal(DATAC,z,LRGnum,uniform,sigma_high,sigma,v_high):
     xi2_single = np.trapz(quad, dx=1./nmu, axis=-1)
     xi4_single = np.trapz(hexa, dx=1./nmu, axis=-1)
     print('calculation finish')
-    return [xi0_single,xi2_single,xi4_single,n]
+    return [xi0_single,xi2_single,xi4_single,n,n01]
 
 # read the posterior file
 fileroot1 = 'MCMCout/3-param_'+date2+'/ELG_SGC/multinest_'
@@ -141,79 +142,72 @@ with Pool(processes = nseed) as p:
     xi_ELG = p.starmap(sham_tpcf,zip(repeat(2),uniform_randoms,uniform_randoms1,repeat(np.float32(a1.get_best_fit()['parameters'][0])),repeat(np.float32(a1.get_best_fit()['parameters'][1])),repeat(np.float32(a1.get_best_fit()['parameters'][2])))) 
 
 
-# log(Vpeak^2) vs log(M) PDF
+# log(Vpeak_selected)
 bins0=(np.linspace(PDFmin,PDFmax,51)[1:]+np.linspace(PDFmin,PDFmax,51)[:-1])/2
-nlist = [xi_ELG[x][3] for x in range(nseed)]
-narray = np.array(nlist).T
-  #NGC SHAM
-n1list = [xi1_ELG[x][3] for x in range(nseed)]
-n1array = np.array(n1list).T #SGC SHAM
-n2,bins2=np.histogram(np.log10(datac2[:,-1]**2),bins=50,range=(PDFmin,PDFmax))
-'''
-#Vpeak vs Vpeak_scat
+n1list = [xi_ELG[x][3] for x in range(nseed)]
+n1array = np.array(nlist).T #NGC SHAM
+n2list = [xi1_ELG[x][3] for x in range(nseed)]
+n2array = np.array(n1list).T #SGC SHAM
+n2,bins2=np.histogram(np.log10(datac2[:,-1]),bins=50,range=(PDFmin,PDFmax))
+
+# log(Vpeak_scat)
 n10list = [xi_ELG[x][4] for x in range(nseed)]
 n10array = np.array(n10list).T 
-n11list = [xi_ELG[x][5] for x in range(nseed)]
-n11array = np.array(n11list).T 
-
 n20list = [xi1_ELG[x][4] for x in range(nseed)]
 n20array = np.array(n20list).T 
-n21list = [xi1_ELG[x][5] for x in range(nseed)]
-n21array = np.array(n21list).T 
-'''
-# [PDF,CDF]
-N_UNIT = [n2/np.sum(n2),np.array([np.sum(n2[:x])/np.sum(n2) for x in range(50)])] #UNIT
-                                                   
 
-for GC in ['NGC','SGC']:
-    file = '/global/cscratch1/sd/jiaxi/master/catalog/eBOSS_ELG_clustering_NGC_v7.dat.fits'
+# UNIT [PDF,CDF]
+N_UNIT = [n2/np.sum(n2),np.array([np.sum(n2[:x])/np.sum(n2) for x in range(50)])] 
+                                                   
+mode = 'PDF' # log(Vpeak_all)log(Vpeak_selected),log(Vpeak_scat) vs log(M*)
+#mode = 'PDF-CDF' # log(Vpeak_all)log(Vpeak_selected) PDF vs CDF
+for GC,array,array_scat in zip(['NGC','SGC'],[n1array,n2array],[n10array,n20array]):
+    file = '/global/cscratch1/sd/jiaxi/master/catalog/eBOSS_ELG_clustering_'+GC+'_v7.dat.fits'
     hdu = fits.open(file)
     data = hdu[1].data['fast_lmass']
     N_M,binm = np.histogram(data,bins=50)
     N_Mtot = [N_M/np.sum(N_M) ,np.array([np.sum(N_M[:x])/np.sum(N_M) for x in range(50)])] #clustering
-    fig =plt.figure(figsize=(10,17))
-    for i,array,types in zip(range(2),[narray,n1array],['PDF','CDF']):
-        Narray = [array,np.array([np.sum(array[:x],axis=0) for x in range(50)])] 
-        for j,prob,binmid,label,unit in zip(range(3),[Narray[i],N_Mtot[i],N_UNIT[i]],[bins0,(binm[1:]+binm[:-1])/2,bins0],['ELG SHAM','ELG clustering','UNIT'],['$log_{10}(V_{peak}^2)$','$log_{10}(M_*)$','$log_{10}(V_{peak}^2)$']):
-            ax = plt.subplot2grid((3,2),(j,i))
-            #print(binmid.shape,prob.shape)
-            if j==0:
-                if i==0:
-                    ax.errorbar(binmid,np.mean(prob,axis=-1)/np.sum(np.mean(prob,axis=-1)),yerr = np.std(prob,axis=-1)/np.sum(np.mean(prob,axis=-1)),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
+    if mode == 'PDF-CDF':
+        fig =plt.figure(figsize=(10,17))
+        for i,types in enumerate(['PDF','CDF']):
+            Narray = [array,np.array([np.sum(array[:x],axis=0) for x in range(50)])] 
+            for j,prob,binmid,label,unit in zip(range(3),[Narray[i],N_Mtot[i],N_UNIT[i]],[bins0,(binm[1:]+binm[:-1])/2,bins0],['ELG SHAM','ELG clustering','UNIT'],['$log_{10}(V_{peak})$','$log_{10}(M_*)$','$log_{10}(V_{peak})$']):
+                ax = plt.subplot2grid((3,2),(j,i))
+                #print(binmid.shape,prob.shape)
+                if j==0:
+                    if i==0:
+                        ax.errorbar(binmid,np.mean(prob,axis=-1)/np.sum(np.mean(prob,axis=-1)),yerr = np.std(prob,axis=-1)/np.sum(np.mean(prob,axis=-1)),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
+                    else:
+                        ax.errorbar(binmid,np.mean(prob,axis=-1)/(np.mean(prob,axis=-1)).max(),yerr = np.std(prob,axis=-1)/(np.mean(prob,axis=-1)).max(),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
                 else:
-                    ax.errorbar(binmid,np.mean(prob,axis=-1)/(np.mean(prob,axis=-1)).max(),yerr = np.std(prob,axis=-1)/(np.mean(prob,axis=-1)).max(),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
-            else:
-                ax.errorbar(binmid,prob,yerr = np.zeros_like(prob),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
-            plt.ylabel('probability')
-            plt.xlabel(unit)
-            plt.title('{} {} {} in {} '.format(label,unit,types,GC))
-            if i==0:
-                ax.set_yscale('log')
-                ax.set_ylim(1e-8,1)
-                if j!=1:
-                    ax.set_xlim(3,7)
-    plt.savefig('prob_distr_ELG_'+GC+'.png',bbox_tight=True)
-    plt.close()
-    
-    
-    
-    '''
-    fig =plt.figure(figsize=(10,17))
-    for i,array,types in zip(range(2),[narray,n1array],['PDF','CDF']):
-        Narray = [array,np.array([np.sum(array[:x],axis=0) for x in range(50)])] 
-        for j,prob,binmid,label,unit in zip(range(3),[Narray[i],N_Mtot[i],N_UNIT[i]],[bins0,(binm[1:]+binm[:-1])/2,bins0],['ELG SHAM','ELG clustering','UNIT'],['$log_{10}(V_{peak}^2)$','$log_{10}(M_*)$','$log_{10}(V_{peak}^2)$']):
-            ax = plt.subplot2grid((3,2),(j,i))
-            #print(binmid.shape,prob.shape)
-            if j==0:
+                    ax.errorbar(binmid,prob,yerr = np.zeros_like(prob),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
+                plt.ylabel('probability')
+                plt.xlabel(unit)
+                plt.title('{} {} {} in {} '.format(label,unit,types,GC))
                 if i==0:
-                    ax.errorbar(binmid,np.mean(prob,axis=-1)/np.sum(np.mean(prob,axis=-1)),yerr = np.std(prob,axis=-1)/np.sum(np.mean(prob,axis=-1)),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
-                else:
-                    ax.errorbar(binmid,np.mean(prob,axis=-1)/(np.mean(prob,axis=-1)).max(),yerr = np.std(prob,axis=-1)/(np.mean(prob,axis=-1)).max(),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
-            else:
-                ax.errorbar(binmid,prob,yerr = np.zeros_like(prob),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
-            plt.ylabel('probability')
-            plt.xlabel(unit)
-            plt.title('{} {} {} in {} '.format(label,unit,types,GC))
-    plt.savefig('prob_distr_ELG_'+GC+'.png',bbox_tight=True)
-    plt.close()
-    '''
+                    ax.set_yscale('log')
+                    ax.set_ylim(1e-8,1)
+                    if j!=1:
+                        ax.set_xlim(PDFmin,PDFmax)
+        plt.savefig('PDF&CDF_ELG_'+GC+'.png',bbox_tight=True)
+        plt.close()
+    else:
+        print('second')
+        fig = plt.figure(figsize=(12,5))
+        ax  = plt.subplot2grid((1,2),(0,0))
+        ax.errorbar(bins0,np.mean(array,axis=-1)/np.sum(np.mean(array,axis=-1)),yerr = np.std(array,axis=-1)/np.sum(np.mean(array,axis=-1)),color='m',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}$)')
+        ax.errorbar(bins0,np.mean(array_scat,axis=-1)/np.sum(np.mean(array_scat,axis=-1)),yerr = np.std(array_scat,axis=-1)/np.sum(np.mean(array_scat,axis=-1)),color='c',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}^{scat}$)')
+        ax.errorbar(bins0,N_UNIT[0],yerr = np.zeros_like(N_UNIT[0]),color='k',alpha=0.7,ecolor='m',ds='steps-mid',label='UNIT log($V_{peak}$)')
+        ax.set_xlim(PDFmin,PDFmax)
+        plt.ylabel('probability')
+        plt.title('simulated probability distributions in {} '.format(GC))
+        ax.set_yscale('log')
+        ax.set_ylim(1e-8,1)
+        ax  = plt.subplot2grid((1,2),(0,1))
+        ax.errorbar((binm[1:]+binm[:-1])/2,N_Mtot[0],yerr = np.zeros_like(N_Mtot[0]),color='k',alpha=0.7,ecolor='m',ds='steps-mid',label='log(M*)')
+        plt.ylabel('probability')
+        plt.title('realistic probability distributions in {} '.format(GC))
+        ax.set_yscale('log')
+        ax.set_ylim(1e-8,1)
+        plt.savefig('PDF_ELG_'+GC+'.png',bbox_tight=True)
+        plt.close()
