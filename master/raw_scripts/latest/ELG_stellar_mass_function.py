@@ -37,6 +37,8 @@ autocorr = 1
 PDFmax   = 3.5
 PDFmin   = 1.5
 home      = '/global/cscratch1/sd/jiaxi/master/'
+scatrange = [2.573,2.588,2.526,2.540] 
+scatnum = 50
 
 # data for ELG
 LRGnum2   = int(2.93e5)
@@ -90,12 +92,17 @@ def sham_tpcf(dat,uni,uni1,sigM,sigV,Mtrun):
 def sham_cal(dat,DATAC,z,LRGnum,uniform,sigma_high,sigma,v_high):
     half = int(len(DATAC)/2)
     datav = DATAC[:,-1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
-    LRGscat = (DATAC[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]
+    LRGscat = (DATAC[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:LRGnum]]
     n,bins0=np.histogram(np.log10(LRGscat[:,-1]),bins=50,range=(PDFmin,PDFmax))
+    plt.scatter(LRGscat[:,-1],(datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:LRGnum]],c='r',alpha=0.4,s=1)
+    plt.xlabel('Vpeak')
+    plt.ylabel('scattered Vpeak')
+    plt.savefig('vpeak_vs_scat_{:.3}.png'.format(uniform[0]))
+    plt.close()
     if dat==1:
-        n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=20,range=(scatrange[dat-1],scatrange[dat]))
+        n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=scatnum,range=(scatrange[dat-1],scatrange[dat]))
     else:
-        n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=20,range=(scatrange[dat],scatrange[dat+1]))
+        n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=scatnum,range=(scatrange[dat],scatrange[dat+1]))
 
     # transfer to the redshift space
     scathalf = int(LRGnum/2)
@@ -132,7 +139,7 @@ print('generating uniform random number arrays...')
 uniform_randoms = [np.random.RandomState(seed=1000*x).rand(len(datac2)).astype('float32') for x in range(nseed)] 
 uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac2)).astype('float32') for x in range(nseed)] 
 
-scatrange = [2.573,2.588,2.526,2.540] 
+
 with Pool(processes = nseed) as p:
     xi_ELG = p.starmap(sham_tpcf,zip(repeat(1),uniform_randoms,uniform_randoms1,repeat(np.float32(a1.get_best_fit()['parameters'][0])),repeat(np.float32(a1.get_best_fit()['parameters'][1])),repeat(np.float32(a1.get_best_fit()['parameters'][2])))) 
 
@@ -154,18 +161,18 @@ n2array = np.array(n2list).T #SGC SHAM
 
 # log(Vpeak_scat)
 n10list = [xi_ELG[x][4] for x in range(nseed)]
-n10array = np.array(n10list).T 
+n10array   = np.array(n10list).T/LRGnum2
 n20list = [xi1_ELG[x][4] for x in range(nseed)]
-n20array = np.array(n20list).T  
-                                                   
+n20array   = np.array(n20list).T/LRGnum2
+'''
 mode = 'PDF' # log(Vpeak_all)log(Vpeak_selected),log(Vpeak_scat) vs log(M*)
 #mode = 'PDF-CDF' # log(Vpeak_all)log(Vpeak_selected) PDF vs CDF
 for GC,array,array_scat in zip(['NGC','SGC'],[n1array,n2array],[n10array,n20array]):
     file = '/global/cscratch1/sd/jiaxi/master/catalog/eBOSS_ELG_clustering_'+GC+'_v7.dat.fits'
     hdu = fits.open(file)
     data = hdu[1].data['fast_lmass']
-    N_M,binm = np.histogram(data,bins=50)
-    N_Mtot = [N_M/np.sum(N_M) ,np.array([np.sum(N_M[:x])/np.sum(N_M) for x in range(50)])] #clustering
+    N_M,binm = np.histogram(data,bins=scatnum)
+    N_Mtot = [N_M/np.sum(N_M) ,np.array([np.sum(N_M[:x])/np.sum(N_M) for x in range(scatnum)])] #clustering
     if mode == 'PDF-CDF':
         fig =plt.figure(figsize=(10,17))
         for i,types in enumerate(['PDF','CDF']):
@@ -203,10 +210,10 @@ for GC,array,array_scat in zip(['NGC','SGC'],[n1array,n2array],[n10array,n20arra
         ax.set_ylim(1e-8,1)
         ax  = plt.subplot2grid((1,3),(0,1))
         if GC=='NGC':
-            scatbin = (np.linspace(scatrange[0],scatrange[1],21)[:-1]+np.linspace(scatrange[0],scatrange[1],21)[1:])/2
+            scatbin = (np.linspace(scatrange[0],scatrange[1],scatnum+1)[:-1]+np.linspace(scatrange[0],scatrange[1],scatnum+1)[1:])/2
         else:
-            scatbin = (np.linspace(scatrange[2],scatrange[3],21)[:-1]+np.linspace(scatrange[2],scatrange[3],21)[1:])/2
-        ax.errorbar(scatbin,np.mean(array_scat,axis=-1)/np.sum(np.mean(array_scat,axis=-1)),yerr = np.std(array_scat,axis=-1)/np.sum(np.mean(array_scat,axis=-1)),color='c',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}^{scat}$)')
+            scatbin = (np.linspace(scatrange[2],scatrange[3],scatnum+1)[:-1]+np.linspace(scatrange[2],scatrange[3],scatnum+1)[1:])/2
+        ax.errorbar(scatbin,np.mean(array_scat,axis=-1),yerr = np.std(array_scat,axis=-1),color='c',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}^{scat}$)')
             
         plt.ylabel('probability')
         plt.title('scattered Vpeak in {} '.format(GC))
@@ -220,3 +227,37 @@ for GC,array,array_scat in zip(['NGC','SGC'],[n1array,n2array],[n10array,n20arra
         ax.set_ylim(1e-8,1)
         plt.savefig('PDF_ELG_'+GC+'.png',bbox_tight=True)
         plt.close()
+'''        
+# calculate CDF for SHAM PDFs in different seeds
+n10CDF = [j for j in range(nseed)]
+n20CDF = [j for j in range(nseed)]
+for j in range(nseed):
+    n10CDF[j]   = np.array([np.sum(n10array[:,j][-x-1:]) for x in range(scatnum)])
+    n20CDF[j]   = np.array([np.sum(n20array[:,j][-x-1:]) for x in range(scatnum)])
+
+# match the stellar mass and the scattered Vpeak.
+# initialisation: the 1st element: scattered Vpeak
+CDF2CDF1 = [(np.linspace(scatrange[0],scatrange[1],scatnum+1)[:-1]+np.linspace(scatrange[0],scatrange[1],scatnum+1)[1:])/2,np.zeros(scatnum),np.zeros(scatnum)]
+CDF2CDF2 = [(np.linspace(scatrange[2],scatrange[3],scatnum+1)[:-1]+np.linspace(scatrange[2],scatrange[3],scatnum+1)[1:])/2,np.zeros(scatnum),np.zeros(scatnum)]
+
+for GC,CDF,CDF2CDF in zip(['NGC','SGC'],[n10CDF,n20CDF],[CDF2CDF1,CDF2CDF2]):
+    file = '/global/cscratch1/sd/jiaxi/master/catalog/eBOSS_ELG_clustering_'+GC+'_v7.dat.fits'
+    hdu = fits.open(file)
+    data = hdu[1].data['fast_lmass']
+    data = data[np.argsort(-data)] 
+    hdu.close()
+    # the 3rd element: the std of the CDF
+    CDF2CDF[2] = np.std(CDF,axis=0)
+    # the 2nd element: the corresponding M* for the scattered Vpeak CDF
+    for i,ind in enumerate(np.ceil(np.mean(CDF,axis=0)*len(data))):
+        if ind ==0:
+            CDF2CDF[1][i] = data[0]
+        else:
+            CDF2CDF[1][i] = data[int(ind)-1]
+    plt.errorbar(CDF2CDF[0][(np.mean(CDF,axis=0)!=0)&(np.mean(CDF,axis=0)!=1)],CDF2CDF[1][(np.mean(CDF,axis=0)!=0)&(np.mean(CDF,axis=0)!=1)],CDF2CDF[2][(np.mean(CDF,axis=0)!=0)&(np.mean(CDF,axis=0)!=1)],color='k',alpha=0.7,ecolor='k')
+    plt.title('scattered Vpeak - M* relation of ELG in {}'.format(GC))
+    plt.xlabel('log(scattered Vpeak)')
+    plt.ylabel('log(M*)')
+    plt.savefig('ELG_'+GC+'_scattered_Vpeak-stellar_mass_relation.png')
+    plt.close()
+# plot the Vpeak-M* relation
