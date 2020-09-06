@@ -83,22 +83,19 @@ data = np.zeros(0)
 
 # HAM application
 def sham_tpcf(dat,uni,uni1,sigM,sigV,Mtrun):
-    if dat==1:
-        x00,x20,x40,n20,n22,=sham_cal(datac1,z1,LRGnum1,uni,sigM,sigV,Mtrun)
-        x01,x21,x41,n21,n23=sham_cal(datac1,z1,LRGnum1,uni1,sigM,sigV,Mtrun)
-    if dat==2:
-        x00,x20,x40,n20,n22=sham_cal(datac2,z2,LRGnum2,uni,sigM,sigV,Mtrun)
-        x01,x21,x41,n21,n23=sham_cal(datac2,z2,LRGnum2,uni1,sigM,sigV,Mtrun)
+    x00,x20,x40,n20,n22=sham_cal(dat,datac2,z2,LRGnum2,uni,sigM,sigV,Mtrun)
+    x01,x21,x41,n21,n23=sham_cal(dat,datac2,z2,LRGnum2,uni1,sigM,sigV,Mtrun)
     return [(x00+x01)/2,(x20+x21)/2,(x40+x41)/2,(n20+n21)/2,(n22+n23)/2]
 
-def sham_cal(DATAC,z,LRGnum,uniform,sigma_high,sigma,v_high):
+def sham_cal(dat,DATAC,z,LRGnum,uniform,sigma_high,sigma,v_high):
     half = int(len(DATAC)/2)
     datav = DATAC[:,-1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
     LRGscat = (DATAC[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]
     n,bins0=np.histogram(np.log10(LRGscat[:,-1]),bins=50,range=(PDFmin,PDFmax))
-    n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=50,range=(PDFmin/2,PDFmax*2))
-    #n1,b1 = np.histogram(LRGscat[:,-1],bins=50,range=(0,1500))
-    #n2,b2 = np.histogram((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]],bins=50,range=(0,1500))
+    if dat==1:
+        n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=20,range=(scatrange[dat-1],scatrange[dat]))
+    else:
+        n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=20,range=(scatrange[dat],scatrange[dat+1]))
 
     # transfer to the redshift space
     scathalf = int(LRGnum/2)
@@ -135,29 +132,31 @@ print('generating uniform random number arrays...')
 uniform_randoms = [np.random.RandomState(seed=1000*x).rand(len(datac2)).astype('float32') for x in range(nseed)] 
 uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac2)).astype('float32') for x in range(nseed)] 
 
+scatrange = [2.573,2.588,2.526,2.540] 
+with Pool(processes = nseed) as p:
+    xi_ELG = p.starmap(sham_tpcf,zip(repeat(1),uniform_randoms,uniform_randoms1,repeat(np.float32(a1.get_best_fit()['parameters'][0])),repeat(np.float32(a1.get_best_fit()['parameters'][1])),repeat(np.float32(a1.get_best_fit()['parameters'][2])))) 
+
 with Pool(processes = nseed) as p:
     xi1_ELG = p.starmap(sham_tpcf,zip(repeat(2),uniform_randoms,uniform_randoms1,repeat(np.float32(a2.get_best_fit()['parameters'][0])),repeat(np.float32(a2.get_best_fit()['parameters'][1])),repeat(np.float32(a2.get_best_fit()['parameters'][2]))))  
 
-with Pool(processes = nseed) as p:
-    xi_ELG = p.starmap(sham_tpcf,zip(repeat(2),uniform_randoms,uniform_randoms1,repeat(np.float32(a1.get_best_fit()['parameters'][0])),repeat(np.float32(a1.get_best_fit()['parameters'][1])),repeat(np.float32(a1.get_best_fit()['parameters'][2])))) 
 
+
+# UNIT [PDF,CDF]
+n2,bins2=np.histogram(np.log10(datac2[:,-1]),bins=50,range=(PDFmin,PDFmax))
+N_UNIT = [n2/np.sum(n2),np.array([np.sum(n2[:x])/np.sum(n2) for x in range(50)])]
 
 # log(Vpeak_selected)
 bins0=(np.linspace(PDFmin,PDFmax,51)[1:]+np.linspace(PDFmin,PDFmax,51)[:-1])/2
 n1list = [xi_ELG[x][3] for x in range(nseed)]
-n1array = np.array(nlist).T #NGC SHAM
+n1array = np.array(n1list).T #NGC SHAM
 n2list = [xi1_ELG[x][3] for x in range(nseed)]
-n2array = np.array(n1list).T #SGC SHAM
-n2,bins2=np.histogram(np.log10(datac2[:,-1]),bins=50,range=(PDFmin,PDFmax))
+n2array = np.array(n2list).T #SGC SHAM
 
 # log(Vpeak_scat)
 n10list = [xi_ELG[x][4] for x in range(nseed)]
 n10array = np.array(n10list).T 
 n20list = [xi1_ELG[x][4] for x in range(nseed)]
-n20array = np.array(n20list).T 
-
-# UNIT [PDF,CDF]
-N_UNIT = [n2/np.sum(n2),np.array([np.sum(n2[:x])/np.sum(n2) for x in range(50)])] 
+n20array = np.array(n20list).T  
                                                    
 mode = 'PDF' # log(Vpeak_all)log(Vpeak_selected),log(Vpeak_scat) vs log(M*)
 #mode = 'PDF-CDF' # log(Vpeak_all)log(Vpeak_selected) PDF vs CDF
@@ -193,17 +192,27 @@ for GC,array,array_scat in zip(['NGC','SGC'],[n1array,n2array],[n10array,n20arra
         plt.close()
     else:
         print('second')
-        fig = plt.figure(figsize=(12,5))
-        ax  = plt.subplot2grid((1,2),(0,0))
+        fig = plt.figure(figsize=(18,5))
+        ax  = plt.subplot2grid((1,3),(0,0))
         ax.errorbar(bins0,np.mean(array,axis=-1)/np.sum(np.mean(array,axis=-1)),yerr = np.std(array,axis=-1)/np.sum(np.mean(array,axis=-1)),color='m',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}$)')
-        ax.errorbar(bins0,np.mean(array_scat,axis=-1)/np.sum(np.mean(array_scat,axis=-1)),yerr = np.std(array_scat,axis=-1)/np.sum(np.mean(array_scat,axis=-1)),color='c',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}^{scat}$)')
         ax.errorbar(bins0,N_UNIT[0],yerr = np.zeros_like(N_UNIT[0]),color='k',alpha=0.7,ecolor='m',ds='steps-mid',label='UNIT log($V_{peak}$)')
         ax.set_xlim(PDFmin,PDFmax)
         plt.ylabel('probability')
         plt.title('simulated probability distributions in {} '.format(GC))
         ax.set_yscale('log')
         ax.set_ylim(1e-8,1)
-        ax  = plt.subplot2grid((1,2),(0,1))
+        ax  = plt.subplot2grid((1,3),(0,1))
+        if GC=='NGC':
+            scatbin = (np.linspace(scatrange[0],scatrange[1],21)[:-1]+np.linspace(scatrange[0],scatrange[1],21)[1:])/2
+        else:
+            scatbin = (np.linspace(scatrange[2],scatrange[3],21)[:-1]+np.linspace(scatrange[2],scatrange[3],21)[1:])/2
+        ax.errorbar(scatbin,np.mean(array_scat,axis=-1)/np.sum(np.mean(array_scat,axis=-1)),yerr = np.std(array_scat,axis=-1)/np.sum(np.mean(array_scat,axis=-1)),color='c',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}^{scat}$)')
+            
+        plt.ylabel('probability')
+        plt.title('scattered Vpeak in {} '.format(GC))
+        ax.set_yscale('log')
+        ax.set_ylim(1e-8,1)
+        ax  = plt.subplot2grid((1,3),(0,2))
         ax.errorbar((binm[1:]+binm[:-1])/2,N_Mtot[0],yerr = np.zeros_like(N_Mtot[0]),color='k',alpha=0.7,ecolor='m',ds='steps-mid',label='log(M*)')
         plt.ylabel('probability')
         plt.title('realistic probability distributions in {} '.format(GC))
