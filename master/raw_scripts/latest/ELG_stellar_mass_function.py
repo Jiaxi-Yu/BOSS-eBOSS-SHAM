@@ -3,7 +3,7 @@ matplotlib.use('agg')
 import time
 init = time.time()
 import numpy as np
-from numpy import log, pi,sqrt,cos,sin,argpartition,copy,trapz,float32,int32,append,mean,cov,vstack
+from numpy import log, pi,sqrt,cos,sin,argpartition,copy,trapz,float32,int32,append,mean,cov,vstack,vstack
 from astropy.table import Table
 from astropy.io import fits
 from Corrfunc.theory.DDsmu import DDsmu
@@ -21,7 +21,7 @@ import pymultinest
 
 # variables
 date2    = '0810'
-nseed    = 2
+nseed    = 10
 rscale   = 'linear' # 'log'
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
@@ -84,25 +84,15 @@ datac2 = datac2.astype('float32')
 data = np.zeros(0)
 
 # HAM application
-def sham_tpcf(dat,uni,uni1,sigM,sigV,Mtrun):
-    x00,x20,x40,n20,n22=sham_cal(dat,datac2,z2,LRGnum2,uni,sigM,sigV,Mtrun)
-    x01,x21,x41,n21,n23=sham_cal(dat,datac2,z2,LRGnum2,uni1,sigM,sigV,Mtrun)
-    return [(x00+x01)/2,(x20+x21)/2,(x40+x41)/2,(n20+n21)/2,(n22+n23)/2]
+def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
+    x00,x20,x40,Vpeak_sel0,Vpeak_scat0=sham_cal(datac2,z2,LRGnum2,uni,sigM,sigV,Mtrun)
+    x01,x21,x41,Vpeak_sel1,Vpeak_scat1=sham_cal(datac2,z2,LRGnum2,uni1,sigM,sigV,Mtrun)
+    return [vstack((x00,x01)),vstack((x20,x21)),vstack((x40,x41)),vstack((Vpeak_sel0,Vpeak_sel1)),vstack((Vpeak_scat0,Vpeak_scat1))]
 
-def sham_cal(dat,DATAC,z,LRGnum,uniform,sigma_high,sigma,v_high):
+def sham_cal(DATAC,z,LRGnum,uniform,sigma_high,sigma,v_high):
     half = int(len(DATAC)/2)
     datav = DATAC[:,-1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
     LRGscat = (DATAC[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:LRGnum]]
-    n,bins0=np.histogram(np.log10(LRGscat[:,-1]),bins=50,range=(PDFmin,PDFmax))
-    plt.scatter(LRGscat[:,-1],(datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:LRGnum]],c='r',alpha=0.4,s=1)
-    plt.xlabel('Vpeak')
-    plt.ylabel('scattered Vpeak')
-    plt.savefig('vpeak_vs_scat_{:.3}.png'.format(uniform[0]))
-    plt.close()
-    if dat==1:
-        n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=scatnum,range=(scatrange[dat-1],scatrange[dat]))
-    else:
-        n01,bins01=np.histogram(np.log10((datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]),bins=scatnum,range=(scatrange[dat],scatrange[dat+1]))
 
     # transfer to the redshift space
     scathalf = int(LRGnum/2)
@@ -120,7 +110,7 @@ def sham_cal(dat,DATAC,z,LRGnum,uniform,sigma_high,sigma,v_high):
     xi2_single = np.trapz(quad, dx=1./nmu, axis=-1)
     xi4_single = np.trapz(hexa, dx=1./nmu, axis=-1)
     print('calculation finish')
-    return [xi0_single,xi2_single,xi4_single,n,n01]
+    return [xi0_single,xi2_single,xi4_single,LRGscat[:,-1],(datav[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]]
 
 # read the posterior file
 fileroot1 = 'MCMCout/3-param_'+date2+'/ELG_SGC/multinest_'
@@ -141,123 +131,56 @@ uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac2)).astyp
 
 
 with Pool(processes = nseed) as p:
-    xi_ELG = p.starmap(sham_tpcf,zip(repeat(1),uniform_randoms,uniform_randoms1,repeat(np.float32(a1.get_best_fit()['parameters'][0])),repeat(np.float32(a1.get_best_fit()['parameters'][1])),repeat(np.float32(a1.get_best_fit()['parameters'][2])))) 
+    xi_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,uniform_randoms1,repeat(np.float32(a1.get_best_fit()['parameters'][0])),repeat(np.float32(a1.get_best_fit()['parameters'][1])),repeat(np.float32(a1.get_best_fit()['parameters'][2])))) 
 
 with Pool(processes = nseed) as p:
-    xi1_ELG = p.starmap(sham_tpcf,zip(repeat(2),uniform_randoms,uniform_randoms1,repeat(np.float32(a2.get_best_fit()['parameters'][0])),repeat(np.float32(a2.get_best_fit()['parameters'][1])),repeat(np.float32(a2.get_best_fit()['parameters'][2]))))  
+    xi1_ELG = p.starmap(sham_tpcf,zip(uniform_randoms,uniform_randoms1,repeat(np.float32(a2.get_best_fit()['parameters'][0])),repeat(np.float32(a2.get_best_fit()['parameters'][1])),repeat(np.float32(a2.get_best_fit()['parameters'][2]))))  
 
 
+# Vpeak, scattered Vpeak and stellar mass
+# dictionary initialisation
+Vpeak_stat = {}
+for l,keys in enumerate(['NGC-Vpeak','NGC-Vpeak_scat']):
+    Vpeak_stat[keys] = (np.array([xi_ELG[x][3+l] for x in range(nseed)]).T).reshape(LRGnum2,nseed*2)
+for l,keys in enumerate(['SGC-Vpeak','SGC-Vpeak_scat']):
+    Vpeak_stat[keys] = (np.array([xi1_ELG[x][3+l] for x in range(nseed)]).T).reshape(LRGnum2,nseed*2)
 
-# UNIT [PDF,CDF]
-n2,bins2=np.histogram(np.log10(datac2[:,-1]),bins=50,range=(PDFmin,PDFmax))
-N_UNIT = [n2/np.sum(n2),np.array([np.sum(n2[:x])/np.sum(n2) for x in range(50)])]
-
-# log(Vpeak_selected)
-bins0=(np.linspace(PDFmin,PDFmax,51)[1:]+np.linspace(PDFmin,PDFmax,51)[:-1])/2
-n1list = [xi_ELG[x][3] for x in range(nseed)]
-n1array = np.array(n1list).T #NGC SHAM
-n2list = [xi1_ELG[x][3] for x in range(nseed)]
-n2array = np.array(n2list).T #SGC SHAM
-
-# log(Vpeak_scat)
-n10list = [xi_ELG[x][4] for x in range(nseed)]
-n10array   = np.array(n10list).T/LRGnum2
-n20list = [xi1_ELG[x][4] for x in range(nseed)]
-n20array   = np.array(n20list).T/LRGnum2
-'''
-mode = 'PDF' # log(Vpeak_all)log(Vpeak_selected),log(Vpeak_scat) vs log(M*)
-#mode = 'PDF-CDF' # log(Vpeak_all)log(Vpeak_selected) PDF vs CDF
-for GC,array,array_scat in zip(['NGC','SGC'],[n1array,n2array],[n10array,n20array]):
+# abundance matching in NGC and SGC 
+for GC in ['NGC','SGC']:
+    
+    # dictionary array initialisation
+    Vpeak_stat[GC+'-Vpeak_scat_sort'] = np.zeros_like(Vpeak_stat[GC+'-Vpeak_scat'])
+    Vpeak_stat[GC+'-Vpeak_sort'] = np.zeros_like(Vpeak_stat[GC+'-Vpeak'])
+    
+    # stellar mass readong
     file = '/global/cscratch1/sd/jiaxi/master/catalog/eBOSS_ELG_clustering_'+GC+'_v7.dat.fits'
     hdu = fits.open(file)
     data = hdu[1].data['fast_lmass']
-    N_M,binm = np.histogram(data,bins=scatnum)
-    N_Mtot = [N_M/np.sum(N_M) ,np.array([np.sum(N_M[:x])/np.sum(N_M) for x in range(scatnum)])] #clustering
-    if mode == 'PDF-CDF':
-        fig =plt.figure(figsize=(10,17))
-        for i,types in enumerate(['PDF','CDF']):
-            Narray = [array,np.array([np.sum(array[:x],axis=0) for x in range(50)])] 
-            for j,prob,binmid,label,unit in zip(range(3),[Narray[i],N_Mtot[i],N_UNIT[i]],[bins0,(binm[1:]+binm[:-1])/2,bins0],['ELG SHAM','ELG clustering','UNIT'],['$log_{10}(V_{peak})$','$log_{10}(M_*)$','$log_{10}(V_{peak})$']):
-                ax = plt.subplot2grid((3,2),(j,i))
-                #print(binmid.shape,prob.shape)
-                if j==0:
-                    if i==0:
-                        ax.errorbar(binmid,np.mean(prob,axis=-1)/np.sum(np.mean(prob,axis=-1)),yerr = np.std(prob,axis=-1)/np.sum(np.mean(prob,axis=-1)),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
-                    else:
-                        ax.errorbar(binmid,np.mean(prob,axis=-1)/(np.mean(prob,axis=-1)).max(),yerr = np.std(prob,axis=-1)/(np.mean(prob,axis=-1)).max(),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
-                else:
-                    ax.errorbar(binmid,prob,yerr = np.zeros_like(prob),color='m',alpha=0.7,ecolor='m',ds='steps-mid')
-                plt.ylabel('probability')
-                plt.xlabel(unit)
-                plt.title('{} {} {} in {} '.format(label,unit,types,GC))
-                if i==0:
-                    ax.set_yscale('log')
-                    ax.set_ylim(1e-8,1)
-                    if j!=1:
-                        ax.set_xlim(PDFmin,PDFmax)
-        plt.savefig('PDF&CDF_ELG_'+GC+'.png',bbox_tight=True)
-        plt.close()
-    else:
-        print('second')
-        fig = plt.figure(figsize=(18,5))
-        ax  = plt.subplot2grid((1,3),(0,0))
-        ax.errorbar(bins0,np.mean(array,axis=-1)/np.sum(np.mean(array,axis=-1)),yerr = np.std(array,axis=-1)/np.sum(np.mean(array,axis=-1)),color='m',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}$)')
-        ax.errorbar(bins0,N_UNIT[0],yerr = np.zeros_like(N_UNIT[0]),color='k',alpha=0.7,ecolor='m',ds='steps-mid',label='UNIT log($V_{peak}$)')
-        ax.set_xlim(PDFmin,PDFmax)
-        plt.ylabel('probability')
-        plt.title('simulated probability distributions in {} '.format(GC))
-        ax.set_yscale('log')
-        ax.set_ylim(1e-8,1)
-        ax  = plt.subplot2grid((1,3),(0,1))
-        if GC=='NGC':
-            scatbin = (np.linspace(scatrange[0],scatrange[1],scatnum+1)[:-1]+np.linspace(scatrange[0],scatrange[1],scatnum+1)[1:])/2
-        else:
-            scatbin = (np.linspace(scatrange[2],scatrange[3],scatnum+1)[:-1]+np.linspace(scatrange[2],scatrange[3],scatnum+1)[1:])/2
-        ax.errorbar(scatbin,np.mean(array_scat,axis=-1),yerr = np.std(array_scat,axis=-1),color='c',alpha=0.7,ecolor='m',ds='steps-mid',label = 'SHAM log($V_{peak}^{scat}$)')
-            
-        plt.ylabel('probability')
-        plt.title('scattered Vpeak in {} '.format(GC))
-        ax.set_yscale('log')
-        ax.set_ylim(1e-8,1)
-        ax  = plt.subplot2grid((1,3),(0,2))
-        ax.errorbar((binm[1:]+binm[:-1])/2,N_Mtot[0],yerr = np.zeros_like(N_Mtot[0]),color='k',alpha=0.7,ecolor='m',ds='steps-mid',label='log(M*)')
-        plt.ylabel('probability')
-        plt.title('realistic probability distributions in {} '.format(GC))
-        ax.set_yscale('log')
-        ax.set_ylim(1e-8,1)
-        plt.savefig('PDF_ELG_'+GC+'.png',bbox_tight=True)
-        plt.close()
-'''        
-# calculate CDF for SHAM PDFs in different seeds
-n10CDF = [j for j in range(nseed)]
-n20CDF = [j for j in range(nseed)]
-for j in range(nseed):
-    n10CDF[j]   = np.array([np.sum(n10array[:,j][-x-1:]) for x in range(scatnum)])
-    n20CDF[j]   = np.array([np.sum(n20array[:,j][-x-1:]) for x in range(scatnum)])
-
-# match the stellar mass and the scattered Vpeak.
-# initialisation: the 1st element: scattered Vpeak
-CDF2CDF1 = [(np.linspace(scatrange[0],scatrange[1],scatnum+1)[:-1]+np.linspace(scatrange[0],scatrange[1],scatnum+1)[1:])/2,np.zeros(scatnum),np.zeros(scatnum)]
-CDF2CDF2 = [(np.linspace(scatrange[2],scatrange[3],scatnum+1)[:-1]+np.linspace(scatrange[2],scatrange[3],scatnum+1)[1:])/2,np.zeros(scatnum),np.zeros(scatnum)]
-
-for GC,CDF,CDF2CDF in zip(['NGC','SGC'],[n10CDF,n20CDF],[CDF2CDF1,CDF2CDF2]):
-    file = '/global/cscratch1/sd/jiaxi/master/catalog/eBOSS_ELG_clustering_'+GC+'_v7.dat.fits'
-    hdu = fits.open(file)
-    data = hdu[1].data['fast_lmass']
-    data = data[np.argsort(-data)] 
-    hdu.close()
-    # the 3rd element: the std of the CDF
-    CDF2CDF[2] = np.std(CDF,axis=0)
-    # the 2nd element: the corresponding M* for the scattered Vpeak CDF
-    for i,ind in enumerate(np.ceil(np.mean(CDF,axis=0)*len(data))):
-        if ind ==0:
-            CDF2CDF[1][i] = data[0]
-        else:
-            CDF2CDF[1][i] = data[int(ind)-1]
-    plt.errorbar(CDF2CDF[0][(np.mean(CDF,axis=0)!=0)&(np.mean(CDF,axis=0)!=1)],CDF2CDF[1][(np.mean(CDF,axis=0)!=0)&(np.mean(CDF,axis=0)!=1)],CDF2CDF[2][(np.mean(CDF,axis=0)!=0)&(np.mean(CDF,axis=0)!=1)],color='k',alpha=0.7,ecolor='k')
-    plt.title('scattered Vpeak - M* relation of ELG in {}'.format(GC))
-    plt.xlabel('log(scattered Vpeak)')
-    plt.ylabel('log(M*)')
-    plt.savefig('ELG_'+GC+'_scattered_Vpeak-stellar_mass_relation.png')
+    
+    # stellar mass random up/down-sampling in order to have the same number as SHAM galaxies
+    data_upsample = np.random.choice(data,LRGnum2)
+    
+    # stellar mass descending sort to do the abundance matching
+    Vpeak_stat[GC+'-Mstellar'] = -np.sort(-data_upsample)
+    
+    # sort scattered Vpeak and Vpeak according to scattered Vpeak
+    Vpeak_stat[GC+'-Vpeak_scat_sort'] = np.sort(Vpeak_stat[GC+'-Vpeak_scat'],axis=0) 
+    Vpeak_stat[GC+'-Vpeak_sort'] = np.take_along_axis(Vpeak_stat[GC+'-Vpeak'],np.argsort(Vpeak_stat[GC+'-Vpeak_scat'],axis=0),axis=0)    
+    
+    # plot
+    fig,ax = plt.subplots()
+    for k in range(nseed*2):
+        ax.scatter(np.log10(Vpeak_stat[GC+'-Vpeak_scat_sort'][:,k]),Vpeak_stat[GC+'-Mstellar'],alpha=0.4,s=1)
+    plt.xlabel('log($V_{peak}^{scat}$)')
+    plt.ylabel('log($M_*$)')
+    plt.savefig('scattered_Vpeak-Mstellar_{}.png'.format(GC))
     plt.close()
-# plot the Vpeak-M* relation
+    for k in range(nseed*2):
+        fig,ax = plt.subplots()
+        plt.scatter(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k]),Vpeak_stat[GC+'-Mstellar'],c='r',alpha=0.4,s=1)
+        plt.xlabel('log($V_{peak}$)')
+        plt.ylabel('log($M_*$)')
+        plt.xlim(1.8,3.0)
+        plt.savefig('Vpeak-Mstellar_{}_{}.png'.format(GC,k))
+        plt.close()
+    
