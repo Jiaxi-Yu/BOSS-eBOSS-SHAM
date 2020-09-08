@@ -1,0 +1,7 @@
+the final result source:
+MCMCout/3-param_0905/gal_GC
+
+others:
+inapproapriate prior for LRG in NGC and SGC
+
+but finally their priors are not approapriate
