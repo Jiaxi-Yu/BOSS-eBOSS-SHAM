@@ -21,10 +21,10 @@ import pymultinest
 import corner
 
 # variables
-gal      = sys.argv[1]
-GC       = sys.argv[2]
-date    = sys.argv[3]
-nseed    = 5
+gal      = 'ELG'
+GC       = 'NGC'
+date    = '0905'
+nseed    = 2
 rscale   = 'linear' # 'log'
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
@@ -38,7 +38,6 @@ mu_max   = 1
 nmu      = 120
 autocorr = 1
 home      = '/global/cscratch1/sd/jiaxi/master/'
-fileroot2 = 'MCMCout/3-param_'+date2+'/'+gal+'_'+GC+'/multinest_'
 
 # covariance matrix and the observation 2pcf path
 if gal == 'ELG':
@@ -153,6 +152,7 @@ def sham_cal(uniform,sigma_high,sigma,v_high):
 # read the posterior file
 parameters2 = ["sigma","Vsmear","Vceil"]
 npar2 = len(parameters2)
+fileroot2 = 'MCMCout/3-param_'+date+'/'+gal+'_'+GC+'/multinest_'
 a = pymultinest.Analyzer(npar2, outputfiles_basename = fileroot2)
 
 # plot the posterior
@@ -182,12 +182,11 @@ for col,covbin,name,k in zip(['col3','col4'],[int(0),int(200)],['monopole','quad
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k])
         ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[binmin+covbin:binmax+covbin],color='k', marker='o',ecolor='k',ls="none")
-        ax[j,k].plot(s,s**2*(np.mean(xi_ELG,axis=0)[k]-values[j]),c='m',alpha=0.6)
         ax[j,k].plot(s,s**2*(np.mean(xi1_ELG,axis=0)[k]-values[j]),c='c',alpha=0.6)
         plt.xlabel('s (Mpc $h^{-1}$)')
         if (j==0):
             ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
-            label = ['Nosmear','Vzsmeared','obs']
+            label = ['SHAM','obs']
             if k==0:
                 plt.legend(label,loc=2)
             else:
