@@ -1,0 +1,8 @@
+the expression for the 2PCF calculation from pair counts is wrong. It should be np.sum instead of np.trapz
+
+It can affect the 2PCF quadrupoles up to 20% from 0-30 Mpc/h.
+
+So we should recompute the 2pcf observations and EZmocks for:
+
+(LRG,ELG)*(NGC,SGC)
+
