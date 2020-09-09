@@ -8,8 +8,6 @@ from astropy.table import Table
 from astropy.io import fits
 from Corrfunc.theory.DDsmu import DDsmu
 import os
-from covmatrix import covmatrix
-from obs import obs
 import warnings
 import matplotlib.pyplot as plt
 from multiprocessing import Pool 
@@ -34,8 +32,6 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-PDFmax   = 3.5
-PDFmin   = 1.5
 home      = '/global/cscratch1/sd/jiaxi/master/'
 scatrange = [2.573,2.588,2.526,2.540] 
 scatnum = 50
@@ -145,9 +141,10 @@ for l,keys in enumerate(['NGC-Vpeak','NGC-Vpeak_scat']):
 for l,keys in enumerate(['SGC-Vpeak','SGC-Vpeak_scat']):
     Vpeak_stat[keys] = (np.array([xi1_ELG[x][3+l] for x in range(nseed)]).T).reshape(LRGnum2,nseed*2)
 
-# abundance matching in NGC and SGC 
-for GC in ['NGC','SGC']:
-    
+
+Nmedian,Nstd  = np.zeros(scatnum),np.zeros(scatnum)
+# abundance matching in NGC and SGC
+for q,GC in enumerate(['NGC','SGC']):
     # dictionary array initialisation
     Vpeak_stat[GC+'-Vpeak_scat_sort'] = np.zeros_like(Vpeak_stat[GC+'-Vpeak_scat'])
     Vpeak_stat[GC+'-Vpeak_sort'] = np.zeros_like(Vpeak_stat[GC+'-Vpeak'])
@@ -165,22 +162,28 @@ for GC in ['NGC','SGC']:
     
     # sort scattered Vpeak and Vpeak according to scattered Vpeak
     Vpeak_stat[GC+'-Vpeak_scat_sort'] = np.sort(Vpeak_stat[GC+'-Vpeak_scat'],axis=0) 
-    Vpeak_stat[GC+'-Vpeak_sort'] = np.take_along_axis(Vpeak_stat[GC+'-Vpeak'],np.argsort(Vpeak_stat[GC+'-Vpeak_scat'],axis=0),axis=0)    
-    
+    Vpeak_stat[GC+'-Vpeak_sort'] = np.take_along_axis(Vpeak_stat[GC+'-Vpeak'],np.argsort(Vpeak_stat[GC+'-Vpeak_scat'],axis=0),axis=0)
     # plot
-    fig,ax = plt.subplots()
-    for k in range(nseed*2):
-        ax.scatter(np.log10(Vpeak_stat[GC+'-Vpeak_scat_sort'][:,k]),Vpeak_stat[GC+'-Mstellar'],alpha=0.4,s=1)
-    plt.xlabel('log($V_{peak}^{scat}$)')
-    plt.ylabel('log($M_*$)')
-    plt.savefig('scattered_Vpeak-Mstellar_{}.png'.format(GC))
-    plt.close()
-    for k in range(nseed*2):
+    for k in range(nseed):
         fig,ax = plt.subplots()
-        plt.scatter(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k]),Vpeak_stat[GC+'-Mstellar'],c='r',alpha=0.4,s=1)
+        a,b,c,scat_M = ax.hist2d(np.log10(Vpeak_stat[GC+'-Vpeak_scat_sort'][:,k]),Vpeak_stat[GC+'-Mstellar'],bins=[scatnum,scatnum],range=[[scatrange[2*q],scatrange[2*q+1]],[9.5,11.5]],cmap='Blues')
+        fig.colorbar(scat_M)
+        plt.xlabel('log($V_{peak}^{scat}$)')
+        plt.ylabel('log($M_*$)')
+        plt.savefig('scattered_Vpeak-Mstellar_{}_{}.png'.format(GC,k))
+        plt.close()
+    
+    for k in range(nseed):
+        fig,ax = plt.subplots()
+        a,b,c,org_M =ax.hist2d(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k]),Vpeak_stat[GC+'-Mstellar'],bins=[scatnum,scatnum],range=[[1.9,2.6],[9.5,11.5]],cmap='Blues')
+        fig.colorbar(org_M)
+        for j in range(scatnum-1):
+            Nmedian[j] =np.median(Vpeak_stat[GC+'-Mstellar'][(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])>b[j])&(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])<=b[j+1])])
+            Nstd = np.std(Vpeak_stat[GC+'-Mstellar'][(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])>b[j])&(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])<b[j+1])])
+        plt.errorbar((b[1:]+b[:-1])/2,Nmedian,Nstd,color='k',ecolor='k',ls="none",marker='o',lw=1,markersize=3)
         plt.xlabel('log($V_{peak}$)')
         plt.ylabel('log($M_*$)')
-        plt.xlim(1.8,3.0)
+        plt.xlim(1.9,2.6)
         plt.savefig('Vpeak-Mstellar_{}_{}.png'.format(GC,k))
         plt.close()
     
