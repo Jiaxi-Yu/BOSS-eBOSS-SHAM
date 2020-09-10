@@ -164,7 +164,7 @@ for q,GC in enumerate(['NGC','SGC']):
     Vpeak_stat[GC+'-Vpeak_scat_sort'] = np.sort(Vpeak_stat[GC+'-Vpeak_scat'],axis=0) 
     Vpeak_stat[GC+'-Vpeak_sort'] = np.take_along_axis(Vpeak_stat[GC+'-Vpeak'],np.argsort(Vpeak_stat[GC+'-Vpeak_scat'],axis=0),axis=0)
     # plot
-    for k in range(nseed):
+    for k in range(2):
         fig,ax = plt.subplots()
         a,b,c,scat_M = ax.hist2d(np.log10(Vpeak_stat[GC+'-Vpeak_scat_sort'][:,k]),Vpeak_stat[GC+'-Mstellar'],bins=[scatnum,scatnum],range=[[scatrange[2*q],scatrange[2*q+1]],[9.5,11.5]],cmap='Blues')
         fig.colorbar(scat_M)
@@ -173,17 +173,17 @@ for q,GC in enumerate(['NGC','SGC']):
         plt.savefig('scattered_Vpeak-Mstellar_{}_{}.png'.format(GC,k))
         plt.close()
     
-    for k in range(nseed):
+    for k in range(2):
         fig,ax = plt.subplots()
-        a,b,c,org_M =ax.hist2d(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k]),Vpeak_stat[GC+'-Mstellar'],bins=[scatnum,scatnum],range=[[1.9,2.6],[9.5,11.5]],cmap='Blues')
+        a,b,c,org_M =ax.hist2d(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k]),Vpeak_stat[GC+'-Mstellar']-np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k]),bins=[scatnum,scatnum],range=[[1.9,2.6],[7,9]],cmap='Blues')
         fig.colorbar(org_M)
         for j in range(scatnum-1):
-            Nmedian[j] =np.median(Vpeak_stat[GC+'-Mstellar'][(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])>b[j])&(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])<=b[j+1])])
-            Nstd = np.std(Vpeak_stat[GC+'-Mstellar'][(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])>b[j])&(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])<b[j+1])])
+            Nmedian[j] =np.median((Vpeak_stat[GC+'-Mstellar']-np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k]))[(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])>b[j])&(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])<=b[j+1])])
+            Nstd = np.std((Vpeak_stat[GC+'-Mstellar']-np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k]))[(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])>b[j])&(np.log10(Vpeak_stat[GC+'-Vpeak_sort'][:,k])<b[j+1])])
         plt.errorbar((b[1:]+b[:-1])/2,Nmedian,Nstd,color='k',ecolor='k',ls="none",marker='o',lw=1,markersize=3)
         plt.xlabel('log($V_{peak}$)')
-        plt.ylabel('log($M_*$)')
+        plt.ylabel('log($M_*$)-log($V_{peak}$)')
         plt.xlim(1.9,2.6)
-        plt.savefig('Vpeak-Mstellar_{}_{}.png'.format(GC,k))
+        plt.savefig('Vpeak-Mstellar_Vpeak_ratio_{}_{}.png'.format(GC,k))
         plt.close()
     
