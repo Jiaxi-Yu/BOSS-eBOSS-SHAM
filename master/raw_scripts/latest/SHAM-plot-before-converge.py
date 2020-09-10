@@ -143,9 +143,9 @@ def sham_cal(uniform,sigma_high,sigma,v_high):
     quad = mono * 2.5 * (3 * mu**2 - 1)
     hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
     # use trapz to integrate over mu
-    xi0_single = np.trapz(mono, dx=1./nmu, axis=-1)
-    xi2_single = np.trapz(quad, dx=1./nmu, axis=-1)
-    xi4_single = np.trapz(hexa, dx=1./nmu, axis=-1)
+    xi0_single = np.sum(mono,axis=-1)/nmu
+    xi2_single = np.sum(quad,axis=-1)/nmu
+    xi4_single = np.sum(hexa,axis=-1)/nmu
     print('calculation finish')
     return [xi0_single,xi2_single,xi4_single,n2]
 
