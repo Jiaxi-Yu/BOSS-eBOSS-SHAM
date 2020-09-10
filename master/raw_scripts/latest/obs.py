@@ -19,17 +19,10 @@ for gal in ['LRG']:
     for i,GC in enumerate(['NGC','SGC','NGC+SGC']):
         if gal == 'ELG':
             obsname  = home+'catalog/nersc_mps_ELG_v7/pair_counts_s-mu_pip_eBOSS_'+gal+'_'+GC+'_v7.dat'
-            if rscale == 'linear':
-                obs2pcf  = home+'catalog/nersc_mps_ELG_v7/2PCF_'+function+'_'+rscale+'_'+gal+'_'+GC+'.dat'    
-            else:
-                obs2pcf  = home+'catalog/nersc_zbins_wp_mps_ELG/2PCF_'+function+'_'+rscale+'_'+gal+'_'+GC+'.dat' 
+            obs2pcf  = home+'catalog/nersc_mps_ELG_v7/2PCF_'+function+'_'+rscale+'_'+gal+'_'+GC+'.dat'    
         else:
             obsname  = home+'catalog/nersc_mps_LRG_v7_2/pair_counts_s-mu_pip_eBOSS+SEQUELS_'+gal+'_'+GC+'_v7_2.dat'
-            if rscale == 'linear':
-                obs2pcf  = home+'catalog/nersc_mps_LRG_v7_2/2PCF_'+function+'_'+rscale+'_'+gal+'_'+GC+'.dat'    
-            else:
-                obs2pcf  = home+'catalog/nersc_zbins_wp_mps_LRG/2PCF_'+function+'_'+rscale+'_'+gal+'_'+GC+'.dat' 
- 
+            obs2pcf  = home+'catalog/nersc_mps_LRG_v7_2/2PCF_'+function+'_'+rscale+'_'+gal+'_'+GC+'.dat'  
         # observations in NGC,SGC and NGC+SGC
         obspc = ascii.read(obsname,format = 'no_header')
         mu = (np.linspace(0,1,201)[1:]+np.linspace(0,1,201)[:-1])/2
