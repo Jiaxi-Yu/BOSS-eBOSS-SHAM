@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 import numpy as np
 from scipy.integrate import quad, simps
+import sys
 
 c = 299792.458
 Om = 0.31
-zmin = 0.6
-zmax = 1.1
+zmin = np.float32(sys.argv[1])
+zmax = np.float32(sys.argv[2])
 
 def inv_efunc(z):
   return 1 / np.sqrt(1 - Om + Om * (1+z)**3)
@@ -68,7 +69,7 @@ def neff(z, nz, zmin=0, zmax=1):
   return np.sqrt(neff2)
 
 
-z, nz = combineNS_ELG('nbar_eBOSS_ELG_v7.dat')
+z, nz = combineNS_ELG('/media/jiaxi/disk/Master/nbar_eBOSS_ELG_v7.dat')
 n_eff = neff(z, nz, zmin=zmin, zmax=zmax)
 
 print(n_eff)
