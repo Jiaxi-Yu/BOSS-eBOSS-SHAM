@@ -23,16 +23,16 @@ for gal in ['LRG','ELG']:
         mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z0.6z1.1/2PCF/'
         zrange='z0.6z1.1'
         if rscale == 'linear':
-            mockfits  = home+'catalog/nersc_mps_ELG_v7/2PCF'+function+'_'+rscale+'_'+gal+'__mocks_'    
+            mockfits  = home+'catalog/nersc_mps_ELG_v7/2PCF_'+function+'_'+rscale+'_'+gal+'_mocks_'    
         else:
-            mockfits  = home+'catalog/nersc_zbins_wp_mps_ELG/2PCF'+function+'_'+rscale+'_'+gal+'__mocks_'  
+            mockfits  = home+'catalog/nersc_zbins_wp_mps_ELG/2PCF_'+function+'_'+rscale+'_'+gal+'_mocks_'  
     if gal == 'LRG':
         mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z0.6z1.0/2PCF/'
         zrange='z0.6z1.0'            
         if rscale == 'linear':
-            mockfits  = home+'catalog/nersc_mps_LRG_v7_2/2PCF'+function+'_'+rscale+'_'+gal+'_mocks_'   
+            mockfits  = home+'catalog/nersc_mps_LRG_v7_2/2PCF_'+function+'_'+rscale+'_'+gal+'_mocks_'   
         else:
-            mockfits  = home+'catalog/nersc_zbins_wp_mps_LRG/2PCF'+function+'_'+rscale+'_'+gal+'_mocks_' 
+            mockfits  = home+'catalog/nersc_zbins_wp_mps_LRG/2PCF_'+function+'_'+rscale+'_'+gal+'_mocks_' 
 
     nbins=200
     nmu=120
