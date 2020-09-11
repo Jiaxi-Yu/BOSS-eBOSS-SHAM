@@ -8,7 +8,7 @@ from NGC_SGC import read_xi
 
 Om = 0.31
 home      = '/global/cscratch1/sd/jiaxi/master/'
-function  = 'xi'
+function  = 'mps'
 rscale = 'linear' #&'log'
 xi0 = [None] * 3
 xi2 = [None] * 3
@@ -34,6 +34,6 @@ for gal in ['LRG']:
         obs0 = np.sum(mon,axis=1)/200.
         obs1 = np.sum(qua,axis=1)/200.
         obs2 = np.sum(hexad,axis=1)/200.
-        Table([np.linspace(0,250,251)[:-1],np.linspace(0,250,251)[1:],obs0,obs1,obs2]).write(obs2pcf,format = 'ascii.no_header',delimiter='\t',overwrite=True)
+        Table([np.linspace(0,250,251)[:-1],np.linspace(0,250,251)[1:],(np.linspace(0,250,251)[:-1]+np.linspace(0,250,251)[1:])/2,obs0,obs1,obs2]).write(obs2pcf,format = 'ascii.no_header',delimiter='\t',overwrite=True)
 
 

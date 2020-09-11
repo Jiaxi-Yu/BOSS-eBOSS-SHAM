@@ -13,7 +13,7 @@ from NGC_SGC import read_xi
 
 Om = 0.31
 home      = '/global/cscratch1/sd/jiaxi/master/'
-function  = 'xi'
+function  = 'mps'
 rscale = 'linear'
 
 
