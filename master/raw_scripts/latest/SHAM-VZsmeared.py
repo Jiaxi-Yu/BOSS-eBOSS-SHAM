@@ -251,38 +251,22 @@ def chi2(sigma_M,sigma_V,M_ceil):
     covR  = np.linalg.inv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
     res = OBS-model
     return res.dot(covR.dot(res))
-chi2(0.3,100,1000)
-'''
+
 # prior
 def prior(cube, ndim, nparams):
     global prior_min,prior_max
     if gal=='LRG':
-        if GC == 'NGC':
-            cube[0] = 1.0*cube[0]+0.7
-            cube[1] = 50*cube[1]+80  
-            cube[2] = 2000*cube[2]+1000 
-            prior_min = [0.7,80,1000]
-            prior_max = [1.7,130,3000]
-
-        else:
-            cube[0] = 1.5*cube[0]+0.5 
-            cube[1] = 70*cube[1]+70  
-            cube[2] = 1600*cube[2]+600  
-            prior_min = [0.5,70,600]
-            prior_max = [2.0,140,2200]
+        cube[0] = 1.5*cube[0]+0.5
+        cube[1] = 70*cube[1]+70  
+        cube[2] = 2400*cube[2]+600 
+        prior_min = [0.5,70,600]
+        prior_max = [2.0,140,3000]
     else:
-        if GC == 'NGC':
-            cube[0] = 1.4*cube[0]+0.6    
-            cube[1] = 65*cube[1]      
-            cube[2] = 600*cube[2]+200             
-            prior_min = [0.6,0,200]
-            prior_max = [2.0,65,800]
-        else:
-            cube[0] = 1.4*cube[0]+0.4   
-            cube[1] = 60*cube[1]      
-            cube[2] = 600*cube[2]+200             
-            prior_min = [0.4,0,200]
-            prior_max = [1.8,60,800]
+        cube[0] = 1.6*cube[0]+0.4   
+        cube[1] = 65*cube[1]      
+        cube[2] = 600*cube[2]+200             
+        prior_min = [0.4,0,200]
+        prior_max = [2.0,65,800]
 
 
 # loglikelihood = -0.5*chi2    
