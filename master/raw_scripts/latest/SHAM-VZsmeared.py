@@ -28,9 +28,9 @@ function = sys.argv[4] #'mps' # 'wp'
 zmin     = sys.argv[5]
 zmax     = sys.argv[6]
 
-date     = '0905'#'0810' 
+date     = '0911'#'0905'#'0810' 
 npoints  = 150 
-nseed    = 30
+nseed    = 3
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
@@ -43,38 +43,30 @@ mu_max   = 1
 nmu      = 120
 autocorr = 1
 home      = '/global/cscratch1/sd/jiaxi/master/'
-fileroot = 'MCMCout/3-param_'+date+'/'+gal+'_'+GC+'/multinest_'
+fileroot = 'MCMCout/3-param_{}/{}_{}/multinest_'.format(date,gal,GC)
 
 if rscale =='linear':
     if gal == 'LRG':
         LRGnum   = int(6.26e4)
         z = 0.7018
         a_t = '0.58760'
-        version = 'v7_2'
+        ver = 'v7_2'
     else:
         LRGnum   = int(2.93e5)
         z = 0.8594
         a_t = '0.53780'
-        version = 'v7'
+        ver = 'v7'
         
-    ================================================================
     # covariance matrices and observations    
-    "the files should be ready"
-    obsname = home+'catalog/nersc_mps_'+gal+'_'+version+'/'+function+'_'+rscale+'_'+gal+'_'+GC+'_pip_eBOSS_'+version+'_zs_'+zmin+'-'+zmax+'.dat'
-    #obsname = home+'catalog/nersc_mps_'+gal+'_'+version+'/pair_counts_s-mu_pip_eBOSS_'+function+''+gal+'_'+GC+'_'+version+'.dat'
+    covfits = '{}catalog/nersc_mps_{}_{}/2PCF_{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)  
+    obs2pcf  = '{}catalog/nersc_mps_{}_{}/2PCF_{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
     
-    "names to be revised": with function,rscale information
-    covfits = home+'obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz' 
-    obs2pcf  = home+'obs/'+gal+'_'+GC+'.dat'
-    
-    "the column name should be 'covariance' instead of multipole"
     # Read the covariance matrices and observations
     hdu = fits.open(covfits) # cov([mono,quadru])
-    mocks = hdu[1].data[multipole]
+    mocks = hdu[1].data[GC+'mocks']
     Nmock = mocks.shape[1] 
     errbar = np.std(mocks,axis=1)
     hdu.close()
-    ==============================================================
     obscf = Table.read(obs2pcf,format='ascii.no_header')
     if function == 'mps':
         # generate s bins
@@ -94,53 +86,48 @@ if rscale =='linear':
         s = obscf['col3']
     print('the covariance matrix and the observation 2pcf vector are ready.')
 else:
-    obsname = home+'catalog/nersc_zbins_wp_mps_'+gal+'/'+function+'_'+rscale+'_'+gal+'_'+GC+'_eBOSS_'+version+'_zs_'+zmin+'-'+zmax+'.dat'
-    ================================================================
-    "to be calculated":with gal, GC, function,rscale information
-    covfits = home+'obs/cov_'+gal+'_'+GC+'_'+multipole+'.fits.gz' 
-    obs2pcf  = home+'obs/'+gal+'_'+GC+'.dat'
-    "the column name should be 'covariance' instead of multipole"
+    # zbins with log binned mps and wp
+    covfits = '{}catalog/nersc_zbins_wp_mps_{}/2PCF_{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,multipole) 
+    obs2pcf  = '{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(function,rscale,gal,GC,ver,zmin,zmax)
     # Read the covariance matrices and observations
     hdu = fits.open(covfits) # cov([mono,quadru])
-    mocks = hdu[1].data[multipole]
+    mocks = hdu[1].data[GC+'mocks']
     Nmock = mocks.shape[1] 
     errbar = np.std(mocks,axis=1)
     hdu.close()
-    ==============================================================
     obscf = Table.read(obs2pcf,format='ascii.no_header')
+
     # read s bins
     bins  = np.unique(np.append(obscf['col1'],obscf['col2']))
     bins = bins[bins<rmax]
     obscf= obscf[bins<rmax]
     nbins = len(bins)-1
     s = obscf['col3']
-    
+    # zbins, z_eff ans ngal
     if zmin=='0.60':
-        ======================================================================
         if gal=='ELG':
-            LRGnum = 
-            z = # To be calculated
+            LRGnum = 3.26e5
+            z = 0.7136# To be calculated
         else:
-            LRGnum = 
-            z=
-        a_t = 
+            LRGnum = 8.86e4
+            z = 0.7051
+        a_t = '0.5876'.zfill(5)
     elif zmin=='0.70':
         if gal=='ELG':
-            LRGnum = 
-            z = # To be calculated
+            LRGnum = 4.38e5
+            z = 0.8045# To be calculated
         else:
-            LRGnum = 
-            z=
-        a_t = 
+            LRGnum = 6.47e4
+            z=0.7968
+        a_t = '0.5498'.zfill(5)
     else:
         if gal=='ELG':
-            LRGnum = 
-            z = # To be calculated
+            LRGnum = 3.34e5
+            z = 0.9045 # To be calculated
         else:
-            LRGnum = 
-            z=
-        a_t = 
-        =====================================================================
+            LRGnum = 3.01e4
+            z= 0.8777
+        a_t = '0.526'.zfill(5)
 
 if function == 'mps':
     mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
@@ -148,9 +135,7 @@ if function == 'mps':
     RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)	
     rr=((RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu)
     print('the analytical random pair counts are ready.')
-    ====================================================================
-    "2PCF obs: smin smax smid xi0 xi2 xi4"
-    ====================================================================
+   
     # preprocess the covariance matrix
     if multipole=='mono':
         mocks = mocks[binmin:binmax,:]
@@ -165,8 +150,16 @@ if function == 'mps':
         covcut  = cov(mocks).astype('float32')
         OBS   = append(obscf['col4'],obscf['col5'],obscf['col6']).astype('float32')
 
+
+# small test:
+print('covariance: {}'.format(covfits))
+print('obs 2PCF: {}'.format(obs2pcf))
+print('z_eff = {}'.format(z))
+print('UNIT a(t): {}'.format(a_t))
+print('bins:',bins)
+print('mock shape: {}'.format(mocks.shape))
         
-        # SHAM halo catalogue    
+# SHAM halo catalogue    
 halofile = home+'catalog/UNIT_hlist_'+a_t+'.fits.gz'        
 
 # cosmological parameters
@@ -174,10 +167,11 @@ Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # SHAM halo catalogue
-print('reading the halo catalogue and selecting only the necessary variables...')
+print('reading the UNIT simulation snapshot with a(t)={}'.format(a_t))
 halo = fits.open(halofile)
 length  =len(halo[1].data)
 # make sure len(data) is even
+print('selecting only the necessary variables...')
 if length%2==1:
     datac = np.zeros((length-1,5))
     for i,key in enumerate(['X','Y','Z','VZ',var]):
@@ -251,13 +245,14 @@ def chi2(sigma_M,sigma_V,M_ceil):
             model = append(xi0,xi2,xi4)
     else:
         model = mean(xi0_tmp,axis=0,dtype='float32')
-        mocks = mocks[binmin:binmax]
+        mocks = mocks[:binmax]
     # calculate the covariance, residuals and chi2
     Nbins = len(model)
     covR  = np.linalg.inv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
     res = OBS-model
     return res.dot(covR.dot(res))
-
+chi2(0.3,100,1000)
+'''
 # prior
 def prior(cube, ndim, nparams):
     global prior_min,prior_max
@@ -365,3 +360,4 @@ f.write('\n---------------------------------------------------------------------
 f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
 f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
 f.close()
+'''
