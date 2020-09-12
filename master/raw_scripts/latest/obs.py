@@ -26,7 +26,10 @@ for gal in ['LRG']:
         # observations in NGC,SGC and NGC+SGC
         obspc = ascii.read(obsname,format = 'no_header')
         mu = (np.linspace(0,1,201)[1:]+np.linspace(0,1,201)[:-1])/2
-        mon = ((obspc['col3']-2*obspc['col4']+obspc['col5'])/obspc['col5']).reshape(250,200)
+        mask = (pairs['col5']==0)
+        mon = np.zeros_like(pairs['col3'])
+        mon[~mask]=((pairs['col3'][~mask]-2*pairs['col4'][~mask]+pairs['col5'][~mask])/pairs['col5'][~mask])
+        mon = mon.reshape(33,200)
         qua = mon * 2.5 * (3 * mu**2 - 1)
         hexad = mon * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
         ## use trapz to integrate over mu

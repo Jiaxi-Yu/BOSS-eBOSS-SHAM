@@ -49,7 +49,9 @@ def read_xi(ifmt, rfmt=None, ds=1, ns=200, nmu=120):
     rr[2] = (rr[0] + rr[1] * nfac**2) / (1 + nfac)**2
 
     for i in range(3):
-        mono = (dd[i] - 2*dr[i] + rr[i]) / rr[i]
+        mask = (rr[i]==0)
+        mono = np.zeros_like(rr[i])
+        mono[~mask]=(dd[i][~mask]-2*dr[i][~mask]+rr[i][~mask])/rr[i][~mask])
         quad = mono * 2.5 * (3 * mu**2 - 1)
         hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
 
