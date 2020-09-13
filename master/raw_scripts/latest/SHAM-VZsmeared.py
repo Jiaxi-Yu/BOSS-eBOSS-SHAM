@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import matplotlib 
 matplotlib.use('agg')
 import time
@@ -27,7 +28,7 @@ rscale   = sys.argv[3] #'linear' # 'log'
 function = sys.argv[4] #'mps' # 'wp'
 zmin     = sys.argv[5]
 zmax     = sys.argv[6]
-nseed    = int(sys.argv[7]) #default 30
+nseed    = 30#int(sys.argv[7]) #default 30
 
 date     = '0911'#'0905'#'0810' 
 npoints  = 150 
@@ -42,8 +43,10 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-home      = '/global/cscratch1/sd/jiaxi/master/'
+home      = '/home/astro/jiayu/Desktop/HAM-MCMC'
 fileroot = 'MCMCout/3-param_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(date,function,rscale,gal,GC,zmin,zmax)
+if os.path.exists(fileroot)==False:
+    os.mkdir(fileroot)
 
 if rscale =='linear':
     if gal == 'LRG':
