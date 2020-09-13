@@ -44,7 +44,7 @@ elif (rscale == 'log'):
                    0.8,0.9,1.0,0.7,0.8])
     znum = int(len(Zrange)/2)
     mockDIR  = ['{}catalog/nersc_zbins_wp_mps_{}/EZmocks/z{}z{}/2PCF/'.format(home,gal,Zrange[k],Zrange[k+znum]) for k in range(znum)]
-    mockFITS  = ['{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_{}_mocks_'.format(home,gal,function,rscale,gal,Zrange[k],Zrange[k+znum]) for k in range(znum)]
+    mockFITS  = ['{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_'.format(home,gal,function,rscale,gal,Zrange[k],Zrange[k+znum]) for k in range(znum)]
 
 for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS): 
     time_start=time.time()
