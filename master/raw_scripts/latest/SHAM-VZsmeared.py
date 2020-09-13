@@ -27,10 +27,10 @@ rscale   = sys.argv[3] #'linear' # 'log'
 function = sys.argv[4] #'mps' # 'wp'
 zmin     = sys.argv[5]
 zmax     = sys.argv[6]
+nseed    = int(sys.argv[7]) #default 30
 
 date     = '0911'#'0905'#'0810' 
 npoints  = 150 
-nseed    = 3
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
@@ -118,38 +118,38 @@ else:
     # zbins, z_eff ans ngal
     if (zmin=='0.6')&(zmax=='0.8'):
         if gal=='ELG':
-            LRGnum = 3.26e5
+            LRGnum = int(3.26e5)
             z = 0.7136# To be calculated
         else:
-            LRGnum = 8.86e4
+            LRGnum = int(8.86e4)
             z = 0.7051
         a_t = '0.58760'
     elif (zmin=='0.6')&(zmax=='0.7'):            
-        LRGnum = 9.39e4
+        LRGnum = int(9.39e4)
         z = 0.6518
         a_t = '0.60080'
     elif zmin=='0.65':
-        LRGnum = 8.80e4
+        LRGnum = int(8.80e4)
         z = 0.7273
         a_t = '0.57470'
     elif zmin=='0.9':
-        LRGnum = 1.54e5
+        LRGnum = int(1.54e5)
         z = 0.9938
         a_t = '0.50320'
     elif zmin=='0.7':
         if gal=='ELG':
-            LRGnum = 4.38e5
+            LRGnum = int(4.38e5)
             z = 0.8045# To be calculated
         else:
-            LRGnum = 6.47e4
+            LRGnum = int(6.47e4)
             z=0.7968
         a_t = '0.54980'
     else:
         if gal=='ELG':
-            LRGnum = 3.34e5
+            LRGnum = int(3.34e5)
             z = 0.9045 # To be calculated
         else:
-            LRGnum = 3.01e4
+            LRGnum = int(3.01e4)
             z= 0.8777
         a_t = '0.52600'
 
@@ -165,7 +165,8 @@ if function == 'mps':
         covcut  = cov(mocks).astype('float32')
         OBS   = append(obscf['col4']/extra,obscf['col5']/extra).astype('float32')  
     else:
-        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+200:binmax+200,:],mocks[binmin+400:binmax+400,:]))
+        Ns = int(mocks.shape[0]/3)
+        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:],mocks[binmin+Ns*2:binmax+Ns*2,:]))
         covcut  = cov(mocks).astype('float32')
         OBS   = append(obscf['col4']/extra,obscf['col5']/extra,obscf['col6']/extra).astype('float32')
 
@@ -232,11 +233,9 @@ def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
 def sham_cal(uniform,sigma_high,sigma,v_high):
     datav = datac[:,-1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
     LRGscat = (datac[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]
-    
     # transfer to the redshift space
     z_redshift  = (LRGscat[:,2]+(LRGscat[:,3]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
     z_redshift %=boxsize
-    
     # calculate the 2pcf of the SHAM galaxies
     if function =='mps':
         # count the galaxy pairs and normalise them
@@ -256,8 +255,10 @@ def sham_cal(uniform,sigma_high,sigma,v_high):
 # chi2
 def chi2(sigma_M,sigma_V,M_ceil):
 # calculate mean monopole in parallel
+    print('entered chi2')
     with Pool(processes = nseed) as p:
         xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,uniform_randoms1,repeat(float32(sigma_M)),repeat(float32(sigma_V)),repeat(float32(M_ceil))))
+        
     if function == 'mps':
          # average the result for multiple seeds
         xi0,xi2,xi4 = mean(xi0_tmp,axis=0,dtype='float32')[0],mean(xi0_tmp,axis=0,dtype='float32')[1],mean(xi0_tmp,axis=0,dtype='float32')[2]
@@ -275,9 +276,10 @@ def chi2(sigma_M,sigma_V,M_ceil):
     Nbins = len(model)
     covR  = np.linalg.inv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
     res = OBS-model
+    print('chi2 finishes')
     return res.dot(covR.dot(res))
-print(chi2(0.3,100,1000))
-'''
+
+
 # prior
 def prior(cube, ndim, nparams):
     global prior_min,prior_max
@@ -370,4 +372,3 @@ f.write('\n---------------------------------------------------------------------
 f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
 f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
 f.close()
-'''
