@@ -43,7 +43,7 @@ mu_max   = 1
 nmu      = 120
 autocorr = 1
 home      = '/global/cscratch1/sd/jiaxi/master/'
-fileroot = 'MCMCout/3-param_{}/{}_{}/multinest_'.format(date,gal,GC)
+fileroot = 'MCMCout/3-param_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(date,function,rscale,gal,GC,zmin,zmax)
 
 if rscale =='linear':
     if gal == 'LRG':
@@ -87,8 +87,8 @@ if rscale =='linear':
     print('the covariance matrix and the observation 2pcf vector are ready.')
 else:
     # zbins with log binned mps and wp
-    covfits = '{}catalog/nersc_zbins_wp_mps_{}/2PCF_{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,multipole) 
-    obs2pcf  = '{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(function,rscale,gal,GC,ver,zmin,zmax)
+    covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
+    obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,function,rscale,gal,GC,ver,zmin,zmax)
     # Read the covariance matrices and observations
     hdu = fits.open(covfits) # cov([mono,quadru])
     mocks = hdu[1].data[GC+'mocks']
@@ -98,28 +98,40 @@ else:
     obscf = Table.read(obs2pcf,format='ascii.no_header')
 
     # read s bins
-    bins  = np.unique(np.append(obscf['col1'],obscf['col2']))
-    bins = bins[bins<rmax]
-    obscf= obscf[bins<rmax]
+    binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
+    bins  = np.unique(np.append(binfile['col1'][(binfile['col3']<=rmax)&(binfile['col3']>=rmin)],binfile['col2'][(binfile['col3']<=rmax)&(binfile['col3']>=rmin)]))
+    obscf= obscf[(obscf['col3']<=rmax)&(obscf['col3']>=rmin)]
     nbins = len(bins)-1
     s = obscf['col3']
     # zbins, z_eff ans ngal
-    if zmin=='0.60':
+    if (zmin=='0.6')&(zmax=='0.8'):
         if gal=='ELG':
             LRGnum = 3.26e5
             z = 0.7136# To be calculated
         else:
             LRGnum = 8.86e4
             z = 0.7051
-        a_t = '0.5876'.zfill(5)
-    elif zmin=='0.70':
+        a_t = '0.58760'
+    elif (zmin=='0.6')&(zmax=='0.7'):            
+        LRGnum = 9.39e4
+        z = 0.6518
+        a_t = '0.60080'
+    elif zmin=='0.65':
+        LRGnum = 8.80e4
+        z = 0.7273
+        a_t = '0.57470'
+    elif zmin=='0.9':
+        LRGnum = 1.54e5
+        z = 0.9938
+        a_t = '0.50320'
+    elif zmin=='0.7':
         if gal=='ELG':
             LRGnum = 4.38e5
             z = 0.8045# To be calculated
         else:
             LRGnum = 6.47e4
             z=0.7968
-        a_t = '0.5498'.zfill(5)
+        a_t = '0.54980'
     else:
         if gal=='ELG':
             LRGnum = 3.34e5
@@ -127,15 +139,9 @@ else:
         else:
             LRGnum = 3.01e4
             z= 0.8777
-        a_t = '0.526'.zfill(5)
+        a_t = '0.52600'
 
 if function == 'mps':
-    mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
-    # Analytical RR calculation
-    RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)	
-    rr=((RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu)
-    print('the analytical random pair counts are ready.')
-   
     # preprocess the covariance matrix
     if multipole=='mono':
         mocks = mocks[binmin:binmax,:]
@@ -150,6 +156,12 @@ if function == 'mps':
         covcut  = cov(mocks).astype('float32')
         OBS   = append(obscf['col4'],obscf['col5'],obscf['col6']).astype('float32')
 
+# analytical RR
+mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
+# Analytical RR calculation
+RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)
+rr=((RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu)
+print('the analytical random pair counts are ready.')
 
 # small test:
 print('covariance: {}'.format(covfits))
