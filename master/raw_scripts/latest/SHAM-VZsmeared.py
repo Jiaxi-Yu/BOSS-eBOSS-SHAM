@@ -35,7 +35,7 @@ multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
-rmin     = 1
+rmin     = 5
 rmax     = 30
 nthread  = 64
 autocorr = 1
@@ -59,6 +59,7 @@ if rscale =='linear':
         
     # covariance matrices and observations    
     covfits = '{}catalog/nersc_mps_{}_{}/2PCF_{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)  
+    
     obs2pcf  = '{}catalog/nersc_mps_{}_{}/2PCF_{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
     
     # Read the covariance matrices and observations
@@ -77,6 +78,8 @@ if rscale =='linear':
         # generate mu bins   
         s = (bins[:-1]+bins[1:])/2
         obscf = obscf[binmin:binmax]
+    '''
+    # wp unknown
     else:
         # read s bins
         bins  = np.unique(np.append(obscf['col1'],obscf['col2']))
@@ -84,11 +87,23 @@ if rscale =='linear':
         obscf= obscf[bins<rmax]
         nbins = len(bins)-1
         s = obscf['col3']
+    '''
     print('the covariance matrix and the observation 2pcf vector are ready.')
 else:
+    # read s bins
+    binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
+    bins  = np.unique(np.append(binfile['col1'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)],binfile['col2'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]))
+    binmin = np.where(binfile['col3']>=rmin)[0][0]
+    binmax = np.where(binfile['col3']<rmax)[0][-1]+1
+    if gal == 'LRG':
+        ver = 'v7_2'
+        extra = binfile['col3'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]**2
+    else:
+        ver = 'v7'
+        extra = np.ones(binmax-binmin)
     # zbins with log binned mps and wp
     covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
-    obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,function,rscale,gal,GC,ver,zmin,zmax)
+    obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
     # Read the covariance matrices and observations
     hdu = fits.open(covfits) # cov([mono,quadru])
     mocks = hdu[1].data[GC+'mocks']
@@ -96,11 +111,8 @@ else:
     errbar = np.std(mocks,axis=1)
     hdu.close()
     obscf = Table.read(obs2pcf,format='ascii.no_header')
-
-    # read s bins
-    binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
-    bins  = np.unique(np.append(binfile['col1'][(binfile['col3']<=rmax)&(binfile['col3']>=rmin)],binfile['col2'][(binfile['col3']<=rmax)&(binfile['col3']>=rmin)]))
-    obscf= obscf[(obscf['col3']<=rmax)&(obscf['col3']>=rmin)]
+    # LRG columns are s**2*xi
+    obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
     nbins = len(bins)-1
     s = obscf['col3']
     # zbins, z_eff ans ngal
@@ -146,15 +158,16 @@ if function == 'mps':
     if multipole=='mono':
         mocks = mocks[binmin:binmax,:]
         covcut = cov(mocks).astype('float32')
-        OBS   = obscf['col4'].astype('float32')
+        OBS   = (obscf['col4']/extra).astype('float32')
     elif multipole=='quad':
-        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+200:binmax+200,:]))
+        Ns = int(mocks.shape[0]/2)
+        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
         covcut  = cov(mocks).astype('float32')
-        OBS   = append(obscf['col4'],obscf['col5']).astype('float32')  
+        OBS   = append(obscf['col4']/extra,obscf['col5']/extra).astype('float32')  
     else:
         mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+200:binmax+200,:],mocks[binmin+400:binmax+400,:]))
         covcut  = cov(mocks).astype('float32')
-        OBS   = append(obscf['col4'],obscf['col5'],obscf['col6']).astype('float32')
+        OBS   = append(obscf['col4']/extra,obscf['col5']/extra,obscf['col6']/extra).astype('float32')
 
 # analytical RR
 mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
@@ -263,7 +276,8 @@ def chi2(sigma_M,sigma_V,M_ceil):
     covR  = np.linalg.inv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
     res = OBS-model
     return res.dot(covR.dot(res))
-
+print(chi2(0.3,100,1000))
+'''
 # prior
 def prior(cube, ndim, nparams):
     global prior_min,prior_max
