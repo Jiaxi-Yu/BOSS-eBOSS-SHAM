@@ -148,7 +148,7 @@ else:
         if sham=='0':
             python = Table.read(home+'{}_{}-{}-python.dat'.format(gal,GC,space),format='ascii.no_header')
             c = Table.read(home+'{}_{}-{}-c.dat'.format(gal,GC,space),format='ascii.no_header')
-        elif:
+        elif Vceil!='1000':
             python = Table.read(home+'{}_{}-{}_sigma{}_sigmaV{}_Vceil{}-python.dat'.format(gal,GC,space,sig,sigV,Vceil),format='ascii.no_header')
             c = Table.read(home+'{}_{}-{}_sigma{}_sigmaV{}_Vceil1e99-c.dat'.format(gal,GC,space,sig,sigV),format='ascii.no_header')
         else:
