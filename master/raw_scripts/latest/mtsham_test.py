@@ -69,7 +69,7 @@ nseed    = int(sys.argv[4])
 if nseed==1:
     extra = 1
 else:
-    extra=2
+    extra=4
 if os.path.exists(home+'LRG_NGC-redshift_space_sigma{}_sigmaV{}_Vceil{}_seed{}-python.dat'.format(sig,sigV,Vceil,nseed*extra))==False:
     halofile = home+'catalog/UNIT4LRG-cut200.dat'
     print('reading UNIT catalog')
@@ -89,13 +89,18 @@ if os.path.exists(home+'LRG_NGC-redshift_space_sigma{}_sigmaV{}_Vceil{}_seed{}-p
     print('generating uniform random number arrays...')
     uniform_randoms = [np.random.RandomState(seed=x+1).rand(len(datac)).astype('float32') for x in range(nseed)]
     uniform_randoms1 = [np.random.RandomState(seed=x+1+nseed).rand(len(datac)).astype('float32') for x in range(nseed)]
+    uniform_randoms2 = [np.random.RandomState(seed=x+1+nseed*2).rand(len(datac)).astype('float32') for x in range(nseed)]
+    uniform_randoms3 = [np.random.RandomState(seed=x+1+nseed*3).rand(len(datac)).astype('float32') for x in range(nseed)]
+    print('the uniform random number dtype is ',uniform_randoms[0].dtype)
 
     # HAM application
-    def sham_tpcf(uni,uni1,,uni2,uni3,sigM,sigV,Mtrun):
+    def sham_tpcf(uni,uni1,uni2,uni3,sigM,sigV,Mtrun):
         x00,x20,x40,x001,x201,x401=sham_cal(uni,sigM,sigV,Mtrun)
         x01,x21,x41,x011,x211,x411=sham_cal(uni1,sigM,sigV,Mtrun)
+        x02,x22,x42,x021,x221,x421=sham_cal(uni2,sigM,sigV,Mtrun)
+        x03,x23,x43,x031,x231,x431=sham_cal(uni3,sigM,sigV,Mtrun)
         #return  [(x00+x01)/2,(x20+x21)/2,(x40+x41)/2,(x001+x011)/2,(x201+x211)/2,(x401+x411)/2]
-        return  [x00,x01,x20,x21,x40,x41,x001,x011,x201,x211,x401,x411]
+        return  [x00,x01,x02,x03,x20,x21,x22,x23,x42,x43,x40,x41,x001,x011,x021,x031,x201,x211,x221,x231,x401,x411,x421,x431]
 
     def sham_cal(uniform,sigma_high,sigma,v_high):
         datav = datac[:,-1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) 
@@ -123,31 +128,23 @@ if os.path.exists(home+'LRG_NGC-redshift_space_sigma{}_sigmaV{}_Vceil{}_seed{}-p
         xi0,xi2,xi4,xi01,xi21,xi41 = (xi0_tmp[0]+xi0_tmp[1])/2,(xi0_tmp[2]+xi0_tmp[3])/2,(xi0_tmp[4]+xi0_tmp[5])/2,(xi0_tmp[6]+xi0_tmp[7])/2,(xi0_tmp[8]+xi0_tmp[9])/2,(xi0_tmp[10]+xi0_tmp[11])/2,
     else:
         with Pool(processes = nseed) as p:
-            xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,uniform_randoms1,repeat(np.float32(sig)),repeat(np.float32(sigV)),repeat(np.float32(Vceil))))
-            
+            xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,uniform_randoms1,uniform_randoms2,uniform_randoms3,repeat(np.float32(sig)),repeat(np.float32(sigV)),repeat(np.float32(Vceil))))
+            # averages and standard deviations
             xi0,xi2,xi4,xi01,xi21,xi41 = \
-            mean(xi0_tmp,axis=0,dtype='float32')[0],\
-            mean(xi_tmp,axis=0,dtype='float32')[1],\
-            mean(xi_tmp,axis=0,dtype='float32')[2],\
-            mean(xi0_tmp,axis=0,dtype='float32')[3],\
-            mean(xi0_tmp,axis=0,dtype='float32')[4],\
-            mean(xi0_tmp,axis=0,dtype='float32')[5]
-            
-            xi0,xi2,xi4,xi01,xi21,xi41 = \
-            mean([xi0_tmp[k][j] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            mean([xi0_tmp[k][j+2] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            mean([xi0_tmp[k][j+4] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            mean([xi0_tmp[k][j+6] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            mean([xi0_tmp[k][j+8] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            mean([xi0_tmp[k][j+10] for k in range(nseed) for j in range(2)],axis=0,dtype='float32')
+            mean([xi0_tmp[k][j] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            mean([xi0_tmp[k][j+4] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            mean([xi0_tmp[k][j+8] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            mean([xi0_tmp[k][j+12] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            mean([xi0_tmp[k][j+16] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            mean([xi0_tmp[k][j+20] for k in range(nseed) for j in range(4)],axis=0,dtype='float32')
             
             xi0std,xi2std,xi4std,xi01std,xi21std,xi41std = \
-            std([xi0_tmp[k][j] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            std([xi0_tmp[k][j+2] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            std([xi0_tmp[k][j+4] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            std([xi0_tmp[k][j+6] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            std([xi0_tmp[k][j+8] for k in range(nseed) for j in range(2)],axis=0,dtype='float32'),\
-            std([xi0_tmp[k][j+10] for k in range(nseed) for j in range(2)],axis=0,dtype='float32')
+            std([xi0_tmp[k][j] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            std([xi0_tmp[k][j+4] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            std([xi0_tmp[k][j+8] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            std([xi0_tmp[k][j+12] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            std([xi0_tmp[k][j+16] for k in range(nseed) for j in range(4)],axis=0,dtype='float32'),\
+            std([xi0_tmp[k][j+20] for k in range(nseed) for j in range(4)],axis=0,dtype='float32')
 
 
     Table([xi0,xi2,xi4,xi0std,xi2std,xi4std]).write(home+'LRG_NGC-redshift_space_sigma{}_sigmaV{}_Vceil{}_seed{}-python.dat'.format(sig,sigV,Vceil,nseed*extra),format = 'ascii.no_header',delimiter='\t',overwrite=True)
@@ -175,7 +172,7 @@ for space in ['redshift_space','real_space']:
             ax[j,k] = fig.add_subplot(spec[j,k])
             plt.xlabel('s (Mpc $h^{-1}$)')
             if (j==0):
-                ax[j,k].errorbar(s,s**2*python['col{}'.format(k+1)],s**2*python['col{}'.format(k+4)],color='k', marker='.',ms=2,ecolor='k',ls="none",label='python')
+                ax[j,k].errorbar(s,s**2*python['col{}'.format(k+1)],s**2*python['col{}'.format(k+4)],color='k', marker='.',ms=8,ecolor='k',ls="none",label='python')
                 ax[j,k].plot(s,s**2*c['col{}'.format(k+3)],c='c',alpha=0.6,label = 'c')
                 ax[j,k].set_ylabel('$\\xi_{}(s)$'.format(k*2)) 
                 plt.legend(loc=0)
