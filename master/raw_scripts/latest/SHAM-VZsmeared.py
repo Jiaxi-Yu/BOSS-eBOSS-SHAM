@@ -50,16 +50,16 @@ if os.path.exists(fileroot)==False:
 
 if rscale =='linear':
     if gal == 'LRG':
-        LRGnum   = int(6.26e4)
+        SHAMnum   = int(6.26e4)
         z = 0.7018
         a_t = '0.58760'
         ver = 'v7_2'
     else:
-        LRGnum   = int(2.93e5)
+        SHAMnum   = int(2.93e5)
         z = 0.8594
         a_t = '0.53780'
         ver = 'v7'
-        
+       
     # covariance matrices and observations    
     covfits = '{}catalog/nersc_mps_{}_{}/2PCF_{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)  
     
@@ -71,6 +71,7 @@ if rscale =='linear':
     Nmock = mocks.shape[1] 
     errbar = np.std(mocks,axis=1)
     hdu.close()
+    extra = np.ones(binmax-binmin)
     obscf = Table.read(obs2pcf,format='ascii.no_header')
     if function == 'mps':
         # generate s bins
@@ -121,38 +122,38 @@ else:
     # zbins, z_eff ans ngal
     if (zmin=='0.6')&(zmax=='0.8'):
         if gal=='ELG':
-            LRGnum = int(3.26e5)
+            SHAMnum = int(3.26e5)
             z = 0.7136# To be calculated
         else:
-            LRGnum = int(8.86e4)
+            SHAMnum = int(8.86e4)
             z = 0.7051
         a_t = '0.58760'
     elif (zmin=='0.6')&(zmax=='0.7'):            
-        LRGnum = int(9.39e4)
+        SHAMnum = int(9.39e4)
         z = 0.6518
         a_t = '0.60080'
     elif zmin=='0.65':
-        LRGnum = int(8.80e4)
+        SHAMnum = int(8.80e4)
         z = 0.7273
         a_t = '0.57470'
     elif zmin=='0.9':
-        LRGnum = int(1.54e5)
+        SHAMnum = int(1.54e5)
         z = 0.9938
         a_t = '0.50320'
     elif zmin=='0.7':
         if gal=='ELG':
-            LRGnum = int(4.38e5)
+            SHAMnum = int(4.38e5)
             z = 0.8045# To be calculated
         else:
-            LRGnum = int(6.47e4)
+            SHAMnum = int(6.47e4)
             z=0.7968
         a_t = '0.54980'
     else:
         if gal=='ELG':
-            LRGnum = int(3.34e5)
+            SHAMnum = int(3.34e5)
             z = 0.9045 # To be calculated
         else:
-            LRGnum = int(3.01e4)
+            SHAMnum = int(3.01e4)
             z= 0.8777
         a_t = '0.52600'
 
@@ -214,7 +215,7 @@ else:
 halo.close()
 
 half = int32(length/2)
-scathalf = int(LRGnum/2)
+scathalf = int(SHAMnum/2)
 
 # generate uniform random numbers
 print('generating uniform random number arrays...')
@@ -235,7 +236,7 @@ def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
 
 def sham_cal(uniform,sigma_high,sigma,v_high):
     datav = datac[:,-1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
-    LRGscat = (datac[datav<v_high])[argpartition(-datav[datav<v_high],LRGnum)[:(LRGnum)]]
+    LRGscat = (datac[datav<v_high])[argpartition(-datav[datav<v_high],SHAMnum)[:(SHAMnum)]]
     # transfer to the redshift space
     z_redshift  = (LRGscat[:,2]+(LRGscat[:,3]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
     z_redshift %=boxsize
@@ -244,7 +245,7 @@ def sham_cal(uniform,sigma_high,sigma,v_high):
         # count the galaxy pairs and normalise them
         DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,0],LRGscat[:,1],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
         # calculate the 2pcf and the multipoles
-        mono = (DD_counts['npairs'].reshape(nbins,nmu)/(LRGnum**2)/rr-1)
+        mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
         quad = mono * 2.5 * (3 * mu**2 - 1)
         hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
         # use sum to integrate over mu
@@ -277,7 +278,7 @@ def chi2(sigma_M,sigma_V,M_ceil):
         mocks = mocks[:binmax]
     # calculate the covariance, residuals and chi2
     Nbins = len(model)
-    covR  = np.linalg.inv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
+    covR  = np.linalg.pinv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
     res = OBS-model
     print('chi2 finishes')
     return res.dot(covR.dot(res))
