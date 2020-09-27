@@ -1,0 +1,12 @@
+the total LRG in SGC SHAM costs 861.298 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 29.227713862276296 
+max-loglike params: [0.5818811657067395, 95.4285087110753, 859.3736217434694]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma [0.759536,1.5], sigma_smear [86.8718,116.292] km/s, Vceil [765.581,1827.55] km/s 
+another way around: sigma 0.581881+0.9181190.177655, sigma_smear 95.4285+20.8631-8.55675km/s,Vceil 859.374+968.178-93.7923km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma [0.587958,1.354], sigma_smear [85.0205,114.167] km/s, Vceil [863.893,1716.6] km/s 
+another way around: sigma 0.581881+0.7721190.00607638, sigma_smear 95.4285+18.7381-10.408km/s,Vceil 859.374+857.2314.51988km/s  
