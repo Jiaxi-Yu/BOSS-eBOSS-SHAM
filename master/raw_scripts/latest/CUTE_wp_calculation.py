@@ -17,8 +17,10 @@ else:
 home='/global/cscratch1/sd/jiaxi/master/catalog/nersc_wp_{}_{}/EZmocks/'.format(gal,ver)
 files = glob(route.format('NGC','*'))
 Ngal = np.zeros((len(files),2))
-for i,GC in enumerate(['NGC','SGC']):
-    for N in range(len(files)):
+
+tasks = open(home+'jobs.txt','w')
+for N in range(len(files)):
+    for i,GC in enumerate(['NGC','SGC']):
         f = open('{}param_{}_{}_{}.ini'.format(home,gal,GC,str(N+1).zfill(4)),'w')
         f.write('# input-output files and parameters\n')
         f.write('data_filename= {}\n'.format(route.format(GC,str(N+1).zfill(4))))
@@ -56,3 +58,5 @@ for i,GC in enumerate(['NGC','SGC']):
         f.write('use_pm= 0\n')
         f.write('n_pix_sph= 2048\n')
         f.close()
+        tasks.write('/global/cscratch1/sd/jiaxi/CUTE/CUTE/CUTE {}param_{}_{}_{}.ini\n'.format(home,gal,GC,str(N+1).zfill(4)))
+tasks.close()
