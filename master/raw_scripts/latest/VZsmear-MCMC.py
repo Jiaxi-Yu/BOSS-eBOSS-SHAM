@@ -1,7 +1,7 @@
 import matplotlib 
 matplotlib.use('agg')
 import time
-initial = time.time()
+init = time.time()
 import numpy as np
 from numpy import log, pi,sqrt,cos,sin,argpartition,copy,float32,int32,append,mean,cov,vstack
 from astropy.table import Table
@@ -95,7 +95,7 @@ else:
     if gal=='ELG':
         binfile = Table.read(home+'cheng_HOD_{}/mps_log_{}_NGC+SGC_eBOSS_v7_zs_0.70-0.90.dat'.format(gal,gal),format='ascii.no_header')
     else:
-         binfile = Table.read(home+'cheng_HOD_{}/mps_log_{}_NGC+SGC_eBOSS_v7_2_zs_0.60-0.80.dat'.format(gal,gal),format='ascii.no_header')   
+        binfile = Table.read(home+'cheng_HOD_{}/mps_log_{}_NGC+SGC_eBOSS_v7_2_zs_0.60-0.80.dat'.format(gal,gal),format='ascii.no_header')   
 
     bins  = np.unique(np.append(binfile['col1'],binfile['col2']))
     bins = bins[bins<rmax]
@@ -168,9 +168,10 @@ def chi2(sigma_M,sigma_V,M_ceil):
     #covR  = np.linalg.pinv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
     res = OBS-model
     return res.dot(covR.dot(res))
-print(chi2(1.067141646,116.5871202,1396.647736))
+
 
 # prior
+prior_min, prior_max = [],[]
 def prior(cube, ndim, nparams):
     global prior_min,prior_max
     if gal=='LRG':
