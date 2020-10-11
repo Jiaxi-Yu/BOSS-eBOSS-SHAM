@@ -184,3 +184,16 @@ for space in ['redshift_space','real_space']:
 
     plt.savefig(home+'{}_{}-{}-sigma{}_sigmaV{}_Vceil{}_seed{}-diff.png'.format(gal,GC,space,sig,sigV,Vceil,nseed*extra),bbox_tight=True)
     plt.close()
+
+    
+# chi2 calculation
+obs2pcf  = '{}2PCF/obs/{}_{}.dat'.format(home,gal,GC)           
+obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]
+OBS   = append(obscf['col3'],obscf['col4']).astype('float32')
+model = append(xi0,xi2)
+covR_file = Table.read('/global/cscratch1/sd/jiaxi/master/2PCF/obs/covR_LRG_NGC.dat',format='ascii.no_header') 
+covRfile = np.zeros(((rmax-rmin)*2,(rmax-rmin)*2))
+for i in range((rmax-rmin)*2):
+    covRfile[:,i] = covR_file['col{}'.format(i+1)]     
+#log_like
+-0.5*(OBS-model).dot(covRfile.dot(OBS-model))
