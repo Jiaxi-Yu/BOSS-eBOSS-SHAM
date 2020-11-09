@@ -16,7 +16,7 @@ import glob
 import sys
 
 gal      = 'LRG'
-GC       = 'NGC'
+GC       = 'SGC'
 rscale   = 'linear' # 'log'
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
@@ -66,6 +66,7 @@ sig = sys.argv[1]
 sigV= sys.argv[2]
 Vceil = sys.argv[3]
 nseed    = int(sys.argv[4])
+cut = sys.argv[5]
 if nseed==1:
     extra = 1
 else:
@@ -104,7 +105,10 @@ if os.path.exists(home+'LRG_NGC-redshift_space_sigma{}_sigmaV{}_Vceil{}_seed{}-p
 
     def sham_cal(uniform,sigma_high,sigma,v_high):
         datav = datac[:,-1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) 
-        LRGscat = (datac[datav<v_high])[argpartition(-datav[datav<v_high],SHAMnum)[:(SHAMnum)]]
+        if cut=='aftercut':
+            LRGscat = (datac[datav<v_high])[argpartition(-datav[datav<v_high],SHAMnum)[:(SHAMnum)]]
+        if cut =='precut':
+            LRGscat = (datac[datac[:,-1]<v_high])[argpartition(-datav[datac[:,-1]<v_high],SHAMnum)[:(SHAMnum)]]
         # transfer to the redshift space
         z_redshift  = (LRGscat[:,2]+(LRGscat[:,3]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
         z_redshift %=boxsize
@@ -147,22 +151,23 @@ if os.path.exists(home+'LRG_NGC-redshift_space_sigma{}_sigmaV{}_Vceil{}_seed{}-p
             std([xi0_tmp[k][j+20] for k in range(nseed) for j in range(4)],axis=0,dtype='float32')
 
 
-    Table([xi0,xi2,xi4,xi0std,xi2std,xi4std]).write(home+'LRG_NGC-redshift_space_sigma{}_sigmaV{}_Vceil{}_seed{}-python.dat'.format(sig,sigV,Vceil,nseed*extra),format = 'ascii.no_header',delimiter='\t',overwrite=True)
-    Table([xi01,xi21,xi41,xi01std,xi21std,xi41std]).write(home+'LRG_NGC-real_space_sigma{}_sigmaV{}_Vceil{}_seed{}-python.dat'.format(sig,sigV,Vceil,nseed*extra),format = 'ascii.no_header',delimiter='\t',overwrite=True)
+    Table([xi0,xi2,xi4,xi0std,xi2std,xi4std]).write(home+'{}-{}_{}-redshift_space_sigma{}_sigmaV{}_Vceil{}_seed{}-python.dat'.format(cut,gal,GC,sig,sigV,Vceil,nseed*extra),format = 'ascii.no_header',delimiter='\t',overwrite=True)
+    Table([xi01,xi21,xi41,xi01std,xi21std,xi41std]).write(home+'{}-{}_{}-real_space_sigma{}_sigmaV{}_Vceil{}_seed{}-python.dat'.format(cut,gal,GC,sig,sigV,Vceil,nseed*extra),format = 'ascii.no_header',delimiter='\t',overwrite=True)
 
-f = open(home+'{}_{}-sigma{}_sigmaV{}_Vceil1e99_seed{}-diff.dat'.format(gal,GC,sig,sigV,nseed*extra),'w')    
+#f = open(home+'{}-{}_{}-sigma{}_sigmaV{}_Vceil{}_seed{}-diff.dat'.format(cut,gal,GC,sig,sigV,Vceil,nseed*extra),'w')    
 for space in ['redshift_space','real_space']:
-    python = Table.read(home+'{}_{}-{}_sigma{}_sigmaV{}_Vceil{}_seed{}-python.dat'.format(gal,GC,space,sig,sigV,Vceil,nseed*extra),format='ascii.no_header')
+    python = Table.read(home+'{}-{}_{}-{}_sigma{}_sigmaV{}_Vceil{}_seed{}-python.dat'.format(cut,gal,GC,space,sig,sigV,Vceil,nseed*extra),format='ascii.no_header')
     if Vceil=='1000000':
-        c = Table.read(home+'{}_{}-{}_sigma{}_sigmaV{}_Vceil1e99_seed{}-c.dat'.format(gal,GC,space,sig,sigV,nseed*extra),format='ascii.no_header')[binmin:]
+        c = Table.read(home+'{}-{}_{}-{}_sigma{}_sigmaV{}_Vceil1e99_seed{}-c.dat'.format(cut,gal,GC,space,sig,sigV,nseed*extra),format='ascii.no_header')[binmin:]
     else:
-        c = Table.read(home+'{}_{}-{}_sigma{}_sigmaV{}_Vceil{}_seed{}-c.dat'.format(gal,GC,space,sig,sigV,Vceil,nseed*extra),format='ascii.no_header')[binmin:]
+        c = Table.read(home+'{}-{}_{}-{}_sigma{}_sigmaV{}_Vceil{}_seed{}-c.dat'.format(cut,gal,GC,space,sig,sigV,Vceil,nseed*extra),format='ascii.no_header')[binmin:]
+    '''
     f.write('# mono(%)  quad(%)\n')
     f.write('#{}:\n'.format(space))
     for arr1,arr2 in zip(np.array((c['col3']-python['col1'])/python['col1']*100),np.array((c['col4']-python['col2'])/python['col2']*100)):
         f.write('{} {}'.format(arr1,arr2))
         f.write('\n')
-
+    '''
 
     fig = plt.figure(figsize=(15,8))
     spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3)
@@ -182,18 +187,17 @@ for space in ['redshift_space','real_space']:
                 ax[j,k].plot(s,np.zeros_like(s),'k--')
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$(%)'.format(k*2))
 
-    plt.savefig(home+'{}_{}-{}-sigma{}_sigmaV{}_Vceil{}_seed{}-diff.png'.format(gal,GC,space,sig,sigV,Vceil,nseed*extra),bbox_tight=True)
+    plt.savefig(home+'{}-{}_{}-{}-sigma{}_sigmaV{}_Vceil{}_seed{}-diff.png'.format(cut,gal,GC,space,sig,sigV,Vceil,nseed*extra),bbox_tight=True)
     plt.close()
 
-    
 # chi2 calculation
-obs2pcf  = '{}2PCF/obs/{}_{}.dat'.format(home,gal,GC)           
+obs2pcf  = '{}/catalog/nersc_mps_{}_v7_2/2PCF_mps_linear_{}_{}.dat'.format(home,gal,gal,GC)           
 obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]
-OBS   = append(obscf['col3'],obscf['col4']).astype('float32')
+OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
 model = append(xi0,xi2)
-covR_file = Table.read('/global/cscratch1/sd/jiaxi/master/2PCF/obs/covR_LRG_NGC.dat',format='ascii.no_header') 
+covR_file = Table.read('/global/cscratch1/sd/jiaxi/master/catalog/nersc_mps_LRG_v7_2/covR-{}_{}-5_25-quad.dat'.format(gal,GC),format='ascii.no_header') 
 covRfile = np.zeros(((rmax-rmin)*2,(rmax-rmin)*2))
 for i in range((rmax-rmin)*2):
     covRfile[:,i] = covR_file['col{}'.format(i+1)]     
 #log_like
--0.5*(OBS-model).dot(covRfile.dot(OBS-model))
+print(-0.5*(OBS-model).dot(covRfile.dot(OBS-model)))
