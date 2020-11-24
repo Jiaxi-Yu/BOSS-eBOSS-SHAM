@@ -3,7 +3,7 @@ matplotlib.use('agg')
 import time
 init = time.time()
 import numpy as np
-from numpy import log, pi,sqrt,cos,sin,argpartition,copy,float32,int32,append,mean,cov,vstack
+from numpy import log, pi,sqrt,cos,sin,argpartition,copy,float32,int32,append,mean,cov,vstack,hstack
 from astropy.table import Table
 from astropy.io import fits
 from Corrfunc.theory.DDsmu import DDsmu
@@ -25,17 +25,17 @@ gal      = sys.argv[1]
 GC       = sys.argv[2]
 cut      = sys.argv[3]
 mode     = sys.argv[4]
-date     = '1027'#'1011'#'0919'#'0905'#'0810' 
+date     = '1118'#'1027'#'1011'#'0919'#'0905'#'0810' 
 npoints  = 100 
 nseed    = 20
 rscale   = 'linear' # 'log'
-multipole= 'quad' # 'mono','quad','hexa'
+multipole= 'hexa' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
 function = 'mps' # 'wp'
 Om       = 0.31
 boxsize  = 1000
 rmin     = 5
-rmax     = 25
+rmax     = 35
 nthread  = 64
 autocorr = 1
 mu_max   = 1
@@ -89,11 +89,15 @@ if rscale=='linear':
     hdu = fits.open(covfits) # cov([mono,quadru])
     mock = hdu[1].data[GC+'mocks']
     Nmock = mock.shape[1] 
-    errbar = np.std(hdu[1].data[GC+'mocks'],axis=1)
+    #errbar = np.std(hdu[1].data[GC+'mocks'],axis=1)
     hdu.close()
-    covR = np.loadtxt('{}catalog/nersc_mps_{}_{}/covR-{}_{}-5_25-{}.dat'.format(home,gal,ver,gal,GC,multipole)
-)
+    mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:],mock[binmin+200*2:binmax+200*2,:]))
+    #mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:]))
+    covcut  = cov(mocks).astype('float32')
     obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]  # obs 2pcf
+    OBS   =hstack((obscf['col4'],obscf['col5'],obscf['col6'])).astype('float32')
+    #OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
+    covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
     print('the covariance matrix and the observation 2pcf vector are ready.')
 else:
     if gal=='ELG':
@@ -130,9 +134,9 @@ uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype
 # HAM application
 def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
     x00,x20,x40=sham_cal(uni,sigM,sigV,Mtrun)
-    return [x00,x20]
-    #x01,x21,x41=sham_cal(uni1,sigM,sigV,Mtrun)
-    #return [(x00+x01)/2,(x20+x21)/2,(x40+x41)/2]
+    #return [x00,x20]
+    x01,x21,x41=sham_cal(uni1,sigM,sigV,Mtrun)
+    return [(x00+x01)/2,(x20+x21)/2,(x40+x41)/2]
 
 def sham_cal(uniform,sigma_high,sigma,v_high):
     datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
@@ -168,15 +172,13 @@ def chi2(sigma_M,sigma_V,M_ceil):
     with Pool(processes = nseed) as p:
         xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,uniform_randoms1,repeat(float32(sigma_M)),repeat(float32(sigma_V)),repeat(M_ceil)))
      # average the result for multiple seeds
-    xi0,xi2 = mean(xi0_tmp,axis=0,dtype='float32')[0],\
-              mean(xi0_tmp,axis=0,dtype='float32')[1]
-             #,mean(xi0_tmp,axis=0,dtype='float32')[2]
+    xi0,xi2,xi4 = mean(xi0_tmp,axis=0,dtype='float32')[0],\
+              mean(xi0_tmp,axis=0,dtype='float32')[1],\
+              mean(xi0_tmp,axis=0,dtype='float32')[2]
 
     # identify the fitting multipoles
-    model = append(xi0,xi2)
-    mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:]))
-    covcut  = cov(mocks).astype('float32')
-    OBS   = append(obscf['col4'],obscf['col5']).astype('float32')  
+    model = hstack((xi0,xi2,xi4))
+    #model = append(xi0,xi2)
     # calculate the covariance, residuals and chi2
     res = OBS-model
     return res.dot(covR.dot(res))
@@ -192,11 +194,11 @@ else:
         global prior_min,prior_max
         if (gal=='LRG')&(cut =='indexcut'):
             # the same as LRG_SGC_4-n
-            cube[0] = 1.2*cube[0]
-            cube[1] = 80*cube[1]+70  
-            cube[2] = 2.5*cube[2]+4.0 
-            prior_min = [0,70,4.0] #[remains, changed, changed]
-            prior_max = [1.2,150,6.5] #[changed, remains, changed]
+            cube[0] = 2.5*cube[0]
+            cube[1] = 100*cube[1]+60
+            cube[2] = 2.0*cube[2]+4.0 
+            prior_min = [0,60,4.0] 
+            prior_max = [2.5,160,6.0]
         elif gal=='ELG':
             cube[0] = 1.4*cube[0]+0.4    
             cube[1] = 60*cube[1]      
@@ -222,6 +224,7 @@ else:
 
     # run MultiNest & write the parameter's name
     pymultinest.run(loglike, prior, npar,n_live_points= npoints, outputfiles_basename=fileroot, resume =True, verbose = True,n_iter_before_update=5,write_output=True)
+    """
     f=open(fileroot+'.paramnames', 'w')
     for param in parameters:
         f.write(param+'\n')
@@ -230,21 +233,11 @@ else:
     # prior ranges
     f=open(fileroot+'.ranges', 'w')
     for i,param in enumerate(parameters):
-        f.write('{}  {} {}\n'.format(param,prior_min[i],prior_max[i]))
+        f.write('{} {} {}\n'.format(param,prior_min[i],prior_max[i]))
     f.close()
-
-    # getdist plot
-    sample = loadMCSamples(fileroot)
-    plt.rcParams['text.usetex'] = False
-    g = plots.get_single_plotter()
-    g.settings.figure_legend_frame = False
-    g.settings.alpha_filled_add=0.4
-    #g.settings.title_limit_fontsize = 14
-    g = plots.get_subplot_plotter()
-    g.triangle_plot(sample,parameters, filled=True)#,title_limit=1)
-    g.export('{}_{}_{}_posterior.pdf'.format(date,gal,GC))
-    plt.close('all')
+    """
     # results
+    sample = loadMCSamples(fileroot)
     print('Results:')
     stats = sample.getMargeStats()
     best = np.zeros(npar)
