@@ -212,7 +212,7 @@ else:
     hdulist = fits.BinTableHDU.from_columns(cols)
     hdulist.header.update(sbins=len(NGC),nmu=80)
     hdulist.writeto(mockfits,overwrite=True)
-
+"""
     # covR calculation for 5-25Mpc/h & quadrupole
     hdu = fits.open(home+'catalog/'+file+'/'+function+'_'+rscale+'_'+gal+'_mocks_quad.fits.gz')
     for GC in ['NGC','SGC']:#,'NGC+SGC']:
@@ -229,3 +229,4 @@ else:
 time_end=time.time()
 print('Covariance matrix calculation costs',time_end-time_start,'s')
 
+"""
