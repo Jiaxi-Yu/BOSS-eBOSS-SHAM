@@ -216,12 +216,12 @@ if mode == 'best_check':
             plt.xlabel('s (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):
-                ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
+                ax[j,k].set_ylabel('wp')
                 label = ['SHAM','PIP obs 1$\sigma$','CP obs 1$\sigma$']
                 plt.legend(label,loc=0)
                 plt.title('projected 2-point correlation function: {} in {}'.format(gal,GC))
             if (j==1):
-                ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
+                ax[j,k].set_ylabel('$\Delta$ wp')
         plt.savefig('{}_bestfit_{}_{}_{}-{}Mpch-1_{}.png'.format(func,gal,GC,rmin,rmax,mode),bbox_tight=True)
         plt.close()
     else:
@@ -250,31 +250,50 @@ if mode == 'best_check':
 elif mode == 'close_chi2':
     with Pool(processes = nseed) as p:
         xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(0.14864245)),repeat(131.20083923),repeat(np.float32(5.24729866))))) 
-
     with Pool(processes = nseed) as p:
         xi0_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(0.59092776)),repeat(109.82603879),repeat(np.float32(4.87587909))))) 
-    
-    # plot the 2PCF multipoles   
-    fig = plt.figure(figsize=(14,8))
-    spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
-    ax = np.empty((2,2), dtype=type(plt.axes))
-    for col,covbin,name,k in zip(['col4','col5'],[int(0),int(200)],['monopole','quadrupole'],range(2)):
-        values=[np.zeros(nbins),np.mean(xi1_ELG,axis=0)[k]]
+    if func == 'wp':  
+        # plot the 2PCF multipoles   
+        fig = plt.figure(figsize=(5,6))
+        spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+        ax = np.empty((2,1), dtype=type(plt.axes))
+        k=0
+        values=[np.zeros(nbins),np.mean(xi1_ELG,axis=0)]
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
-            ax[j,k].plot(s,s**2*(np.mean(xi1_ELG,axis=0)[k]-values[j]),c='c',alpha=0.6)
-            ax[j,k].plot(s,s**2*(np.mean(xi0_ELG,axis=0)[k]-values[j]),c='m',alpha=0.6)
+            ax[j,k].plot(s,(np.mean(xi0_ELG,axis=0)-values[j]),c='m',alpha=0.6)
+            ax[j,k].errorbar(s,np.mean(xi1_ELG,axis=0)-values[j],errbar,color='c',fmt='none')
             plt.xlabel('s (Mpc $h^{-1}$)')
+            plt.xscale('log')
             if (j==0):
-                ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
-                label = ['$\chi^2=75.39$','$\chi^2=75.33$']
+                ax[j,k].set_ylabel('wp')
+                label = ['$\chi^2=75.33$','$\chi^2=75.39$']
                 plt.legend(label,loc=0)
-                plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+                plt.title('projected 2-point correlation function: {} in {}'.format(gal,GC))
             if (j==1):
-                ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
-    plt.savefig('cf_{}_bestfit_{}_{}_{}-{}Mpch-1_{}.png'.format(multipole,gal,GC,rmin,rmax,mode),bbox_tight=True)
-    plt.close()
-
+                ax[j,k].set_ylabel('$\Delta$ wp')
+        plt.savefig('{}_{}_{}_{}_{}-{}Mpch-1.png'.format(func,mode,gal,GC,rmin,rmax),bbox_tight=True)
+        plt.close()
+    else: 
+        fig = plt.figure(figsize=(14,8))
+        spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+        ax = np.empty((2,2), dtype=type(plt.axes))
+        for col,covbin,name,k in zip(['col4','col5'],[int(0),int(200)],['monopole','quadrupole'],range(2)):
+            values=[np.zeros(nbins),np.mean(xi1_ELG,axis=0)[k]]
+            for j in range(2):
+                ax[j,k] = fig.add_subplot(spec[j,k])
+                ax[j,k].plot(s,s**2*(np.mean(xi0_ELG,axis=0)[k]-values[j]),c='m',alpha=0.6)
+                ax[j,k].errorbar(s,s**2*(np.mean(xi1_ELG,axis=0)[k]-values[j]),s**2*errbar[binmin+covbin:binmax+covbin],color='c',fmt='none')
+                plt.xlabel('s (Mpc $h^{-1}$)')
+                if (j==0):
+                    ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
+                    label = ['$\chi^2=75.33$','$\chi^2=75.39$']
+                    plt.legend(label,loc=0)
+                    plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+                if (j==1):
+                    ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
+        plt.savefig('cf_{}_{}_{}_{}_{}-{}Mpch-1.png'.format(multipole,mode,gal,GC,rmin,rmax),bbox_tight=True)
+        plt.close()
 """
 np.savetxt(bestfit,np.vstack((np.mean(xi1_ELG,axis=0)[0],np.mean(xi1_ELG,axis=0)[1],np.mean(xi1_ELG,axis=0)[2])).T)
 print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[3]))
