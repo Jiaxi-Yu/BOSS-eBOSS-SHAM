@@ -122,7 +122,7 @@ elif func == 'wp':
 # create the halo catalogue and plot their 2pcf
 print('selecting only the necessary variables...')
 f=h5py.File(halofile,"r")
-sel = f["halo"]['Vpeak'][:]>200
+sel = f["halo"]['Vpeak'][:]>0
 if len(f["halo"]['Vpeak'][:][sel])%2 ==1:
     datac = np.zeros((len(f["halo"]['Vpeak'][:][sel])-1,5))
     for i,key in enumerate(f["halo"].keys()):
@@ -262,7 +262,7 @@ elif mode == 'close_chi2':
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             ax[j,k].plot(s,(np.mean(xi0_ELG,axis=0)-values[j]),c='m',alpha=0.6)
-            ax[j,k].errorbar(s,np.mean(xi1_ELG,axis=0)-values[j],errbar,color='c',fmt='none')
+            ax[j,k].errorbar(s,np.mean(xi1_ELG,axis=0)-values[j],errbar,color='c')#,fmt='none')
             plt.xlabel('s (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):
@@ -283,7 +283,7 @@ elif mode == 'close_chi2':
             for j in range(2):
                 ax[j,k] = fig.add_subplot(spec[j,k])
                 ax[j,k].plot(s,s**2*(np.mean(xi0_ELG,axis=0)[k]-values[j]),c='m',alpha=0.6)
-                ax[j,k].errorbar(s,s**2*(np.mean(xi1_ELG,axis=0)[k]-values[j]),s**2*errbar[binmin+covbin:binmax+covbin],color='c',fmt='none')
+                ax[j,k].errorbar(s,s**2*(np.mean(xi1_ELG,axis=0)[k]-values[j]),s**2*errbar[binmin+covbin:binmax+covbin],color='c')#,fmt='none')
                 plt.xlabel('s (Mpc $h^{-1}$)')
                 if (j==0):
                     ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
