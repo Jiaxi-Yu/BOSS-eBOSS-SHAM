@@ -7,6 +7,7 @@ from numpy import log, pi,sqrt,cos,sin,argpartition,copy,float32,int32,append,me
 from astropy.table import Table
 from astropy.io import fits
 from Corrfunc.theory.DDsmu import DDsmu
+from Corrfunc.theory.wp import wp
 import os
 import warnings
 import matplotlib.pyplot as plt
@@ -23,25 +24,26 @@ import h5py
 # variables
 gal      = sys.argv[1]
 GC       = sys.argv[2]
-cut      = sys.argv[3]
+function = sys.argv[3]
+#function = #'mps' # 'wp'
 mode     = sys.argv[4]
-date     = '1118'#'1027'#'1011'#'0919'#'0905'#'0810' 
+cut      = 'indexcut'
+date     = '1211'#'1118'#'1027'#'1011'#'0919'#'0905'#'0810' 
 npoints  = 100 
-nseed    = 20
+nseed    = 25
 rscale   = 'linear' # 'log'
-multipole= 'hexa' # 'mono','quad','hexa'
+multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
-function = 'mps' # 'wp'
 Om       = 0.31
 boxsize  = 1000
-rmin     = 5
+rmin     = 2
 rmax     = 35
 nthread  = 64
 autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-home      = '/global/cscratch1/sd/jiaxi/master/'
+home      = '/global/cscratch1/sd/jiaxi/SHAM/'
 fileroot = 'MCMCout/{}_{}/multinest_'.format(cut,date)
 
 
@@ -67,7 +69,7 @@ Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # generate linear bins or read log bins
-if rscale=='linear':
+if (rscale=='linear')&(function=='mps'):
     # generate s bins
     bins  = np.arange(rmin,rmax+1,1)
     nbins = len(bins)-1
@@ -86,20 +88,19 @@ if rscale=='linear':
     obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
     covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
     # Read the covariance matrices and observations
-    hdu = fits.open(covfits) # cov([mono,quadru])
+    hdu = fits.open(covfits) #
     mock = hdu[1].data[GC+'mocks']
     Nmock = mock.shape[1] 
-    #errbar = np.std(hdu[1].data[GC+'mocks'],axis=1)
     hdu.close()
-    mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:],mock[binmin+200*2:binmax+200*2,:]))
-    #mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:]))
+    #mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:],mock[binmin+200*2:binmax+200*2,:]))
+    mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:]))
     covcut  = cov(mocks).astype('float32')
     obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]  # obs 2pcf
-    OBS   =hstack((obscf['col4'],obscf['col5'],obscf['col6'])).astype('float32')
-    #OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
+    #OBS   =hstack((obscf['col4'],obscf['col5'],obscf['col6'])).astype('float32')
+    OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
     covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
     print('the covariance matrix and the observation 2pcf vector are ready.')
-else:
+elif (rscale=='log')&(function=='mps'):
     if gal=='ELG':
         binfile = Table.read(home+'cheng_HOD_{}/mps_log_{}_NGC+SGC_eBOSS_v7_zs_0.70-0.90.dat'.format(gal,gal),format='ascii.no_header')
     else:
@@ -108,6 +109,32 @@ else:
     bins  = np.unique(np.append(binfile['col1'],binfile['col2']))
     bins = bins[bins<rmax]
     nbins = len(bins)-1
+elif function=='wp':
+    # the log binned wp
+    covfits  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,function,gal,ver,function,gal) 
+    obs2pcf  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
+    # bin
+    binfile = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
+    binmin = np.where(binfile['col3']>=rmin)[0][0]
+    binmax = np.where(binfile['col3']<rmax)[0][-1]+1
+    # observation
+    obscf = Table.read(obs2pcf,format='ascii.no_header')
+    obscf = obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
+    OBS   = obscf['col4']
+    bins  = np.unique(append(obscf['col1'],obscf['col2']))
+    nbins = len(bins)-1
+    s = obscf['col3']
+    OBS   = np.array(obscf['col4']).astype('float32')
+    # Read the covariance matrices
+    hdu = fits.open(covfits) 
+    mocks = hdu[1].data[GC+'mocks'][binmin:binmax,:]
+    Nmock = mocks.shape[1] 
+    errbar = np.std(mocks,axis=1)
+    hdu.close()
+    covcut  = cov(mocks).astype('float32')
+    covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
+else:
+    print('wrong 2pcf function input')
 
 # SHAM halo catalogue, keep them even
 read = time.time()
@@ -133,66 +160,67 @@ uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype
 
 # HAM application
 def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
-    x00,x20,x40=sham_cal(uni,sigM,sigV,Mtrun)
-    #return [x00,x20]
-    x01,x21,x41=sham_cal(uni1,sigM,sigV,Mtrun)
-    return [(x00+x01)/2,(x20+x21)/2,(x40+x41)/2]
+    if function == 'mps':
+        x00,x20= sham_cal(uni,sigM,sigV,Mtrun)
+        x01,x21= sham_cal(uni1,sigM,sigV,Mtrun)
+        tpcf   = [(x00+x01)/2,(x20+x21)/2]
+    else:        
+        x00    = sham_cal(uni,sigM,sigV,Mtrun)
+        x01    = sham_cal(uni1,sigM,sigV,Mtrun)
+        tpcf   = (x00+x01)/2
+    return tpcf
 
 def sham_cal(uniform,sigma_high,sigma,v_high):
     datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
-    if cut=='aftercut':
-        LRGscat = (datac[datav<v_high])[argpartition(-datav[datav<v_high],SHAMnum)[:(SHAMnum)]]
-    elif cut =='precut':
-        LRGscat = (datac[datac[:,-1]<v_high])[argpartition(-datav[datac[:,-1]<v_high],SHAMnum)[:(SHAMnum)]]
-    elif cut=='indexcut':
-        LRGscat = datac[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
-        datav = datav[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
-        LRGscat = LRGscat[argpartition(-datav,int(10**v_high))[int(10**v_high):]]
-    else:
-        print('wrong input!')
+    LRGscat = datac[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
+    datav = datav[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
+    LRGscat = LRGscat[argpartition(-datav,int(10**v_high))[int(10**v_high):]]
     
     # transfer to the redshift space
     scathalf = int(len(LRGscat)/2)
     z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
     z_redshift %=boxsize
     
-    # calculate the 2pcf of the SHAM galaxies
-    # count the galaxy pairs and normalise them
-    DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,2],LRGscat[:,3],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
-    # calculate the 2pcf and the multipoles
-    mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
-    quad = mono * 2.5 * (3 * mu**2 - 1)
-    hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+    if function == 'mps':
+        DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,2],LRGscat[:,3],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
+        # calculate the 2pcf and the multipoles
+        mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
+        quad = mono * 2.5 * (3 * mu**2 - 1)
         # use sum to integrate over mu
-    return [np.sum(mono,axis=-1)/nmu,np.sum(quad,axis=-1)/nmu,np.sum(hexa,axis=-1)/nmu]
+        SHAM_array = [np.sum(mono,axis=-1)/nmu,np.sum(quad,axis=-1)/nmu]
+    else:
+        wp_dat = wp(boxsize,80,nthread,bins,LRGscat[:,2],LRGscat[:,3],z_redshift)
+        SHAM_array = wp_dat['wp']
+    return SHAM_array
+
 
 # chi2
 def chi2(sigma_M,sigma_V,M_ceil):
 # calculate mean monopole in parallel
     with Pool(processes = nseed) as p:
         xi0_tmp = p.starmap(sham_tpcf,zip(uniform_randoms,uniform_randoms1,repeat(float32(sigma_M)),repeat(float32(sigma_V)),repeat(M_ceil)))
-     # average the result for multiple seeds
-    xi0,xi2,xi4 = mean(xi0_tmp,axis=0,dtype='float32')[0],\
-              mean(xi0_tmp,axis=0,dtype='float32')[1],\
-              mean(xi0_tmp,axis=0,dtype='float32')[2]
-
-    # identify the fitting multipoles
-    model = hstack((xi0,xi2,xi4))
-    #model = append(xi0,xi2)
-    # calculate the covariance, residuals and chi2
+    
+    if function == 'mps':
+        # average the result for multiple seeds
+        xi0,xi2 = mean(xi0_tmp,axis=0,dtype='float32')[0],\
+                  mean(xi0_tmp,axis=0,dtype='float32')[1]
+        model = append(xi0,xi2)
+    else:
+        model = mean(xi0_tmp,axis=0,dtype='float32')
+    # calculate the residuals and chi2
     res = OBS-model
     return res.dot(covR.dot(res))
 
 if mode == 'debug':
-    print('debug mode on, {} used'.format(cut))
+    print('debug mode on')
     print(chi2(0.5,100.,1.))
 else:
-    print('multinest active, {} used'.format(cut))
+    print('multinest activate')
     # prior
     prior_min, prior_max = [],[]
     def prior(cube, ndim, nparams):
         global prior_min,prior_max
-        if (gal=='LRG')&(cut =='indexcut'):
+        if (gal=='LRG'):
             # the same as LRG_SGC_4-n
             cube[0] = 2.5*cube[0]
             cube[1] = 100*cube[1]+60
