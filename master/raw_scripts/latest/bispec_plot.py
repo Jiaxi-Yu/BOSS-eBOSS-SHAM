@@ -17,7 +17,7 @@ nseed   = 20
 home    = '/global/cscratch1/sd/jiaxi/SHAM/'
 mode    = 'close_chi2'
 func    = 'bispec'
-label   = int(sys.argv[1])
+label   = int(sys.argv[1]) # execute bispec calculation or not
 
 # random seeds
 seed = [x for x in range(nseed)]
@@ -49,7 +49,33 @@ else:
     with Pool(processes = nseed) as p:
         xi0_ELG = p.starmap(sham_tpcf,list(zip(seed,seed1,repeat(np.float32(0.59092776)),repeat(109.82603879),repeat(np.float32(4.87587909))))) 
     s = np.loadtxt('outputs/SHAM_LRG_SGC_sigma0.591_Vsmear109_Vceil75141_seed49.dat')[:,0]
-    # plot the mean
+    # plot 2 close means with errorbar
+    fig = plt.figure(figsize=(5,6))
+    spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+    ax = np.empty((2,1), dtype=type(plt.axes))
+    k=0
+    mean1 = np.mean(np.array(xi1_ELG).reshape(40,20),axis=0)
+    errbar = np.std(np.array(xi1_ELG).reshape(40,20),axis=0)
+    mean0 = np.mean(np.array(xi0_ELG).reshape(40,20),axis=0)
+    values=[np.zeros_like(s),mean1]
+    for j in range(2):
+        ax[j,k] = fig.add_subplot(spec[j,k])
+        ax[j,k].plot(s,(mean0-values[j]),c='m',alpha=0.6)
+        ax[j,k].errorbar(s,mean1-values[j],errbar,color='c')#,fmt='none')
+
+        plt.xlabel('$\\theta$')
+        if (j==0):
+            ax[j,k].set_ylabel('bispec')
+            label = ['$\chi^2=75.33$','$\chi^2=75.39$']
+            plt.legend(label,loc=0)
+            plt.yscale('log')
+            plt.title('projected 2-point correlation function: {} in {}'.format(gal,GC))
+        if (j==1):
+            ax[j,k].set_ylabel('$\Delta$ bispec')
+    plt.savefig('{}_{}_{}_{}.png'.format(func,mode,gal,GC),bbox_tight=True)
+    plt.close()
+"""
+    # plot 2 close means
     fig = plt.figure(figsize=(5,6))
     spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
     ax = np.empty((2,1), dtype=type(plt.axes))
@@ -75,6 +101,7 @@ else:
     plt.savefig('{}_{}_{}_{}.png'.format(func,mode,gal,GC),bbox_tight=True)
     plt.close()
     
+    # plot the mean&scattered realisations
     data = [np.array(xi1_ELG).reshape(40,20),np.array(xi0_ELG).reshape(40,20)]
     color = ['m','c']
     name = ['chi2_75.33','chi2_75.39']
@@ -102,7 +129,8 @@ else:
                 ax[j,k].set_ylabel('$\Delta$ bispec')
         plt.savefig('{}_{}_{}_{}_{}.png'.format(func,mode,gal,GC,name[q]),bbox_tight=True)
         plt.close()
-
+"""
+    
 """
 # out of memory
 def sham_cal(seednum,sigma_high,sigma,v_high):

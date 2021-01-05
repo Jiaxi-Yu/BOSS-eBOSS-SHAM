@@ -32,16 +32,18 @@ var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
 rmin     = 5
-rmax     = 35
+rmax     = 25
 nthread  = 64
 autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-Rvmin    = 0
-Rvmax    = 15
 home      = '/global/cscratch1/sd/jiaxi/SHAM/'
-bestfit   = 'bestfit_1118.dat'
+modes    = ['best_check','close_chi2']
+mode     = modes[int(sys.argv[1])]
+Rv = [[0,15],[15,30],[30,1000]]
+Rvmin    = Rv[int(sys.argv[2])][0]
+Rvmax    = Rv[int(sys.argv[2])][1]
 
 # covariance matrix and the observation 2pcf path
 if gal == 'LRG':
@@ -109,10 +111,9 @@ uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype
 
 # HAM application
 def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
-    v00,v20=sham_cal(uni,sigM,sigV,Mtrun)
-    #return [x00,x20]
-    v01,v21=sham_cal(uni1,sigM,sigV,Mtrun)
-    return [v00,v01,v20,v21]
+    x00,x20= sham_cal(uni,sigM,sigV,Mtrun)
+    x01,x21= sham_cal(uni1,sigM,sigV,Mtrun)
+    return [append(x00,x01),append(x20,x21)]
 
 def sham_cal(uniform,sigma_high,sigma,v_high):
     datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
@@ -143,62 +144,67 @@ def sham_cal(uniform,sigma_high,sigma,v_high):
     # use sum to integrate over mu
     return [np.sum(monov,axis=-1)/nmu,np.sum(quadv,axis=-1)/nmu]
 
-if sys.argv[1]=='SHAM':
-    init = time.time()
+if mode == 'best_check':
+    # the best-fit parameters
+    par  = ["sigma","Vsmear","Vceil"]
+    npar = len(par)
+    fileroot = '{}MCMCout/indexcut_{}/LRG_SGC_hexa_prior3_5-35/multinest_'.format(home,date)
+    a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
+    # calculate the best 2pcf
     with Pool(processes = nseed) as p:
-        xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(0.14864245)),repeat(131.20083923),repeat(np.float32(5.24729866))))) 
-    print('{} seeds cost {:.3f}s'.format(nseed,time.time()-init))    
-
-    fig = plt.figure(figsize=(14,8))
-    spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
-    ax = np.empty((2,2), dtype=type(plt.axes))
-    for col,covbin,name,k in zip(['col4','col5'],[int(0),int(200)],['monopole','quadrupole'],range(2)):
-        voidmean = (np.mean(xi1_ELG,axis=0)[2*k]+np.mean(xi1_ELG,axis=0)[2*k+1])/2
-        values=[np.zeros(nbins),voidmean]
-        for j in range(2):
-            ax[j,k] = fig.add_subplot(spec[j,k])
-            for m in range(nseed):
-                ax[j,k].plot(s,s**2*(xi1_ELG[m][2*k]-values[j]),lw=0.5)
-                ax[j,k].plot(s,s**2*(xi1_ELG[m][2*k+1]-values[j]),lw=0.5)
-
-            ax[j,k].plot(s,s**2*(voidmean-values[j]),c='k',alpha=0.6)
-            plt.xlabel('s (Mpc $h^{-1}$)')
-            if (j==0):
-                ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
-                plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
-            if (j==1):
-                ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
-
-    plt.savefig('cf_{}_void_{}_{}_{}-{}Mpch-1.png'.format(multipole,gal,GC,rmin,rmax),bbox_tight=True)
-    plt.close()
-
-else:
-    with Pool(processes = nseed) as p:
-        xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(0.14864245)),repeat(131.20083923),repeat(np.float32(5.24729866))))) 
+        xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(a.get_best_fit()['parameters'][0])),repeat(np.float32(a.get_best_fit()['parameters'][1])),repeat(np.float32(a.get_best_fit()['parameters'][2])))))
     
+        # plot the 2PCF multipoles   
+        fig = plt.figure(figsize=(14,8))
+        spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+        ax = np.empty((2,2), dtype=type(plt.axes))
+        for col,covbin,name,k in zip(['col4','col5'],[int(0),int(200)],['monopole','quadrupole'],range(2)):
+            true_mean = ((np.mean(xi1_ELG,axis=0)[k])[:nbins]+(np.mean(xi1_ELG,axis=0)[k])[nbins:])/2
+            values=[np.zeros(nbins),true_mean]
+            for j in range(2):
+                ax[j,k] = fig.add_subplot(spec[j,k])
+                ax[j,k].plot(s,s**2*(true_mean-values[j]),c='c',alpha=0.6)
+                ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[binmin+covbin:binmax+covbin],color='k', marker='o',ecolor='k',ls="none")
+                plt.xlabel('s (Mpc $h^{-1}$)')
+                if (j==0):
+                    ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
+                    label = ['SHAM','PIP obs 1$\sigma$']
+                    plt.legend(label,loc=0)
+                    plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+                if (j==1):
+                    ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
+        plt.savefig('cf_void_{}_bestfit_{}_{}_Rv{}-{}Mpch-1_{}.png'.format(multipole,gal,GC,Rvmin,Rvmax,mode),bbox_tight=True)
+        plt.close()
+
+elif mode == 'close_chi2':
+    with Pool(processes = nseed) as p:
+        xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(0.14864245)),repeat(131.20083923),repeat(np.float32(5.24729866))))) 
     with Pool(processes = nseed) as p:
         xi0_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(0.59092776)),repeat(109.82603879),repeat(np.float32(4.87587909))))) 
-
-    fig = plt.figure(figsize=(14,8))
-    spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
-    ax = np.empty((2,2), dtype=type(plt.axes))
-    for col,covbin,name,k in zip(['col4','col5'],[int(0),int(200)],['monopole','quadrupole'],range(2)):
-        voidmean = (np.mean(xi1_ELG,axis=0)[2*k]+np.mean(xi1_ELG,axis=0)[2*k+1])/2
-        voidmean2 = (np.mean(xi0_ELG,axis=0)[2*k]+np.mean(xi0_ELG,axis=0)[2*k+1])/2
-        values=[np.zeros(nbins),voidmean]
-        for j in range(2):
-            ax[j,k] = fig.add_subplot(spec[j,k])
-            ax[j,k].plot(s,s**2*(voidmean-values[j]),c='c',alpha=0.6)
-            ax[j,k].plot(s,s**2*(voidmean2-values[j]),c='m',alpha=0.6)
-            plt.xlabel('s (Mpc $h^{-1}$)')
-            if (j==0):
-                ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
-                label = ['$\chi^2=75.39$','$\chi^2=75.33$']
-                plt.legend(label,loc=0)
-                plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
-            if (j==1):
-                ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
-
-    plt.savefig('cf_{}_{}void_Rv{}-{}Mpch-1.png'.format(multipole,gal,Rvmin,Rvmax),bbox_tight=True)
-    plt.close()
-
+        
+        fig = plt.figure(figsize=(14,8))
+        spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+        ax = np.empty((2,2), dtype=type(plt.axes))
+        for col,covbin,name,k in zip(['col4','col5'],[int(0),int(200)],['monopole','quadrupole'],range(2)):
+            tmp = [xi1_ELG[a][k] for a in range(nseed)]
+            true_array = np.hstack((((np.array(tmp)).T)[:nbins],((np.array(tmp)).T)[nbins:]))
+            true_mean = np.mean(true_array,axis=1)
+            true_std  = np.std(true_array,axis=1)
+            tmp0 = [xi0_ELG[a][k] for a in range(nseed)]
+            true_array0 = np.hstack((((np.array(tmp0)).T)[:nbins],((np.array(tmp0)).T)[nbins:]))
+            true_mean0 = np.mean(true_array0,axis=1)
+            values=[np.zeros(nbins),true_mean]
+            for j in range(2):
+                ax[j,k] = fig.add_subplot(spec[j,k])
+                ax[j,k].plot(s,s**2*(true_mean0-values[j]),c='m',alpha=0.6)
+                ax[j,k].errorbar(s,s**2*(true_mean-values[j]),s**2*true_std,color='c')
+                plt.xlabel('s (Mpc $h^{-1}$)')
+                if (j==0):
+                    ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
+                    label = ['$\chi^2=75.33$','$\chi^2=75.39$']
+                    plt.legend(label,loc=0)
+                    plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+                if (j==1):
+                    ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
+        plt.savefig('cf_void_{}_{}_{}_{}_Rv{}-{}Mpch-1.png'.format(multipole,mode,gal,GC,Rvmin,Rvmax),bbox_tight=True)
+        plt.close()
