@@ -143,9 +143,9 @@ uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype
 # HAM application
 def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
     if func == 'mps':
-        x00,x20= sham_cal(uni,sigM,sigV,Mtrun)
-        x01,x21= sham_cal(uni1,sigM,sigV,Mtrun)
-        tpcf   = [append(x00,x01),append(x20,x21)]
+        x00,x20,n0= sham_cal(uni,sigM,sigV,Mtrun)
+        x01,x21,n1= sham_cal(uni1,sigM,sigV,Mtrun)
+        tpcf   = [append(x00,x01),append(x20,x21),(n0+n1)/2]
     else:        
         x00    = sham_cal(uni,sigM,sigV,Mtrun)
         x01    = sham_cal(uni1,sigM,sigV,Mtrun)
@@ -180,7 +180,7 @@ def sham_cal(uniform,sigma_high,sigma,v_high):
         mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
         quad = mono * 2.5 * (3 * mu**2 - 1)
         # use sum to integrate over mu
-        SHAM_array = [np.sum(mono,axis=-1)/nmu,np.sum(quad,axis=-1)/nmu]
+        SHAM_array = [np.sum(mono,axis=-1)/nmu,np.sum(quad,axis=-1)/nmu,n]
     else:
         wp_dat = wp(boxsize,80,nthread,bins,LRGscat[:,2],LRGscat[:,3],LRGscat[:,-1])#,periodic=True, verbose=True)
         SHAM_array = wp_dat['wp']
@@ -308,16 +308,14 @@ elif mode == 'close_chi2':
                     ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
         plt.savefig('cf_{}_{}_{}_{}_{}-{}Mpch-1.png'.format(multipole,mode,gal,GC,rmin,rmax),bbox_tight=True)
         plt.close()
-"""
-np.savetxt(bestfit,np.vstack((np.mean(xi1_ELG,axis=0)[0],np.mean(xi1_ELG,axis=0)[1],np.mean(xi1_ELG,axis=0)[2])).T)
-print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[3]))
-a,b = np.histogram(np.ones(5000),range =(0,1500),bins=100)
-fig,ax = plt.subplots()
-plt.plot((b[1:]+b[:-1])/2,np.mean(xi1_ELG,axis=0)[4], label='$\chi^2=75.39$')
-plt.plot((b[1:]+b[:-1])/2,np.mean(xi0_ELG,axis=0)[4], label='$\chi^2=75.33$')
-plt.legend(loc=0)
-plt.ylabel('number of halos')
-plt.xlabel('Vpeak(km/s)')
-plt.savefig('hist.png')
-plt.close()
-"""
+        
+        # plot the histogram
+        a,b = np.histogram(np.ones(5000),range =(0,1500),bins=100)
+        fig,ax = plt.subplots()
+        plt.plot((b[1:]+b[:-1])/2,np.mean(xi1_ELG,axis=0)[2], label='$\chi^2=75.39$',color='c')
+        plt.plot((b[1:]+b[:-1])/2,np.mean(xi0_ELG,axis=0)[2], label='$\chi^2=75.33$',color='m')
+        plt.legend(loc=0)
+        plt.ylabel('number of halos')
+        plt.xlabel('Vpeak (km/s)')
+        plt.savefig('close_chi2_Vpeak_hist.png')
+        plt.close()
