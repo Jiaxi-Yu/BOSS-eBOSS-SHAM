@@ -7,6 +7,7 @@ from numpy import log, pi,sqrt,cos,sin,argpartition,copy,trapz,float32,int32,app
 from astropy.table import Table
 from astropy.io import fits
 from Corrfunc.theory.DDsmu import DDsmu
+from Corrfunc.theory.wp import wp
 import os
 import warnings
 import matplotlib.pyplot as plt
@@ -21,9 +22,9 @@ import corner
 import h5py
 
 # variables
-gal      = 'LRG'
+gal      = 'ELG'
 GC       = 'SGC'
-date     = '1211'#'1118'
+date     = '1118'#'1027'#'1211'#'1118'
 cut      = 'indexcut'
 nseed    = 20
 rscale   = 'linear' # 'log'
@@ -31,27 +32,30 @@ multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
-rmin     = 2
-rmax     = 35
+rmin     = 5
+rmax     = 25
 nthread  = 64
 autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-function = 'wp'#'mps'
+function = 'mps'#'mps'#'wp'
 home      = '/global/cscratch1/sd/jiaxi/SHAM/'
-bestfit   = 'bestfit_{}_1118.dat'.format(function)
+direc    = '/global/homes/j/jiaxi/'
+bestfit   = 'bestfit_{}_{}.dat'.format(function,date)
 
 # read the posterior file
 parameters2 = ["sigma","Vsmear","Vceil"]
 npar2 = len(parameters2)
-fileroot2 = 'MCMCout/indexcut_{}/multinest_'.format(date)
+fileroot2 = '{}MCMCout/indexcut_{}/LRG_SGC_hexa_prior3_2-35/multinest_'.format(direc,date)
+#'MCMCout/indexcut_{}/mps_ELG_SGC_5-35/multinest_'.format(date)
 # LRG_SGC_sigma_prior1, LRG_SGC_sigma_prior
 a = pymultinest.Analyzer(npar2, outputfiles_basename = fileroot2)
 
 # plot the posterior
 A=a.get_equal_weighted_posterior()
-figure = corner.corner(A[:,:3],labels=[r"$sigma$",r"$Vsmear$", r"$Vceil$"])
+figure = corner.corner(A[:,:3],labels=[r"$sigma$",r"$Vsmear$", r"$Vceil$"],\
+                       show_titles=True,title_fmt=None)
 axes = np.array(figure.axes).reshape((3,3))
 for yi in range(3): 
     for xi in range(yi):
@@ -70,6 +74,7 @@ g = plots.getSinglePlotter()
 g.settings.figure_legend_frame = False
 g.settings.alpha_filled_add=0.4
 g = plots.getSubplotPlotter()
+plt.clabel(g, inline=True, fontsize=8)
 g.triangle_plot(sample,parameters2, filled=True)#,title_limit=1)
 g.export('{}_{}_{}_posterior.png'.format(date,gal,GC))
 plt.close()
@@ -111,8 +116,8 @@ if (rscale=='linear')&(function=='mps'):
     print('the analytical random pair counts are ready.')
 
     # covariance matrices and observations
-    obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
-    covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
+    obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(direc,gal,ver,function,rscale,gal,GC)
+    covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(direc,gal,ver,function,rscale,gal,multipole)
     # Read the covariance matrices and observations
     hdu = fits.open(covfits) #
     mock = hdu[1].data[GC+'mocks']
@@ -121,12 +126,19 @@ if (rscale=='linear')&(function=='mps'):
     #mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:],mock[binmin+200*2:binmax+200*2,:]))
     mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:]))
     covcut  = cov(mocks).astype('float32')
+    errbar = np.std(mocks,axis=1)
+    hdu.close()
     obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]  # obs 2pcf
     #OBS   =hstack((obscf['col4'],obscf['col5'],obscf['col6'])).astype('float32')
-    OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
+    if gal == 'LRG':
+        cols = ['col4','col5']
+    else:
+        cols = ['col3','col4']
+    OBS   = append(obscf[cols[0]],obscf[cols[1]]).astype('float32')
     covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
     print('the covariance matrix and the observation 2pcf vector are ready.')
 elif (rscale=='log')&(function=='mps'):
+    """
     if gal=='ELG':
         binfile = Table.read(home+'cheng_HOD_{}/mps_log_{}_NGC+SGC_eBOSS_v7_zs_0.70-0.90.dat'.format(gal,gal),format='ascii.no_header')
     else:
@@ -135,10 +147,11 @@ elif (rscale=='log')&(function=='mps'):
     bins  = np.unique(np.append(binfile['col1'],binfile['col2']))
     bins = bins[bins<rmax]
     nbins = len(bins)-1
+    """
 elif function=='wp':
     # the log binned wp
-    covfits  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,function,gal,ver,function,gal) 
-    obs2pcf  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
+    covfits  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(direc,function,gal,ver,function,gal) 
+    obs2pcf  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(direc,gal,ver,gal,GC,ver)
     # bin
     binfile = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
     binmin = np.where(binfile['col3']>=rmin)[0][0]
@@ -186,13 +199,13 @@ uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype
 # HAM application
 def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
     if function == 'mps':
-        x00,x20= sham_cal(uni,sigM,sigV,Mtrun)
-        x01,x21= sham_cal(uni1,sigM,sigV,Mtrun)
-        tpcf   = [(x00+x01)/2,(x20+x21)/2]
+        x00,x20,v0= sham_cal(uni,sigM,sigV,Mtrun)
+        x01,x21,v1= sham_cal(uni1,sigM,sigV,Mtrun)
+        tpcf   = [(x00+x01)/2,(x20+x21)/2,(v0+v1)/2]
     else:        
-        x00    = sham_cal(uni,sigM,sigV,Mtrun)
-        x01    = sham_cal(uni1,sigM,sigV,Mtrun)
-        tpcf   = (x00+x01)/2
+        x00,v0    = sham_cal(uni,sigM,sigV,Mtrun)
+        x01,v1    = sham_cal(uni1,sigM,sigV,Mtrun)
+        tpcf   = [(x00+x01)/2,(v0+v1)/2]
     return tpcf
 
 def sham_cal(uniform,sigma_high,sigma,v_high):
@@ -231,12 +244,12 @@ if function =='mps':
     fig = plt.figure(figsize=(14,8))
     spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
     ax = np.empty((2,2), dtype=type(plt.axes))
-    for col,covbin,name,k in zip(['col4','col5'],[int(0),int(200)],['monopole','quadrupole'],range(2)):
+    for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
         values=[np.zeros(nbins),np.mean(xi1_ELG,axis=0)[k]]
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             ax[j,k].plot(s,s**2*(np.mean(xi1_ELG,axis=0)[k]-values[j]),c='c',alpha=0.6)
-            ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[binmin+covbin:binmax+covbin],color='k', marker='o',ecolor='k',ls="none")
+            ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[k*nbins:(k+1)*nbins],color='k', marker='o',ecolor='k',ls="none")
             plt.xlabel('s (Mpc $h^{-1}$)')
             if (j==0):
                 ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
@@ -252,19 +265,19 @@ if function =='mps':
     plt.savefig('cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(multipole,gal,GC,rmin,rmax),bbox_tight=True)
     plt.close()
 else:
-    np.savetxt(bestfit,np.mean(xi1_ELG,axis=0))
+    np.savetxt(bestfit,np.mean(xi1_ELG,axis=0)[0])
     print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[1]))
     
     fig = plt.figure(figsize=(5,6))
     spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
     ax = np.empty((2,1), dtype=type(plt.axes))
     k=0
-    values=[np.zeros(nbins),np.mean(xi1_ELG,axis=0)]
+    values=[np.zeros(nbins),np.mean(xi1_ELG,axis=0)[0]]
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k])
-        ax[j,k].plot(s,(np.mean(xi1_ELG,axis=0)-values[j]),c='c',alpha=0.6)
+        ax[j,k].plot(s,(np.mean(xi1_ELG,axis=0)[0]-values[j]),c='c',alpha=0.6)
         ax[j,k].errorbar(s,(OBS-values[j]),errbar,color='k', marker='o',ecolor='k',ls="none",markersize = 4)
-        plt.xlabel('s (Mpc $h^{-1}$)')
+        plt.xlabel('$r_p$ (Mpc $h^{-1}$)')
         plt.xscale('log')
         if (j==0):
             ax[j,k].set_ylabel('wp')
@@ -275,4 +288,3 @@ else:
             ax[j,k].set_ylabel('$\Delta$ wp')
     plt.savefig('{}_bestfit_{}_{}_fit{}-{}Mpch-1.png'.format(function,gal,GC,rmin,rmax),bbox_tight=True)
     plt.close()
-

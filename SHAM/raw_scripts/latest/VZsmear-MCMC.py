@@ -36,15 +36,16 @@ multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
-rmin     = 2
-rmax     = 35
+rmin     = 5
+rmax     = 25
 nthread  = 64
 autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
 home      = '/global/cscratch1/sd/jiaxi/SHAM/'
-fileroot = 'MCMCout/{}_{}/multinest_'.format(cut,date)
+direc    = '/global/homes/j/jiaxi/'
+fileroot = '{}MCMCout/{}_{}/multinest_'.format(direc,cut,date)
 
 
 if gal == 'LRG':
@@ -85,8 +86,8 @@ if (rscale=='linear')&(function=='mps'):
     print('the analytical random pair counts are ready.')
 
     # covariance matrices and observations
-    obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
-    covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
+    obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(direc,gal,ver,function,rscale,gal,GC)
+    covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(direc,gal,ver,function,rscale,gal,multipole)
     # Read the covariance matrices and observations
     hdu = fits.open(covfits) #
     mock = hdu[1].data[GC+'mocks']
@@ -97,22 +98,28 @@ if (rscale=='linear')&(function=='mps'):
     covcut  = cov(mocks).astype('float32')
     obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]  # obs 2pcf
     #OBS   =hstack((obscf['col4'],obscf['col5'],obscf['col6'])).astype('float32')
-    OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
+    if gal == 'LRG':
+        OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
+    else:
+        OBS   = append(obscf['col3'],obscf['col4']).astype('float32')
+        
     covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
     print('the covariance matrix and the observation 2pcf vector are ready.')
 elif (rscale=='log')&(function=='mps'):
+    """
     if gal=='ELG':
-        binfile = Table.read(home+'cheng_HOD_{}/mps_log_{}_NGC+SGC_eBOSS_v7_zs_0.70-0.90.dat'.format(gal,gal),format='ascii.no_header')
+        binfile = Table.read(direc+'catalog/nersc_mps_ELG_v7/mps_log_ELG_NGC+SGC_eBOSS_v7_zs_0.70-0.90.dat',format='ascii.no_header')
     else:
-        binfile = Table.read(home+'cheng_HOD_{}/mps_log_{}_NGC+SGC_eBOSS_v7_2_zs_0.60-0.80.dat'.format(gal,gal),format='ascii.no_header')   
+        binfile = Table.read(direc+'catalog/nersc_mps_LRG_v7_2/mps_log_LRG_NGC+SGC_eBOSS_v7_2_zs_0.60-0.80.dat',format='ascii.no_header')   
 
     bins  = np.unique(np.append(binfile['col1'],binfile['col2']))
     bins = bins[bins<rmax]
     nbins = len(bins)-1
+    """
 elif function=='wp':
     # the log binned wp
-    covfits  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,function,gal,ver,function,gal) 
-    obs2pcf  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
+    covfits  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(direc,function,gal,ver,function,gal) 
+    obs2pcf  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(direc,gal,ver,gal,GC,ver)
     # bin
     binfile = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
     binmin = np.where(binfile['col3']>=rmin)[0][0]
@@ -228,17 +235,14 @@ else:
             prior_min = [0,60,4.0] 
             prior_max = [2.5,160,6.0]
         elif gal=='ELG':
-            cube[0] = 1.4*cube[0]+0.4    
+            cube[0] = 3*cube[0]+0.5
             cube[1] = 60*cube[1]      
-            cube[2] = 600*cube[2]+200           
-            prior_min = [0.4,0,200]
-            prior_max = [1.8,60,800]
+            cube[2] = 2.0*cube[2]+5.0           
+            prior_min = [0.5,0,5.0]
+            prior_max = [3.5,60,7.0]
         else:
-            cube[0] = 2.0*cube[0]
-            cube[1] = 100*cube[1]+50  
-            cube[2] = 2500*cube[2]+500 
-            prior_min = [0,50,500]
-            prior_max = [2.0,150,3000]
+            print('please give correct galaxy type: LRG/ELG')
+
 
     # loglikelihood = -0.5*chi2    
     def loglike(cube, ndim, nparams):
