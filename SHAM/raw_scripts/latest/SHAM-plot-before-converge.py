@@ -74,7 +74,6 @@ g = plots.getSinglePlotter()
 g.settings.figure_legend_frame = False
 g.settings.alpha_filled_add=0.4
 g = plots.getSubplotPlotter()
-plt.clabel(g, inline=True, fontsize=8)
 g.triangle_plot(sample,parameters2, filled=True)#,title_limit=1)
 g.export('{}_{}_{}_posterior.png'.format(date,gal,GC))
 plt.close()
