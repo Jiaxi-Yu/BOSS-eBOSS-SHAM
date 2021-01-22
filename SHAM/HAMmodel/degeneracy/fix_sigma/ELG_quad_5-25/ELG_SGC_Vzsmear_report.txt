@@ -1,0 +1,12 @@
+the total ELG in SGC SHAM costs 9360.55 s in 16 cores 
+ELG SGC multinest: 
+(-2)* max loglike: 52.75350570678711 
+max-loglike params: [19.014120323603116, 6.462525322086862]
+mean Vceil:467.866
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 1.3027, sigma_smear [6.81972,31.5757] km/s, Vceil [6.43104,6.48271] km/s 
+another way around: sigma =1.3027, sigma_smear 19.0141+12.5616-12.1944km/s,Vceil 6.46253+0.0201873-0.0314859km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 1.3027, sigma_smear [6.81972,31.5757] km/s, Vceil [6.43104,6.48271] km/s 
+another way around: sigma = 1.3027, sigma_smear 19.0141+12.5616-12.1944km/s,Vceil 6.46253+0.0201873-0.0314859km/s  
