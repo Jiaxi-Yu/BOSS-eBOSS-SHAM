@@ -127,7 +127,6 @@ elif function=='wp':
     # observation
     obscf = Table.read(obs2pcf,format='ascii.no_header')
     obscf = obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
-    OBS   = obscf['col4']
     bins  = np.unique(append(obscf['col1'],obscf['col2']))
     nbins = len(bins)-1
     s = obscf['col3']
@@ -220,7 +219,7 @@ def chi2(sigma_M,sigma_V,M_ceil):
 
 if mode == 'debug':
     print('debug mode on')
-    print(chi2(0.5,100.,1.))
+    print(chi2(0.5,100.,5.))
 else:
     print('multinest activate')
     # prior
