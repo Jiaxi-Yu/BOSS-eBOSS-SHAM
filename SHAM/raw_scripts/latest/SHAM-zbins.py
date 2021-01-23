@@ -46,8 +46,7 @@ autocorr = 1
 home     = '/global/cscratch1/sd/jiaxi/SHAM/'
 direc    = '/global/homes/j/jiaxi/'
 fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(direc,date,function,rscale,gal,GC,zmin,zmax)
-if os.path.exists(fileroot[:-10])==False:
-    os.mkdir(fileroot[:-10])
+
 
 if (rscale=='linear')&(function=='mps'):
     if gal == 'LRG':
@@ -184,17 +183,7 @@ mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(
 # Analytical RR calculation
 RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)
 rr=((RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu)
-print('the analytical random pair counts are ready.')
-
-
-# small test:
-print('covariance: {}'.format(covfits))
-print('obs 2PCF: {}'.format(obs2pcf))
-print('z_eff = {}'.format(z))
-print('UNIT a(t): {}'.format(a_t))
-print('bins:',bins)
-print('mock shape: {}'.format(mocks.shape))
-        
+print('the analytical random pair counts are ready.') 
 
 # cosmological parameters
 Ode = 1-Om
@@ -296,7 +285,9 @@ def loglike(cube, ndim, nparams):
 # number of dimensions our problem has
 parameters = ["sigma","Vsmear","Vceil"]
 npar = len(parameters)
-
+if os.path.exists(fileroot[:-10])==False:
+    os.mkdir(fileroot[:-10])
+    
 if mode == 'debug':
     print('debug mode on')
     print(chi2(0.5,100.,5.))
@@ -305,44 +296,8 @@ else:
     pymultinest.run(loglike, prior, npar,n_live_points= npoints, outputfiles_basename=fileroot, resume =True, verbose = True,n_iter_before_update=5,write_output=True)
 
     # results
-    sample = loadMCSamples(fileroot)
-    print('Results:')
-    stats = sample.getMargeStats()
-    best = np.zeros(npar)
-    lower = np.zeros(npar)
-    upper = np.zeros(npar)
-    mean = np.zeros(npar)
-    sigma = np.zeros(npar)
-    for i in range(npar):
-        par = stats.parWithName(parameters[i])
-        #best[i] = par.bestfit_sample
-        mean[i] = par.mean
-        sigma[i] = par.err
-        lower[i] = par.limits[0].lower
-        upper[i] = par.limits[0].upper
-        best[i] = (lower[i] + upper[i]) * 0.5
-        print('getdist {0:s}: [{1:.6f}, {2:.6f}]'.format( \
-            parameters[i],  lower[i], upper[i]))
-
-    a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
-    stats = a.get_stats()    
     fin = time.time()  
-
-    file = gal+'_'+GC+'_Vzsmear_report.txt'
+    file = fileroot[:-10]+gal+'_'+GC+'_Vzsmear_report.txt'
     f = open(file,'a')
     f.write('the total {} in {} SHAM costs {:.6} s in 16 cores \n'.format(gal,GC,fin-init))
-    f.write('{} {} multinest: \n'.format(gal,GC))
-    f.write('(-2)* max loglike: {} \n'.format(-2*a.get_best_fit()['log_likelihood']))
-    f.write('max-loglike params: {}\n'.format(a.get_best_fit()['parameters']))
-    f.write('\n----------------------------------------------------------------------\n')
-    f.write('getdist 1-sigma errors: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
-    f.write('another way around: sigma {:.6}+{:.6}{:.6}, sigma_smear {:.6}+{:.6}{:.6}km/s,Vceil {:.6}+{:.6}{:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
-
-    for j in range(npar):
-        lower[j], upper[j] = stats['marginals'][j]['1sigma']
-        print('getdist {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  upper[j], lower[j]))
-    f.write('\n----------------------------------------------------------------------\n')
-    f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
-    f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
     f.close()
-    
