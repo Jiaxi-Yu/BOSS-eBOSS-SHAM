@@ -94,7 +94,7 @@ elif (rscale=='log'):
         binfile = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
         
     bins  = np.unique(np.append(binfile['col1'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)],binfile['col2'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]))
-    s = binfile[(binfile['col3']<rmax)&(binfile['col3']>=rmin)]
+    s = binfile['col3'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]
     nbins = len(bins)-1
     binmin = np.where(binfile['col3']>=rmin)[0][0]
     binmax = np.where(binfile['col3']<rmax)[0][-1]+1
