@@ -350,7 +350,7 @@ if function =='mps':
             if (j==1):
                 ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
 
-    plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10]multipole,gal,GC,rmin,rmax),bbox_tight=True)
+    plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
     plt.close()
 else:
     np.savetxt(bestfit,np.mean(xi1_ELG,axis=0)[0])
