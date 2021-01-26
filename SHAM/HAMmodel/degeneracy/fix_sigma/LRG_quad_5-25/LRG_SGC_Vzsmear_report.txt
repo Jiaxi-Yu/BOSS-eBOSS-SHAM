@@ -1,0 +1,192 @@
+the total LRG in SGC SHAM costs 11298.7 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.7 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.7 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.1 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.7 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.3 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.4 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.5 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.5 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.5 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.4 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.6 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.5 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.1 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11297.7 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
+the total LRG in SGC SHAM costs 11298.4 s in 16 cores 
+LRG SGC multinest: 
+(-2)* max loglike: 28.56800079345703 
+max-loglike params: [109.34384433473406, 4.839512790543675]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma = 0.580152, sigma_smear [93.2472,118.523] km/s, Vceil [4.8079,4.87188] km/s 
+another way around: sigma =0.580152, sigma_smear 109.344+9.17906-16.0966km/s,Vceil 4.83951+0.0323635-0.0316135km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma = 0.580152, sigma_smear [92.7508,117.744] km/s, Vceil [4.81412,4.87814] km/s 
+another way around: sigma = 0.580152, sigma_smear 109.344+8.4002-16.593km/s,Vceil 4.83951+0.0386241-0.0253883km/s  
