@@ -19,7 +19,7 @@ binmin=5
 binmax=25
 gal  = sys.argv[1]
 rscale = sys.argv[2] #'linear' # 'log'
-function  = 'wp'#'mps' 
+function  = 'mps' 
 
 
 if (rscale == 'linear'):
@@ -30,13 +30,13 @@ if (rscale == 'linear'):
         # EZmocks directory
         mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/ELGv7_nosys_rmu/z0.6z1.1/2PCF/'
         mockfits  = home+'catalog/nersc_mps_ELG_v7/'+function+'_'+rscale+'_'+gal+'_mocks_'  
-        file = 'nersc_mps_LRG_v7_2'
+        file = 'nersc_mps_ELG_v7'
     else:
         Zrange =  [0.6,\
                    1.0]
         mockdir  = '/global/cscratch1/sd/zhaoc/EZmock/2PCF/LRGv7_syst/z0.6z1.0/2PCF/'
         mockfits  = home+'catalog/nersc_mps_LRG_v7_2/'+function+'_'+rscale+'_'+gal+'_mocks_'   
-        file = 'nersc_mps_ELG_v7'
+        file = 'nersc_mps_LRG_v7_2'
     nbins=200
     nmu=120
     znum = int(len(Zrange)/2)
