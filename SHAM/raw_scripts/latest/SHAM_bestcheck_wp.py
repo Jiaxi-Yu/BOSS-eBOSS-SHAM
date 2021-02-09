@@ -189,22 +189,22 @@ if os.path.exists('{}best-fit_{}_{}-wp_test_posdsigma.dat'.format(fileroot[:-10]
         spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.15)
         ax = np.empty((2,1), dtype=type(plt.axes))
         values=[np.zeros(nbins),obscf['col4']]
+        err   = [np.ones(nbins),errbar]
         k=0
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
-            ax[j,k].plot(s,(wp[0][:,1]-values[j]),alpha=0.6,label='indexcut')
-            ax[j,k].plot(s,(wp[1][:,1]-values[j]),alpha=0.6,label = 'Gaussian_scatter/$\sigma$ cut')
-            ax[j,k].plot(s,(wp[2][:,1]-values[j]),alpha=0.6,label = 'positive_scatter/$\sigma$ cut')
+            ax[j,k].plot(s,(wp[0][:,1]-values[j])/err[j],alpha=0.6,label='indexcut')
+            ax[j,k].plot(s,(wp[1][:,1]-values[j])/err[j],alpha=0.6,label = 'Gaussian_scatter/$\sigma$ cut')
+            ax[j,k].plot(s,(wp[2][:,1]-values[j])/err[j],alpha=0.6,label = 'positive_scatter/$\sigma$ cut')
+            ax[j,k].errorbar(s,(obscf['col4']-values[j])/err[j],errbar/err[j],color='k', marker='o',ecolor='k',ls="none",label="PIP obs",markersize=3)
             
             plt.xscale('log')
             if (j==0):
-                ax[j,k].errorbar(s,(obscf['col4']-values[j]),errbar,color='k', marker='o',ecolor='k',ls="none",label="PIP obs",markersize=3)
                 ax[j,k].set_ylabel('wp')
                 plt.legend(loc=0)
                 plt.yscale('log')
                 plt.title('projected correlation function: {} in {}'.format(gal,GC))
             if (j==1):
-                ax[j,k].errorbar(s,(obscf['col4']-values[j])/errbar,errbar/errbar,color='k', marker='o',ecolor='k',ls="none",label="PIP obs",markersize=3)
                 ax[j,k].set_ylabel('$\Delta wp$/err')
                 plt.xlabel('rp (Mpc $h^{-1}$)')
                 plt.ylim(-3,3)
