@@ -30,7 +30,7 @@ zmin     = sys.argv[5]
 zmax     = sys.argv[6]
 mode     = sys.argv[7]
 nseed    = 20
-date     = '0122'
+date     = '0220'
 npoints  = 100 
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
@@ -45,7 +45,7 @@ nmu      = 120
 autocorr = 1
 home     = '/global/cscratch1/sd/jiaxi/SHAM/'
 direc    = '/global/homes/j/jiaxi/'
-fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(direc,date,function,rscale,gal,GC,zmin,zmax)
+fileroot = '{}MCMCout/percentcut_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(direc,date,function,rscale,gal,GC,zmin,zmax)
 
 
 if (rscale=='linear')&(function=='mps'):
@@ -226,11 +226,18 @@ def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
     return tpcf
 
 def sham_cal(uniform,sigma_high,sigma,v_high):
+    """
     datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
     LRGscat = datac[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
     datav = datav[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
     LRGscat = LRGscat[argpartition(-datav,int(10**v_high))[int(10**v_high):]]
-    
+    """
+    datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
+    LRGscat = datac[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
+    datav = datav[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
+    LRGscat = LRGscat[argpartition(-datav,int(len(datac)*v_high/100))[int(len(datac)*v_high/100):]]
+
+
     # transfer to the redshift space
     scathalf = int(len(LRGscat)/2)
     z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
@@ -263,7 +270,10 @@ def chi2(sigma_M,sigma_V,M_ceil):
         model = mean(xi0_tmp,axis=0,dtype='float32')
     # calculate the residuals and chi2
     res = OBS-model
-    return res.dot(covR.dot(res))
+    if mode == 'debug':
+        return [res.dot(covR.dot(res)),model]
+    else:
+        return res.dot(covR.dot(res))
 
 # prior
 def prior(cube, ndim, nparams):
@@ -271,11 +281,13 @@ def prior(cube, ndim, nparams):
         # the same as LRG_SGC_4-n
         cube[0] = 2.5*cube[0]
         cube[1] = 100*cube[1]+60
-        cube[2] = 2.0*cube[2]+4.0 
+        #cube[2] = 2.0*cube[2]+4.0 
+        cube[2] = 0.09*cube[2]+0.01
     elif gal=='ELG':
         cube[0] = 3*cube[0]+0.5
         cube[1] = 60*cube[1]      
-        cube[2] = 2.0*cube[2]+5.0 
+        #cube[2] = 2.0*cube[2]+5.0 
+        cube[2] = 9.0*cube[2]+1.0
 
 # loglikelihood = -0.5*chi2    
 def loglike(cube, ndim, nparams):
@@ -290,7 +302,9 @@ if os.path.exists(fileroot[:-10])==False:
     
 if mode == 'debug':
     print('debug mode on')
-    print(chi2(0.5,100.,5.))
+    chisq, xis = chi2(0.5,100.,0.05)
+    print('chi2 = {:.3f}'.format(chisq))
+    np.savetxt('percent_cut-python.dat',xis.reshape(2,nbins).T,header='xi0 xi2')
 else:
     # run MultiNest & write the parameter's name
     pymultinest.run(loglike, prior, npar,n_live_points= npoints, outputfiles_basename=fileroot, resume =True, verbose = True,n_iter_before_update=5,write_output=True)
