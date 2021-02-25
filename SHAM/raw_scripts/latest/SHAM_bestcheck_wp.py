@@ -119,11 +119,12 @@ elif func == 'mps':
 print('the covariance matrix and the observation 2pcf vector are ready.')
     
 # create the halo catalogue and plot their 2pcf
-if os.path.exists('{}best-fit_{}_{}-wp_test_posdsigma.dat'.format(fileroot[:-10],gal,GC)):
+A = glob.glob('{}best-fit_{}_{}-wp_test_*_{}-{}Mpch-1.dat'.format(fileroot[:-10],gal,GC,rmin,rmax))
+if len(A)==4:
     errbar = np.std(mocks,axis=1)
     if func =='mps':
-        xi = [np.loadtxt('{}best-fit_{}_{}-python{}.dat'.format(fileroot[:-10],gal,GC,x)) for x in range(3)]
-        V = [np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot[:-10],gal,GC,y))[:,2] for y in range(3)]
+        xi = [np.loadtxt('{}best-fit_{}_{}-python{}.dat'.format(fileroot[:-10],gal,GC,x)) for x in range(len(A))]
+        V = [np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot[:-10],gal,GC,y))[:,2] for y in range(len(A))]
         Vbin = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot[:-10],gal,GC,0))[:,0]
         UNIT = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot[:-10],gal,GC,0))[:,1]
         # 2pcf and Vpeak distribution plot
@@ -134,9 +135,10 @@ if os.path.exists('{}best-fit_{}_{}-wp_test_posdsigma.dat'.format(fileroot[:-10]
             values=[np.zeros(nbins),obscf[col]]
             for j in range(2):
                 ax[j,k] = fig.add_subplot(spec[j,k])
-                ax[j,k].plot(s,s**2*(xi[0][:,k]-values[j]),alpha=0.6,label='indexcut')
-                ax[j,k].plot(s,s**2*(xi[1][:,k]-values[j]),alpha=0.6,label = 'Gaussian_scatter/$\sigma$ cut')
-                ax[j,k].plot(s,s**2*(xi[2][:,k]-values[j]),alpha=0.6,label = 'positive_scatter/$\sigma$ cut')
+                
+                ax[j,k].plot(s,s**2*(xi[0][:,k]-values[j]),label='indexcut',c='b')
+                ax[j,k].plot(s,s**2*(xi[1][:,k]-values[j]),label = 'Gaussian_scatter/$\sigma$ cut',c='orange')
+                ax[j,k].plot(s,s**2*(xi[2][:,k]-values[j]),label = 'positive_scatter/$\sigma$ cut',c='green')                
                 ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[k*nbins:(k+1)*nbins],color='k', marker='o',ecolor='k',ls="none",label='PIP obs')
                 plt.xlabel('s (Mpc $h^{-1}$)')
                 if (j==0):
@@ -145,7 +147,7 @@ if os.path.exists('{}best-fit_{}_{}-wp_test_posdsigma.dat'.format(fileroot[:-10]
                     plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
                 if (j==1):
                     ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
-        plt.savefig('cf_{}_bestfit-comp_{}_{}_{}-{}Mpch-1.png'.format(multipole,gal,GC,rmin,rmax),bbox_tight=True)
+        plt.savefig('cf_{}_bestfit-comp_{}_{}_{}-{}Mpch-1.png'.format(multipole,gal,GC,rmin,rmax))
         plt.close()
 
         # plot the histogram
@@ -178,8 +180,8 @@ if os.path.exists('{}best-fit_{}_{}-wp_test_posdsigma.dat'.format(fileroot[:-10]
         plt.close()
 
     elif func =='wp':
-        wp = [np.loadtxt('{}best-fit_{}_{}-wp_test_{}.dat'.format(fileroot[:-10],gal,GC,x))[binmin:binmax] for x in ['index','dsigma','posdsigma']]
-        res = [obscf['col4']-np.loadtxt('{}best-fit_{}_{}-wp_test_{}.dat'.format(fileroot[:-10],gal,GC,x))[binmin:binmax,1] for x in ['index','dsigma','posdsigma']]
+        wp = [np.loadtxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot[:-10],gal,GC,x,rmin,rmax)) for x in ['index','dsigma','posdsigma','pos']]
+        res = [obscf['col4']-np.loadtxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot[:-10],gal,GC,x,rmin,rmax))[:,1] for x in ['index','dsigma','posdsigma','pos']]
         chi = [res1.dot(covR.dot(res1)) for res1 in res]
         print('index, dsigma, posdsigma reduced chi2 = {:.3f}, {:.3f}, {:.3f}/{}'.format(chi[0],chi[1],chi[2],nbins))
         #print(binmin,binmax,wp,obscf['col4'])
@@ -193,9 +195,12 @@ if os.path.exists('{}best-fit_{}_{}-wp_test_posdsigma.dat'.format(fileroot[:-10]
         k=0
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
-            ax[j,k].plot(s,(wp[0][:,1]-values[j])/err[j],alpha=0.6,label='indexcut')
-            ax[j,k].plot(s,(wp[1][:,1]-values[j])/err[j],alpha=0.6,label = 'Gaussian_scatter/$\sigma$ cut')
-            ax[j,k].plot(s,(wp[2][:,1]-values[j])/err[j],alpha=0.6,label = 'positive_scatter/$\sigma$ cut')
+            ax[j,k].errorbar(s*1.02,(wp[0][:,1]-values[j])/err[j],wp[0][:,2]/err[j],alpha=0.7,label='indexcut',c='b')
+            ax[j,k].errorbar(s*1.01,(wp[1][:,1]-values[j])/err[j],wp[1][:,2]/err[j],alpha= 0.7,label = 'Gaussian_scatter/$\sigma$ cut',c='orange')
+            ax[j,k].errorbar(s*0.99,(wp[2][:,1]-values[j])/err[j],wp[2][:,2]/err[j],alpha=0.7,label = 'positive_scatter/$\sigma$ cut',c='green')
+            ax[j,k].errorbar(s*0.98,(wp[3][:,1]-values[j])/err[j],wp[3][:,2]/err[j],alpha=0.7,label = 'positive_scatter V cut',c='m')
+
+               
             ax[j,k].errorbar(s,(obscf['col4']-values[j])/err[j],errbar/err[j],color='k', marker='o',ecolor='k',ls="none",label="PIP obs",markersize=3)
             
             plt.xscale('log')
@@ -209,7 +214,7 @@ if os.path.exists('{}best-fit_{}_{}-wp_test_posdsigma.dat'.format(fileroot[:-10]
                 plt.xlabel('rp (Mpc $h^{-1}$)')
                 plt.ylim(-3,3)
 
-        plt.savefig('cf_{}_bestfit_wp-comp_{}_{}_{}-{}Mpch-1.png'.format(multipole,gal,GC,rmin,rmax),bbox_tight=True)
+        plt.savefig('cf_{}_bestfit_wp-comp_{}_{}_{}-{}Mpch-1.png'.format(multipole,gal,GC,rmin,rmax))
         plt.close()
 
 else:
@@ -237,7 +242,7 @@ else:
     def sham_tpcf(uni,uni1):
         x00    = sham_cal(uni)
         x01    = sham_cal(uni1)
-        return (x00+x01)/2
+        return append(x00,x01)
 
     def sham_cal(uniform):
         if cut == 'index': # index-cut
@@ -270,6 +275,17 @@ else:
             # modified Vpeak_scat
             org3  = datac[(datav<v_high)]  # 4.89s
             LRGscat = org3[np.argpartition(-datav[(datav<v_high)],SHAMnum)[:(SHAMnum)]]
+        elif cut == 'pos': # pos_scatter-dsigma-cut
+            if gal =='LRG':
+                sigma_high,sigma,v_high = 1.0595005878116677, 106.37904926461752, 1378.5789925400386
+            else:
+                sigma_high,sigma,v_high = None, None, None
+            scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
+            scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
+            datav = datac[:,1]*scatter #0.5s
+            # modified Vpeak_scat
+            org3  = datac[(datav<v_high)]  # 4.89s
+            LRGscat = org3[np.argpartition(-datav[(datav<v_high)],SHAMnum)[:(SHAMnum)]]
         else:
             print('wrong input!')
 
@@ -285,9 +301,14 @@ else:
 
     # calculate the SHAM 2PCF
     with Pool(processes = nseed) as p:
-        xi0_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1))) 
-    model0= np.mean(xi0_ELG,axis=0)
+        xi0_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1)))
+    #
+    tmp = [xi0_ELG[a] for a in range(nseed)]
+    true_array = np.hstack((((np.array(tmp)).T)[:nbins],((np.array(tmp)).T)[nbins:]))
+    model0 = np.mean(true_array,axis=1)
+    std0  = np.std(true_array,axis=1)
+
     res = OBS-model0
     print('python reduced chi2 = {:.3f}/{}'.format(res.dot(covR.dot(res)),nbins))
     # save python 2pcf
-    np.savetxt('{}best-fit_{}_{}-wp_test_{}.dat'.format(fileroot[:-10],gal,GC,cut),np.array([s,model0]).T,header='python chi2 = {:.3f}/{}\n rp wp'.format(res.dot(covR.dot(res)),nbins))
+    np.savetxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot[:-10],gal,GC,cut,rmin,rmax),np.array([s,model0,std0]).T,header='python chi2 = {:.3f}/{}\n rp wp'.format(res.dot(covR.dot(res)),nbins))
