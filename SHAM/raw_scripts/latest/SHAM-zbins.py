@@ -232,11 +232,13 @@ def sham_cal(uniform,sigma_high,sigma,v_high):
     datav = datav[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
     LRGscat = LRGscat[argpartition(-datav,int(10**v_high))[int(10**v_high):]]
     """
-    datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
+    scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
+    scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
+    datav = datac[:,1]*scatter
+    # select halos
     LRGscat = datac[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
     datav = datav[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
     LRGscat = LRGscat[argpartition(-datav,int(len(datac)*v_high/100))[int(len(datac)*v_high/100):]]
-
 
     # transfer to the redshift space
     scathalf = int(len(LRGscat)/2)

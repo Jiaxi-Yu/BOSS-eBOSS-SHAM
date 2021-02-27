@@ -113,7 +113,8 @@ for yi in range(3):
         ax.axvline(a.get_best_fit()['parameters'][xi], color="g")
         ax.axhline(a.get_best_fit()['parameters'][yi], color="g")
         ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "sg") 
-g.export('{}{}_posterior_check_{}_{}.png'.format(fileroot[:-10],date,gal,GC))
+plt.savefig('{}{}_posterior_check_{}_{}.png'.format(fileroot[:-10],date,gal,GC))
+plt.close()
 print('the best-fit parameters: sigma {:.4},Vsmear {:.6} km/s, Vceil {:.6} km/s'.format(a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2]))
 print('its chi2: {:.6}'.format(-2*a.get_best_fit()['log_likelihood']))
 
@@ -299,11 +300,16 @@ else:
         return tpcf
 
     def sham_cal(uniform,sigma_high,sigma,v_high):
-        datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
+        # scatter Vpeak
+        scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
+        scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
+        datav = datac[:,1]*scatter
+        # select halos
         LRGscat = datac[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
         datav = datav[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
         LRGscat = LRGscat[argpartition(-datav,int(len(datac)*v_high/100))[int(len(datac)*v_high/100):]]
         datav = datav[argpartition(-datav,int(len(datac)*v_high/100))[int(len(datac)*v_high/100):]]
+        # binnning Vpeak of the selected halos
         n,BINS = np.histogram(LRGscat[:,1],range =(0,1500),bins=100)
         
         # transfer to the redshift space
