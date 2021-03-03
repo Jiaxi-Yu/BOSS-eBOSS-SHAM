@@ -23,7 +23,7 @@ import h5py
 gal      = sys.argv[1]
 GC       = 'SGC'
 func     = sys.argv[2]
-cut      = sys.argv[3] #index, dsigma, posdsigma
+cut      = sys.argv[3] #percent2, percent3
 nseed    = 15
 rscale   = 'linear' # 'log'
 multipole= 'quad' # 'mono','quad','hexa'
@@ -58,12 +58,14 @@ elif gal == 'ELG':
     halofile = home+'catalog/UNIT_hlist_0.53780.hdf5'
     fileroot = direc+'MCMCout/indexcut_1211/mps_ELG_SGC_5-25/multinest_'
     cols = ['col3','col4']
-    
+
+fileroot = home+'prior_test/'
 Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # generate separation bins
-
+smin=0.5
+smax=5
 if func  == 'wp':
     rmin     = 0.5
     rmax     = 5
@@ -119,14 +121,15 @@ elif func == 'mps':
 print('the covariance matrix and the observation 2pcf vector are ready.')
     
 # create the halo catalogue and plot their 2pcf
-A = glob.glob('{}best-fit_{}_{}-wp_test_*_{}-{}Mpch-1.dat'.format(fileroot[:-10],gal,GC,rmin,rmax))
-if len(A)==4:
+A = glob.glob('{}best-fit_{}_{}-wp_test_*_{}-{}Mpch-1.dat'.format(fileroot,gal,GC,smin,smax))
+if len(A)==2:
     errbar = np.std(mocks,axis=1)
-    if func =='mps':
-        xi = [np.loadtxt('{}best-fit_{}_{}-python{}.dat'.format(fileroot[:-10],gal,GC,x)) for x in range(len(A))]
-        V = [np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot[:-10],gal,GC,y))[:,2] for y in range(len(A))]
-        Vbin = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot[:-10],gal,GC,0))[:,0]
-        UNIT = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot[:-10],gal,GC,0))[:,1]
+    if func=='mps':
+        # xi, Vpeak, Vbins, UNIT
+        xi = [np.loadtxt('{}best-fit_{}_{}-python{}.dat'.format(fileroot,gal,GC,x+2)) for x in range(len(A))]
+        V = [np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot,gal,GC,y+2))[:,2] for y in range(len(A))]
+        Vbin = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot,gal,GC,2))[:,0]
+        UNIT = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}{}.dat'.format(fileroot,gal,GC,2))[:,1]
         # 2pcf and Vpeak distribution plot
         fig = plt.figure(figsize=(14,8))
         spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
@@ -136,9 +139,9 @@ if len(A)==4:
             for j in range(2):
                 ax[j,k] = fig.add_subplot(spec[j,k])
                 
-                ax[j,k].plot(s,s**2*(xi[0][:,k]-values[j]),label='indexcut',c='b')
-                ax[j,k].plot(s,s**2*(xi[1][:,k]-values[j]),label = 'Gaussian_scatter/$\sigma$ cut',c='orange')
-                ax[j,k].plot(s,s**2*(xi[2][:,k]-values[j]),label = 'positive_scatter/$\sigma$ cut',c='green')                
+                ax[j,k].plot(s,s**2*(xi[0][:,k]-values[j]),label=r'small $\sigma$',c='b')
+                ax[j,k].plot(s,s**2*(xi[1][:,k]-values[j]),label = r'large $\sigma$',c='orange')
+                #ax[j,k].plot(s,s**2*(xi[2][:,k]-values[j]),label = 'positive_scatter/$\sigma$ cut',c='green')                
                 ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[k*nbins:(k+1)*nbins],color='k', marker='o',ecolor='k',ls="none",label='PIP obs')
                 plt.xlabel('s (Mpc $h^{-1}$)')
                 if (j==0):
@@ -147,14 +150,14 @@ if len(A)==4:
                     plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
                 if (j==1):
                     ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))
-        plt.savefig('cf_{}_bestfit-comp_{}_{}_{}-{}Mpch-1.png'.format(multipole,gal,GC,rmin,rmax))
+        plt.savefig('{}cf_{}_bestfit-comp_{}_{}_{}-{}Mpch-1.png'.format(fileroot,multipole,gal,GC,rmin,rmax))
         plt.close()
 
         # plot the histogram
         fig,ax = plt.subplots()
-        plt.plot(Vbin[:-1],V[0][:-1]/V[0][-1],label='SHAM-indexcut')
-        plt.plot(Vbin[:-1],V[1][:-1]/V[1][-1],label='SHAM-Gaussian_scatter/$\sigma$ cut')
-        plt.plot(Vbin[:-1],V[2][:-1]/V[2][-1],label='SHAM-positive_scatter/$\sigma$ cut')
+        plt.plot(Vbin[:-1],V[0][:-1]/V[0][-1],label=r"small $\sigma$")
+        plt.plot(Vbin[:-1],V[1][:-1]/V[1][-1],label=r'large $\sigma$')
+        #plt.plot(Vbin[:-1],V[2][:-1]/V[2][-1],label='SHAM-positive_scatter/$\sigma$ cut')
         plt.plot(Vbin[:-1],UNIT[:-1]/UNIT[-1],color='k',label='UNIT')
         plt.legend(loc=1)
         plt.xlim(0,1500)
@@ -163,27 +166,27 @@ if len(A)==4:
         plt.ylabel('frequency')
         plt.xlabel('Vpeak (km/s)')
         plt.legend(loc=0)
-        plt.savefig('best_SHAM_Vpeak_hist-comp_{}_{}_comp.png'.format(gal,GC))
+        plt.savefig('{}best_SHAM_Vpeak_hist-comp_{}_{}_comp.png'.format(fileroot,gal,GC))
         plt.close()
 
         fig,ax = plt.subplots()
-        plt.plot(Vbin[:-1],V[0][:-1]/UNIT[:-1],label='SHAM_indexcut')
-        plt.plot(Vbin[:-1],V[1][:-1]/UNIT[:-1],label='SHAM-Gaussian_scatter/$\sigma$ cut')
-        plt.plot(Vbin[:-1],V[2][:-1]/UNIT[:-1],label='SHAM-positive_scatter/$\sigma$ cut')
+        plt.plot(Vbin[:-1],V[0][:-1]/UNIT[:-1],label=r'small $\sigma$')
+        plt.plot(Vbin[:-1],V[1][:-1]/UNIT[:-1],label=r'large $\sigma$')
+        #plt.plot(Vbin[:-1],V[2][:-1]/UNIT[:-1],label='SHAM-positive_scatter/$\sigma$ cut')
         plt.xlim(0,1500)
         plt.ylim(1e-5,1.0)
         plt.yscale('log')
         plt.legend(loc=0)
         plt.ylabel('prob of having a galaxy')
         plt.xlabel('Vpeak (km/s)')
-        plt.savefig('best_SHAM_PDF_hist-comp_{}_{}_comp.png'.format(gal,GC))
+        plt.savefig('{}best_SHAM_PDF_hist-comp_{}_{}_comp.png'.format(fileroot,gal,GC))
         plt.close()
-
     elif func =='wp':
-        wp = [np.loadtxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot[:-10],gal,GC,x,rmin,rmax)) for x in ['index','dsigma','posdsigma','pos']]
-        res = [obscf['col4']-np.loadtxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot[:-10],gal,GC,x,rmin,rmax))[:,1] for x in ['index','dsigma','posdsigma','pos']]
+        # wp
+        wp = [np.loadtxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot,gal,GC,x,rmin,rmax)) for x in ['percent2','percent3']]
+        res = [obscf['col4']-np.loadtxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot,gal,GC,x,rmin,rmax))[:,1] for x in ['percent2','percent3']]
         chi = [res1.dot(covR.dot(res1)) for res1 in res]
-        print('index, dsigma, posdsigma reduced chi2 = {:.3f}, {:.3f}, {:.3f}/{}'.format(chi[0],chi[1],chi[2],nbins))
+        print('small sigma, large sigma chi2 = {:.3f}, {:.3f}/{}'.format(chi[0],chi[1],nbins))
         #print(binmin,binmax,wp,obscf['col4'])
 
         # plot the 2PCF multipoles   
@@ -195,12 +198,10 @@ if len(A)==4:
         k=0
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
-            ax[j,k].errorbar(s*1.02,(wp[0][:,1]-values[j])/err[j],wp[0][:,2]/err[j],alpha=0.7,label='indexcut',c='b')
-            ax[j,k].errorbar(s*1.01,(wp[1][:,1]-values[j])/err[j],wp[1][:,2]/err[j],alpha= 0.7,label = 'Gaussian_scatter/$\sigma$ cut',c='orange')
-            ax[j,k].errorbar(s*0.99,(wp[2][:,1]-values[j])/err[j],wp[2][:,2]/err[j],alpha=0.7,label = 'positive_scatter/$\sigma$ cut',c='green')
-            ax[j,k].errorbar(s*0.98,(wp[3][:,1]-values[j])/err[j],wp[3][:,2]/err[j],alpha=0.7,label = 'positive_scatter V cut',c='m')
-
-               
+            ax[j,k].errorbar(s*1.02,(wp[0][:,1]-values[j])/err[j],wp[0][:,2]/err[j],alpha=0.7,label=r'small $\sigma$',c='b')
+            ax[j,k].errorbar(s*1.01,(wp[1][:,1]-values[j])/err[j],wp[1][:,2]/err[j],alpha= 0.7,label = r'large $\sigma$',c='orange')
+            #ax[j,k].errorbar(s*0.99,(wp[2][:,1]-values[j])/err[j],wp[2][:,2]/err[j],alpha=0.7,label = 'positive_scatter/$\sigma$ cut',c='green')
+            #ax[j,k].errorbar(s*0.98,(wp[3][:,1]-values[j])/err[j],wp[3][:,2]/err[j],alpha=0.7,label = 'positive_scatter V cut',c='m')    
             ax[j,k].errorbar(s,(obscf['col4']-values[j])/err[j],errbar/err[j],color='k', marker='o',ecolor='k',ls="none",label="PIP obs",markersize=3)
             
             plt.xscale('log')
@@ -214,7 +215,7 @@ if len(A)==4:
                 plt.xlabel('rp (Mpc $h^{-1}$)')
                 plt.ylim(-3,3)
 
-        plt.savefig('cf_{}_bestfit_wp-comp_{}_{}_{}-{}Mpch-1.png'.format(multipole,gal,GC,rmin,rmax))
+        plt.savefig('{}cf_{}_bestfit_wp-comp_{}_{}_{}-{}Mpch-1.png'.format(fileroot,multipole,gal,GC,rmin,rmax))
         plt.close()
 
 else:
@@ -245,49 +246,28 @@ else:
         return append(x00,x01)
 
     def sham_cal(uniform):
-        if cut == 'index': # index-cut
+        if cut == 'percent2':            
             if gal =='LRG':
-                sigma_high,sigma,v_high = 0.5801523501823749, 114.37337407958519, 4.83480817332233
+                sigma_high,sigma,v_high = 0.15416299174220982, 139.89832219332982, 0.09494979525537973
             else:
-                sigma_high,sigma,v_high = 1.3026967093684083, 0.45258011273993637, 6.473072873326147
-            datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))) #0.5s
-            LRGscat = datac[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
-            datav = datav[argpartition(-datav,SHAMnum+int(10**v_high))[:(SHAMnum+int(10**v_high))]]
-            LRGscat = LRGscat[argpartition(-datav,int(10**v_high))[int(10**v_high):]]
-            datav = datav[argpartition(-datav,int(10**v_high))[int(10**v_high):]]
-        elif cut == 'dsigma': # dsigma-cut
+                sigma_high,sigma,v_high = 3.1146163107543225, 1.6697555103047586, 1.0422428413630476
+
+        elif cut == 'percent3':
             if gal =='LRG':
-                sigma_high,sigma,v_high = 3.721235759969714, 98.62135312958426, 1309.558192833906
+                sigma_high,sigma,v_high = 3.071658259295977, 93.50940896825927, 0.006335245965784689
             else:
-                sigma_high,sigma,v_high = 2.870659692158652, 8.502187770572425, 339.50615755726847
-            datav = datac[:,1]*(1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:])))/sigma_high #0.5s
-            # modified Vpeak_scat
-            org3  = datac[(datav<v_high)]  # 4.89s
-            LRGscat = org3[np.argpartition(-datav[(datav<v_high)],SHAMnum)[:(SHAMnum)]]
-        elif cut == 'posdsigma': # pos_scatter-dsigma-cut
-            if gal =='LRG':
-                sigma_high,sigma,v_high = 3.743151452102828, 98.77904596734587, 1285.2190538329396
-            else:
-                sigma_high,sigma,v_high = 3.122822903887847, 3.5966624937193172, 334.49358717280734
-            scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
-            scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
-            datav = datac[:,1]*scatter/sigma_high #0.5s
-            # modified Vpeak_scat
-            org3  = datac[(datav<v_high)]  # 4.89s
-            LRGscat = org3[np.argpartition(-datav[(datav<v_high)],SHAMnum)[:(SHAMnum)]]
-        elif cut == 'pos': # pos_scatter-dsigma-cut
-            if gal =='LRG':
-                sigma_high,sigma,v_high = 1.0595005878116677, 106.37904926461752, 1378.5789925400386
-            else:
-                sigma_high,sigma,v_high = None, None, None
-            scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
-            scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
-            datav = datac[:,1]*scatter #0.5s
-            # modified Vpeak_scat
-            org3  = datac[(datav<v_high)]  # 4.89s
-            LRGscat = org3[np.argpartition(-datav[(datav<v_high)],SHAMnum)[:(SHAMnum)]]
+                sigma_high,sigma,v_high = 1.397781866318896, 13.544793270107832, 1.4448181707169572
         else:
             print('wrong input!')
+
+        scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
+        scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
+        datav = datac[:,1]*scatter
+        # select halos
+        LRGscat = datac[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
+        datav = datav[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
+        LRGscat = LRGscat[argpartition(-datav,int(len(datac)*v_high/100))[int(len(datac)*v_high/100):]]
+
 
         # transfer to the redshift space
         scathalf = int(len(LRGscat)/2)
@@ -296,13 +276,14 @@ else:
 
         # calculate the 2pcf of the SHAM galaxies
         # count the galaxy pairs and normalise them
-        wp_dat = wp(boxsize,80,nthread,bins,LRGscat[:,2],LRGscat[:,3],LRGscat[:,-1])#,periodic=True, verbose=True)
+        wp_dat = wp(boxsize,80,nthread,bins,LRGscat[:,2],LRGscat[:,3],LRGscat[:,-1])
         return wp_dat['wp']
+
 
     # calculate the SHAM 2PCF
     with Pool(processes = nseed) as p:
         xi0_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1)))
-    #
+    
     tmp = [xi0_ELG[a] for a in range(nseed)]
     true_array = np.hstack((((np.array(tmp)).T)[:nbins],((np.array(tmp)).T)[nbins:]))
     model0 = np.mean(true_array,axis=1)
@@ -311,4 +292,4 @@ else:
     res = OBS-model0
     print('python reduced chi2 = {:.3f}/{}'.format(res.dot(covR.dot(res)),nbins))
     # save python 2pcf
-    np.savetxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot[:-10],gal,GC,cut,rmin,rmax),np.array([s,model0,std0]).T,header='python chi2 = {:.3f}/{}\n rp wp'.format(res.dot(covR.dot(res)),nbins))
+    np.savetxt('{}best-fit_{}_{}-wp_test_{}_{}-{}Mpch-1.dat'.format(fileroot,gal,GC,cut,rmin,rmax),np.array([s,model0,std0]).T,header='python chi2 = {:.3f}/{}\n rp wp'.format(res.dot(covR.dot(res)),nbins))
