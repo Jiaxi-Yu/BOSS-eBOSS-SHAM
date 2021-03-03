@@ -58,7 +58,11 @@ def combineNS_ELG(ifile):
     cnt[i] = vol[i] * d[i*2+1]
 
   nz = np.sum(np.array(cnt), axis=0) / np.sum(np.array(vol), axis=0)
-  return [z, nz]
+  nzN = np.sum(np.array(cnt[:2]), axis=0) / np.sum(np.array(vol[:2]), axis=0)
+  nzS = np.sum(np.array(cnt[2:]), axis=0) / np.sum(np.array(vol[2:]), axis=0)
+
+  #return [z, nz]
+  return [z, nz,nzN,nzS]
 
 def neff(z, nz, zmin=0, zmax=1):
   sel = (z >= zmin) & (z <= zmax)
@@ -69,8 +73,11 @@ def neff(z, nz, zmin=0, zmax=1):
   return np.sqrt(neff2)
 
 
-z, nz = combineNS_ELG('/media/jiaxi/disk/Master/nbar_eBOSS_ELG_v7.dat')
+z, nz,nzN,nzS = combineNS_ELG('/media/jiaxi/disk/Master/obs/nbar_eBOSS_ELG_v7.dat')
 n_eff = neff(z, nz, zmin=zmin, zmax=zmax)
-
-print(n_eff)
+print('NGC+SGC:',n_eff)
+n_eff = neff(z, nzN, zmin=zmin, zmax=zmax)
+print('NGC:',n_eff)
+n_eff = neff(z, nzS, zmin=zmin, zmax=zmax)
+print('SGC:',n_eff)
 

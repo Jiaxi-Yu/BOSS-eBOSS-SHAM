@@ -38,7 +38,7 @@ def combineNS(nbar_fmt, sample=['N','S']):
       raise ValueError('redshift mismatch')
 
   nz = np.sum(np.array(cnt), axis=0) / np.sum(np.array(vol), axis=0)
-  return [zs[0], nz]
+  return [zs[0], nz,cnt[0]/vol[0],cnt[1]/vol[1]]
 
 def neff(z, nz, zmin=0, zmax=1):
   sel = (z >= zmin) & (z <= zmax)
@@ -49,8 +49,11 @@ def neff(z, nz, zmin=0, zmax=1):
   return np.sqrt(neff2)
 
 
-z, nz = combineNS('/media/jiaxi/disk/Master/nbar_eBOSS_LRG_{}GC_v7_2.dat')
+z, nz,nzN,nzS = combineNS('/media/jiaxi/disk/Master/obs/nbar_eBOSS_LRG_{}GC_v7_2.dat')
 n_eff = neff(z, nz, zmin=zmin, zmax=zmax)
-
-print(n_eff)
+print('NGC+SGC:',n_eff)
+n_eff = neff(z, nzN, zmin=zmin, zmax=zmax)
+print('NGC:',n_eff)
+n_eff = neff(z, nzS, zmin=zmin, zmax=zmax)
+print('SGC:',n_eff)
 
