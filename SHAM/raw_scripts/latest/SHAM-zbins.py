@@ -43,9 +43,9 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-home     = '/global/cscratch1/sd/jiaxi/SHAM/'
-direc    = '/global/homes/j/jiaxi/'
-fileroot = '{}MCMCout/percentcut_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(direc,date,function,rscale,gal,GC,zmin,zmax)
+home     = '/home/astro/jiayu/Desktop/SHAM/'
+direc    = home
+fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(direc,date,function,rscale,gal,GC,zmin,zmax)
 
 
 if (rscale=='linear')&(function=='mps'):
