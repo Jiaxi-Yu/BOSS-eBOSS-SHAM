@@ -38,7 +38,10 @@ var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
 rmin     = 5
-rmax     = 25
+if rscale =='linear':
+    rmax = 25
+else:
+    rmax = 30
 nthread  = 32
 autocorr = 1
 mu_max   = 1
@@ -173,10 +176,11 @@ elif (rscale=='log'):
     if function == 'mps':
         if gal == 'LRG':
             ver = 'v7_2'
-            extra = binfile['col3'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]**2
+            extra = np.ones_like(s)
+            #extra = binfile['col3'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]**2
         else:
             ver = 'v7'
-            extra = np.ones(binmax-binmin)
+            extra = np.ones_like(s)
         # filenames
         covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
         obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
@@ -364,55 +368,61 @@ else:
         np.savetxt('{}best-fit_Vpeak_hist_{}_{}.dat'.format(fileroot[:-10],gal,GC),np.array([bbins,UNITv,SHAMv]).T,header='bins UNIT SHAM')
 
 
-        # plot the results
-        errbar = np.std(mocks,axis=1)
-        #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
-        Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
-        # plot the 2PCF multipoles   
-        fig = plt.figure(figsize=(14,8))
-        spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
-        ax = np.empty((2,2), dtype=type(plt.axes))
-        for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
-            values=[np.zeros(nbins),obscf[col]]
-            for j in range(2):
-                ax[j,k] = fig.add_subplot(spec[j,k])
-                ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6)
-                ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j]),c='m',alpha=0.6)
-                ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[k*nbins:(k+1)*nbins],color='k', marker='o',ecolor='k',ls="none")
-                plt.xlabel('s (Mpc $h^{-1}$)')
-                if (j==0):
-                    ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
-                    label = ['SHAM-python','SHAM-C','PIP obs 1$\sigma$']#['SHAM','SHAM_2nd']#,'PIP obs 1$\sigma$']#,'CP obs 1$\sigma$']
-                    if k==0:
-                        plt.legend(label,loc=2)
-                    else:
-                        plt.legend(label,loc=1)
-                    plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
-                if (j==1):
-                    ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
+# plot the results
+errbar = np.std(mocks,axis=1)
+#print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
+if rscale=='linear':
+    Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
+else:
+    Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
 
-        plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
-        plt.close()
+# plot the 2PCF multipoles   
+fig = plt.figure(figsize=(14,8))
+spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+ax = np.empty((2,2), dtype=type(plt.axes))
+for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
+    values=[np.zeros(nbins),obscf[col]]
+    for j in range(2):
+        ax[j,k] = fig.add_subplot(spec[j,k])
+        #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
+        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j]),c='m',alpha=0.6,label='SHAM')
+        ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[k*nbins:(k+1)*nbins],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+        plt.xlabel('s (Mpc $h^{-1}$)')
+        if rscale=='log':
+            plt.xscale('log')
+        if (j==0):
+            ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
+            #label = ['SHAM-python','SHAM-C','PIP obs 1$\sigma$']#['SHAM','SHAM_2nd']#,'PIP obs 1$\sigma$']#,'CP obs 1$\sigma$']
+            if k==0:
+                plt.legend(loc=2)
+            else:
+                plt.legend(loc=1)
+            plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+        if (j==1):
+            ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
 
-        # plot the histogram
-        fig,ax = plt.subplots()
-        plt.plot(bbins[:-1],SHAMv[:-1]/SHAMv[-1],color='b',label='SHAM')
-        plt.plot(bbins[:-1],UNITv[:-1]/UNITv[-1],color='k',label='UNIT')
-        plt.legend(loc=1)
-        plt.xlim(0,1500)
-        plt.ylim(1e-5,1)
-        plt.yscale('log')
-        plt.ylabel('frequency')
-        plt.xlabel('Vpeak (km/s)')
-        plt.savefig(fileroot[:-10]+'best_SHAM_Vpeak_hist_{}_{}.png'.format(gal,GC))
-        plt.close()
+plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
+plt.close()
 
-        fig,ax = plt.subplots()
-        plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
-        plt.xlim(0,1500)
-        plt.ylim(1e-5,1.0)
-        plt.yscale('log')
-        plt.ylabel('prob of having a galaxy')
-        plt.xlabel('Vpeak (km/s)')
-        plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
-        plt.close()
+# plot the histogram
+fig,ax = plt.subplots()
+plt.plot(bbins[:-1],SHAMv[:-1]/SHAMv[-1],color='b',label='SHAM')
+plt.plot(bbins[:-1],UNITv[:-1]/UNITv[-1],color='k',label='UNIT')
+plt.legend(loc=1)
+plt.xlim(0,1500)
+plt.ylim(1e-5,1)
+plt.yscale('log')
+plt.ylabel('frequency')
+plt.xlabel('Vpeak (km/s)')
+plt.savefig(fileroot[:-10]+'best_SHAM_Vpeak_hist_{}_{}.png'.format(gal,GC))
+plt.close()
+
+fig,ax = plt.subplots()
+plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
+plt.xlim(0,1500)
+plt.ylim(1e-5,1.0)
+plt.yscale('log')
+plt.ylabel('prob of having a galaxy')
+plt.xlabel('Vpeak (km/s)')
+plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
+plt.close()
