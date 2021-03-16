@@ -300,7 +300,7 @@ else:
         else:        
             x00,v0    = sham_cal(uni,sigM,sigV,Mtrun)
             x01,v1    = sham_cal(uni1,sigM,sigV,Mtrun)
-            tpcf   = [(x00+x01)/2,(v0+v1)/2]
+            tpcf   = [append(x00,x01),(v0+v1)/2]
         return tpcf
 
     def sham_cal(uniform,sigma_high,sigma,v_high):
@@ -309,10 +309,11 @@ else:
         scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
         datav = datac[:,1]*scatter
         # select halos
-        LRGscat = datac[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
-        datav = datav[argpartition(-datav,SHAMnum+int(len(datac)*v_high/100))[:(SHAMnum+int(len(datac)*v_high/100))]]
-        LRGscat = LRGscat[argpartition(-datav,int(len(datac)*v_high/100))[int(len(datac)*v_high/100):]]
-        datav = datav[argpartition(-datav,int(len(datac)*v_high/100))[int(len(datac)*v_high/100):]]
+        percentcut = int(len(datac)*v_high/100)
+        LRGscat = datac[argpartition(-datav,SHAMnum+percentcut)[:(SHAMnum+percentcut)]]
+        datav = datav[argpartition(-datav,SHAMnum+percentcut)[:(SHAMnum+percentcut)]]
+        LRGscat = LRGscat[argpartition(-datav,percentcut)[percentcut:]]
+        datav = datav[argpartition(-datav,percentcut)[percentcut:]]
         # binnning Vpeak of the selected halos
         n,BINS = np.histogram(LRGscat[:,1],range =(0,1500),bins=100)
         
@@ -352,7 +353,7 @@ else:
         # result report
         file = '{}Vzsmear_report_{}_{}.txt'.format(fileroot[:-10],gal,GC)
         f = open(file,'a')
-        f.write('python chi2 = {:.3f}'.format(res.dot(covR.dot(res))))
+        f.write('python chi2 = {:.3f}, correspond to Vceil = {:.6}km/s'.format(res.dot(covR.dot(res)),mean(xi1_ELG[2],axis=0)))
         f.close()
         # save python 2pcf
         xi = np.hstack((model.reshape(2,nbins).T,errsham.reshape(2,nbins).T ))
