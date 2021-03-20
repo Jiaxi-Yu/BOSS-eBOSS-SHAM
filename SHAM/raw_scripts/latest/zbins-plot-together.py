@@ -142,7 +142,7 @@ for zbin in range(zbinnum):
     OBSwps[zbin] = OBSwp
     wps[zbin]     = wp    
     pdfs[zbin]  = pdf
-    bestfits[zbin] = a.get_best_fit()['parameters']
+    bestfits[zbin] = a.get_best_fit()
 
 # plot posteriors
 plt.rcParams['text.usetex'] = False
@@ -158,9 +158,9 @@ for zbin in range(zbinnum):
     for yi in range(3): 
         for xi in range(yi):
             ax = g.subplots[yi,xi]
-            #ax.axvline(bestfits[zbin][xi], color=colors[zbin])
-            #ax.axhline(bestfits[zbin][yi], color=colors[zbin])
-            ax.plot(bestfits[zbin][xi],bestfits[zbin][yi], "D",markersize=5,color='k') 
+            #ax.axvline(bestfits[zbin]['parameters'][xi], color=colors[zbin])
+            #ax.axhline(bestfits[zbin]['parameters'][yi], color=colors[zbin])
+            ax.plot(bestfits[zbin]['parameters'][xi],bestfits[zbin]['parameters'][yi], "D",markersize=5,color='k') 
 g.export('{}{}_{}_{}_posterior.png'.format(home,date,gal,GC))
 plt.close()
 
@@ -171,12 +171,20 @@ ax = np.empty((2,2), dtype=type(plt.axes))
 for zbin in range(zbinnum):
     for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
         values=[np.zeros(nbins),obscfs[zbin][col]]    
-        err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
+        err   = [np.ones(nbins),s**2*errbars[zbin][k*nbins:(k+1)*nbins]]
 
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             ax[j,k].plot(s,s**2*(Ccodes[zbin][:,k+2]-values[j])/err[j],c=colors[zbin],alpha=0.6,label='_hidden')
-            ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",label='z{}z{}'.format(zmins[zbin],zmaxs[zbin]))
+            if k==1:
+                ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbars[zbin][k*nbins:(k+1)*nbins]/err[j],\
+                    color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",\
+                    label='z{}z{}'.format(zmins[zbin],zmaxs[zbin]))
+            else:
+                ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbars[zbin][k*nbins:(k+1)*nbins]/err[j],\
+                    color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",\
+                    label='z{}z{}, $\chi^2/dof={:.2}$/16'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood']))
+
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
                 plt.xscale('log')

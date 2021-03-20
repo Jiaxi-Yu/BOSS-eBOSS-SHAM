@@ -399,12 +399,13 @@ fig = plt.figure(figsize=(14,8))
 spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
 ax = np.empty((2,2), dtype=type(plt.axes))
 for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
-    values=[np.zeros(nbins),obscf[col]]
+    values=[np.zeros(nbins),obscf[col]]        
+    err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k])
         #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j]),c='m',alpha=0.6,label='SHAM-C')
-        ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[k*nbins:(k+1)*nbins],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.2}/16'.format(-2*a.get_best_fit()['log_likelihood']))
+        ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
         plt.xlabel('s (Mpc $h^{-1}$)')
         if rscale=='log':
             plt.xscale('log')
@@ -416,7 +417,7 @@ for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],ra
                 plt.legend(loc=1)
             plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
         if (j==1):
-            ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
+            ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
 
 plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
 plt.close()
