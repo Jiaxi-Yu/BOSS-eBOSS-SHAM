@@ -176,14 +176,14 @@ for zbin in range(zbinnum):
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             ax[j,k].plot(s,s**2*(Ccodes[zbin][:,k+2]-values[j])/err[j],c=colors[zbin],alpha=0.6,label='_hidden')
-            if k==1:
+            if k==0:
                 ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbars[zbin][k*nbins:(k+1)*nbins]/err[j],\
                     color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",\
                     label='z{}z{}'.format(zmins[zbin],zmaxs[zbin]))
             else:
                 ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbars[zbin][k*nbins:(k+1)*nbins]/err[j],\
                     color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",\
-                    label='z{}z{}, $\chi^2/dof={:.2}$/16'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood']))
+                    label='z{}z{}, $\chi^2/dof={:.4}$/16'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood']))
 
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':

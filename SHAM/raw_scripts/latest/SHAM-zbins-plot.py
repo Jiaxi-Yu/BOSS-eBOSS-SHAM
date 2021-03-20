@@ -404,7 +404,7 @@ for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],ra
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k])
         #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.2}/16'.format(-2*a.get_best_fit()['log_likelihood']))
+        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/16'.format(-2*a.get_best_fit()['log_likelihood']))
         ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
         plt.xlabel('s (Mpc $h^{-1}$)')
         if rscale=='log':
