@@ -189,14 +189,15 @@ for zbin in range(zbinnum):
             if rscale=='log':
                 plt.xscale('log')
             if (j==0):
-                ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
+                ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
                 if k==0:
                     plt.legend(loc=2)
                 else:
                     plt.legend(loc=1)
                 plt.title('correlation function {}: {} in {}, PIP with errorbar'.format(name,gal,GC))
             if (j==1):
-                ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
+                ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
+                plt.ylim(-3,3)
 
 plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,multipole,gal,GC,rmin,rmax),bbox_tight=True)
 plt.close()
@@ -225,6 +226,7 @@ for zbin in range(zbinnum):
                 plt.title('projected 2pcf: {} in {}, SHAM with errorbar'.format(gal,GC))
             if (j==1):
                 ax[j,k].set_ylabel('$\Delta$ wp/err')
+                plt.ylim(-3,3)
 
 plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,gal,GC,smin,smax),bbox_tight=True)
 plt.close()
@@ -244,8 +246,8 @@ plt.close()
 
 fig,ax = plt.subplots()
 for zbin in range(zbinnum):
-    plt.plot(bbins[:-1],pdfs[zbin],color=colors[zbin],label='z{}z{}'.format(zmins[zbin],zmaxs[zbin]))
-    print('z{}z{} PDF max: {} km/s'.format(zmins[zbin],zmaxs[zbin],(bbins[:-1])[pdfs[zbin]==max(pdfs[zbin][~np.isnan(pdfs[zbin])])]))
+    plt.plot(bbins[:-1],pdfs[zbin],color=colors[zbin],\
+        label='z{}z{}, PDF max: {} km/s'.format(zmins[zbin],zmaxs[zbin],(bbins[:-1])[pdfs[zbin]==max(pdfs[zbin][~np.isnan(pdfs[zbin])])]))
 plt.xlim(0,1500)
 plt.legend(loc=0)
 plt.ylabel('prob of having a galaxy')

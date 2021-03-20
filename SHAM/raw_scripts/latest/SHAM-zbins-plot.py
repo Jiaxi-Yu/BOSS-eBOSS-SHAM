@@ -417,7 +417,8 @@ for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],ra
                 plt.legend(loc=1)
             plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
         if (j==1):
-            ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
+            ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
+            plt.ylim(-3,3)
 
 plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
 plt.close()
@@ -446,6 +447,7 @@ for ind,k in zip(split,range(2)):
             plt.title('projected 2pcf: {} in {}'.format(gal,GC))
         if (j==1):
             ax[j,k].set_ylabel('$\Delta$ wp/err')
+            plt.ylim(-3,3)
 
 plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
 plt.close()
