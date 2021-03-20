@@ -82,11 +82,11 @@ g = plots.getSinglePlotter()
 g.settings.figure_legend_frame = False
 g.settings.alpha_filled_add=0.4
 g = plots.getSubplotPlotter()
+g.triangle_plot(sample,parameters, filled=True)
 for yi in range(3): 
     for xi in range(yi):
         ax = g.subplots[yi,xi]
         ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "*",color='k') 
-g.triangle_plot(sample,parameters, filled=True)
 g.export('{}{}_{}_{}_posterior.png'.format(fileroot[:-10],date,gal,GC))
 plt.close()
 
