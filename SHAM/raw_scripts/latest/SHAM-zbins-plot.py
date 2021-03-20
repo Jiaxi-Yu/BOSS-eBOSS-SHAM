@@ -49,7 +49,7 @@ nmu      = 120
 autocorr = 1
 smin=0.5; smax=35
 home     = '/home/astro/jiayu/Desktop/SHAM/'
-fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
+fileroot = '{}MCMCout/zbins_{}/prior1_{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
 bestfit   = '{}bestfit_{}_{}.dat'.format(fileroot[:-10],function,date)
 cols = ['col4','col5']
 
@@ -82,6 +82,10 @@ g = plots.getSinglePlotter()
 g.settings.figure_legend_frame = False
 g.settings.alpha_filled_add=0.4
 g = plots.getSubplotPlotter()
+for yi in range(3): 
+    for xi in range(yi):
+        ax = g.subplots[yi,xi]
+        ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "*",color='k') 
 g.triangle_plot(sample,parameters, filled=True)
 g.export('{}{}_{}_{}_posterior.png'.format(fileroot[:-10],date,gal,GC))
 plt.close()
@@ -163,15 +167,14 @@ if (rscale=='linear')&(function=='mps'):
     
 elif (rscale=='log'):
     # read s bins
-    binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
+    binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header');ver1='v7_2'
     sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
     bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
     s = binfile['col3'][sel]
     nbins = len(bins)-1
     binmin = np.where(binfile['col3']>=rmin)[0][0]
     binmax = np.where(binfile['col3']<rmax)[0][-1]+1
-    
-    ver1='v7_2'
+
     if gal == 'LRG':
         ver = 'v7_2'
         extra = np.ones_like(s)
@@ -397,13 +400,11 @@ spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspac
 ax = np.empty((2,2), dtype=type(plt.axes))
 for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
     values=[np.zeros(nbins),obscf[col]]
-    err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
-
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k])
         #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM-C')
-        ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j]),c='m',alpha=0.6,label='SHAM-C')
+        ax[j,k].errorbar(s,s**2*(obscf[col]-values[j]),s**2*errbar[k*nbins:(k+1)*nbins],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
         plt.xlabel('s (Mpc $h^{-1}$)')
         if rscale=='log':
             plt.xscale('log')
@@ -415,7 +416,7 @@ for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],ra
                 plt.legend(loc=1)
             plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
         if (j==1):
-            ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
+            ax[j,k].set_ylabel('$s^2 * \Delta\\xi_{}$'.format(k*2))#('\Delta\\xi_{}$'.format(k*2))#
 
 plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
 plt.close()
