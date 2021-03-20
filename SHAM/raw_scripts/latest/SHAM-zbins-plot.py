@@ -472,3 +472,6 @@ plt.ylabel('prob of having a galaxy')
 plt.xlabel('Vpeak (km/s)')
 plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
 plt.close()
+
+pdf = SHAMv[:-1]/UNITv[:-1]
+print('z{}z{} PDF max: {} km/s'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))
