@@ -47,9 +47,9 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-smin=0.5; smax=35
+smin=5; smax=35
 home     = '/home/astro/jiayu/Desktop/SHAM/'
-fileroot = '{}MCMCout/zbins_{}/prior1_{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
+fileroot = '{}MCMCout/zbins_{}/prior4_{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
 bestfit   = '{}bestfit_{}_{}.dat'.format(fileroot[:-10],function,date)
 cols = ['col4','col5']
 
@@ -240,15 +240,17 @@ elif (rscale=='log'):
 else:
     print('wrong 2pcf function input')
 
-    
+
 # wp plot
 if rscale == 'linear':
     covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
     obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
+    obs2pcfwp1  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}_pi25.dat'.format(home,gal,ver,gal,GC,ver)
 elif rscale == 'log':
     covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
     obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
-    
+    obs2pcfwp1  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}_pi25.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
+
 binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
 selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
 binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
@@ -258,8 +260,10 @@ binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
 nbinswp = len(binswp)-1
 # observation
 obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
-obscfwp = obscfwp[(obscfwp['col3']<smax)&(obscfwp['col3']>=smin)]
-OBSwp   = obscfwp['col4']
+selwp = (obscfwp['col3']<smax)&(obscfwp['col3']>=smin)
+OBSwp   = obscfwp['col4'][selwp]
+OBSwp1   = Table.read(obs2pcfwp1,format='ascii.no_header')['col4'][selwp]
+
 # Read the covariance matrices
 """
 hdu = fits.open(covfitswp) 
@@ -361,11 +365,7 @@ else:
         errsham = append(std0,std1)
         res = OBS-model
         print('python chi2 = {:.3f}'.format(res.dot(covR.dot(res))))
-        # result report
-        file = '{}Vzsmear_report_{}_{}.txt'.format(fileroot[:-10],gal,GC)
-        f = open(file,'a')#;import pdb;pdb.set_trace()
-        f.write('python chi2 = {:.3f}, correspond to Vceil = {:.6}km/s'.format(res.dot(covR.dot(res)),np.mean(xi1_ELG,axis=0)[2]))
-        f.close()
+
         # save python 2pcf
         xi = np.hstack((model.reshape(2,nbins).T,errsham.reshape(2,nbins).T))
         np.savetxt('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),xi,header='python chi2 = {:.3f}\n xi0 x12 xi0err xi2err'.format(res.dot(covR.dot(res))))
@@ -384,6 +384,16 @@ else:
         UNITv = np.append(UNITv,len(datac))
         SHAMv = np.append(SHAMv,SHAMnum)
         np.savetxt('{}best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),np.array([bbins,UNITv,SHAMv]).T,header='bins UNIT SHAM')
+
+        # result report
+        file = '{}Vzsmear_report_{}_{}.txt'.format(fileroot[:-10],gal,GC)
+        f = open(file,'a')#;import pdb;pdb.set_trace()
+        f.write('python chi2 = {:.3f}, correspond to Vceil = {:.6}km/s \n'.format(res.dot(covR.dot(res)),np.mean(xi1_ELG,axis=0)[2]))
+        pdf = SHAMv[:-1]/UNITv[:-1]
+        f.write('z{}z{} PDF max: {} km/s \n'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))        
+        f.close()
+
+
 
 
 # plot the results
@@ -404,7 +414,7 @@ for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],ra
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k])
         #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/16'.format(-2*a.get_best_fit()['log_likelihood']))
+        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-3)))
         ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
         plt.xlabel('s (Mpc $h^{-1}$)')
         if rscale=='log':
@@ -423,21 +433,71 @@ for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],ra
 plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
 plt.close()
 
+# plot the 2PCF multipoles 2-25Mpc/h
+if rscale == 'linear':
+    Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[2:binmax]
+    obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
+    covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
+    # Read the covariance matrices and observations
+    hdu = fits.open(covfits) #
+    mock = hdu[1].data[GC+'mocks']
+    Nmock = mock.shape[1] 
+    hdu.close()
+    binmin = 2
+    nbins = binmax-binmin
+    bins  = np.arange(binmin,binmax+1,1)
+    s = (bins[:-1]+bins[1:])/2
+    mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:]))
+    errbar = np.std(mocks,axis=1)
+    covcut  = cov(mocks).astype('float32')
+    obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]       
+    if gal == 'LRG':
+        OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
+    else:
+        OBS   = append(obscf['col3'],obscf['col4']).astype('float32')
+    fig = plt.figure(figsize=(14,8))
+    spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+    ax = np.empty((2,2), dtype=type(plt.axes))
+    for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
+        values=[np.zeros(nbins),obscf[col]]        
+        err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
+        for j in range(2):
+            ax[j,k] = fig.add_subplot(spec[j,k])
+            #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
+            ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*(len(s)-3)-3)))
+            ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+            plt.xlabel('s (Mpc $h^{-1}$)')
+            if rscale=='log':
+                plt.xscale('log')
+            if (j==0):
+                ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
+                if k==0:
+                    plt.legend(loc=2)
+                else:
+                    plt.legend(loc=1)
+                plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+            if (j==1):
+                ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
+                plt.ylim(-3,3)
+
+    plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,2,rmax),bbox_tight=True)
+    plt.close()
+
 # plot the wp
-fig = plt.figure(figsize=(14,8))
-spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
-ax = np.empty((2,2), dtype=type(plt.axes))
-split = [(swp<5),(swp>5)]
+fig = plt.figure(figsize=(7,8))
+spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
+ax = np.empty((2,1), dtype=type(plt.axes))
 #import pdb;pdb.set_trace()
-for ind,k in zip(split,range(2)):
-    values=[np.zeros_like(OBSwp[ind]),OBSwp[ind]]
-    err   = [np.ones_like(OBSwp[ind]),wp[:,2][ind]]
+for k in range(1):
+    values=[np.zeros_like(OBSwp),OBSwp]
+    err   = [np.ones_like(OBSwp),wp[:,2]]
 
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-        ax[j,k].errorbar(swp[ind],(wp[:,1][ind]-values[j])/err[j],wp[:,2][ind]/err[j],color='b', marker='^',ecolor='b',ls="none",label='SHAM-python')
-        ax[j,k].plot(swp[ind],(OBSwp[ind]-values[j])/err[j],color='k', marker='o',ls="none",label='PIP obs')
-        #ax[j,k].errorbar(swp[ind],(obscfwp[ind]-values[j])/err[j],errbarwp[ind]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+        ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='b', marker='^',ecolor='b',ls="none",label='SHAM')
+        ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='m', marker='o',ls="none",label='PIP pi80')
+        ax[j,k].plot(swp,(OBSwp1-values[j])/err[j],color='r', marker='*',ls="none",label='PIP pi25')
+        #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
         plt.xlabel('rp (Mpc $h^{-1}$)')
         plt.xscale('log')
         if (j==0):        
@@ -470,6 +530,18 @@ plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
 plt.xlim(0,1500)
 plt.ylim(1e-5,1.0)
 plt.yscale('log')
+plt.ylabel('prob of having a galaxy')
+plt.xlabel('Vpeak (km/s)')
+plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}_log.png'.format(gal,GC))
+plt.close()
+
+fig,ax = plt.subplots()
+plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
+plt.xlim(0,1500)
+if gal =='LRG':
+    plt.ylim(0,0.2)
+elif gal == 'ELG':
+    plt.ylim(0,0.02)
 plt.ylabel('prob of having a galaxy')
 plt.xlabel('Vpeak (km/s)')
 plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
