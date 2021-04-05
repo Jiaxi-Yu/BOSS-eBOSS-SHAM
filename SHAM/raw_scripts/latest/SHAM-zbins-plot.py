@@ -49,7 +49,7 @@ nmu      = 120
 autocorr = 1
 smin=5; smax=35
 home     = '/home/astro/jiayu/Desktop/SHAM/'
-fileroot = '{}MCMCout/zbins_{}/prior4_{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
+fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,sys.argv[8],function,rscale,gal,GC,zmin,zmax)
 bestfit   = '{}bestfit_{}_{}.dat'.format(fileroot[:-10],function,date)
 cols = ['col4','col5']
 
