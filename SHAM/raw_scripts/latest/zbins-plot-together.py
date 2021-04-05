@@ -43,12 +43,16 @@ if gal == 'LRG':
     zbinnum = 5
     zmins = [0.6,0.6,0.65,0.7,0.8]
     zmaxs = [0.7,0.8,0.8, 0.9,1.0]
+    ver = 'v7_2'
 elif gal == 'ELG':
     zbinnum = 4
     zmins = [0.6,0.7,0.8,0.9]
     zmaxs = [0.8,0.9,1.0,1.1]
+    ver = 'v7'
 colors = ['m','b','orange','r','c']
 cols = ['col4','col5']
+ver1 = 'v7_2'
+
 samples = [x for x in range(zbinnum)]
 bestfits = [x for x in range(zbinnum)]
 Ccodes = [x for x in range(zbinnum)]
@@ -77,11 +81,6 @@ for zbin in range(zbinnum):
     binmin = np.where(binfile['col3']>=rmin)[0][0]
     binmax = np.where(binfile['col3']<rmax)[0][-1]+1
 
-    ver1 = 'v7_2'
-    if gal == 'LRG':
-        ver = 'v7_2'
-    else:
-        ver = 'v7'
     # filenames
     covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
     obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
@@ -203,20 +202,19 @@ plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,multipole,gal,GC
 plt.close()
 
 # plot the wp
-fig = plt.figure(figsize=(14,8))
-spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
-ax = np.empty((2,2), dtype=type(plt.axes))
-split = [(swp<5),(swp>5)]
+fig = plt.figure(figsize=(6,7))
+spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
+ax = np.empty((2,1), dtype=type(plt.axes))
 for zbin in range(zbinnum):
-    for ind,k in zip(split,range(2)):
-        values=[np.zeros_like(OBSwps[zbin][ind]),OBSwps[zbin][ind]]
-        err   = [np.ones_like(OBSwps[zbin][ind]),wps[zbin][:,2][ind]]
+    for k in range(2):
+        values=[np.zeros_like(OBSwps[zbin]),OBSwps[zbin]]
+        err   = [np.ones_like(OBSwps[zbin]),wps[zbin][:,2]]
 
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-            ax[j,k].errorbar(swp[ind],(wps[zbin][:,1][ind]-values[j])/err[j],wps[zbin][:,2][ind]/err[j],color=colors[zbin], marker='^',ecolor=colors[zbin],ls="none",label='z{}z{}'.format(zmins[zbin],zmaxs[zbin]))
-            ax[j,k].plot(swp[ind],(OBSwps[zbin][ind]-values[j])/err[j],color=colors[zbin],label='_hidden')
-            #ax[j,k].errorbar(swp[ind],(OBSwp[ind]-values[j])/err[j],errbarwp[ind]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+            ax[j,k].errorbar(swp,(wps[zbin][:,1]-values[j])/err[j],wps[zbin][:,2]/err[j],color=colors[zbin], marker='^',ecolor=colors[zbin],ls="none",label='z{}z{}_pi80'.format(zmins[zbin],zmaxs[zbin]))
+            ax[j,k].plot(swp,(OBSwps[zbin]-values[j])/err[j],color=colors[zbin],label='_hidden')
+            #ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):        
@@ -228,7 +226,7 @@ for zbin in range(zbinnum):
                 ax[j,k].set_ylabel('$\Delta$ wp/err')
                 plt.ylim(-3,3)
 
-plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,gal,GC,smin,smax),bbox_tight=True)
+plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(home,gal,GC,smin,smax),bbox_tight=True)
 plt.close()
 
 # plot the PDF
@@ -254,3 +252,58 @@ plt.ylabel('prob of having a galaxy')
 plt.xlabel('Vpeak (km/s)')
 plt.savefig(home+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
 plt.close()
+
+
+
+# plot
+smin=5;smax=35
+pimaxs = [25,30,35]
+for pimax in pimaxs:
+    fig = plt.figure(figsize=(6,7))
+    spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
+    ax = np.empty((2,1), dtype=type(plt.axes))
+    for zbin in range(zbinnum): 
+        zmin,zmax = zmins[zbin],zmaxs[zbin]
+        fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
+        obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/wp_rp_pip_eBOSS_{}_{}_{}_{}-{}_pi{}.dat'.format(home,gal,gal,GC,ver,zmin,zmax,pimax)
+        binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
+        selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
+        binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
+        swp = binfilewp['col3'][selwp]
+        binminwp = np.where(binfilewp['col3']>=smin)[0][0]
+        binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
+        nbinswp = len(binswp)-1
+        # observation
+        obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
+        obscfwp = obscfwp[(obscfwp['col3']<smax)&(obscfwp['col3']>=smin)]
+        OBSwp   = obscfwp['col4']
+        
+        wp = np.loadtxt('{}/best-fit-wp_{}_{}-python_pi{}.dat'.format(fileroot[:-10],gal,GC,pimax))
+
+        #OBSwps[zbin] = OBSwp
+        #wps[zbin]     = wp  
+
+
+        #import pdb;pdb.set_trace()
+        for k in range(1):
+            values=[np.zeros_like(OBSwp),OBSwp]
+            err   = [np.ones_like(OBSwp),wp[:,2]]
+
+            for j in range(2):
+                ax[j,k] = fig.add_subplot(spec[j,k]);#import pdb;pdb.set_trace()
+                ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color=colors[zbin], marker='^',ecolor=colors[zbin],ls="none",label='z{}z{}_pi{}'.format(zmins[zbin],zmaxs[zbin],pimax))
+                ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color=colors[zbin],label='_hidden')
+                #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+                plt.xlabel('rp (Mpc $h^{-1}$)')
+                plt.xscale('log')
+                if (j==0):        
+                    plt.yscale('log')
+                    ax[j,k].set_ylabel('wp')
+                    plt.legend(loc=0)
+                    plt.title('projected 2pcf: {} in {}, errorbar from SHAM'.format(gal,GC))
+                if (j==1):
+                    ax[j,k].set_ylabel('$\Delta$ wp/err')
+                    plt.ylim(-3,3)
+
+    plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi{}.png'.format(home,gal,GC,smin,smax,pimax),bbox_tight=True)
+    plt.close()
