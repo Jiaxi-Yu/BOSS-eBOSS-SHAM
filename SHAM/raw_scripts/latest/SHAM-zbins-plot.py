@@ -245,11 +245,9 @@ else:
 if rscale == 'linear':
     covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
     obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
-    obs2pcfwp1  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}_pi25.dat'.format(home,gal,ver,gal,GC,ver)
 elif rscale == 'log':
     covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
     obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
-    obs2pcfwp1  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}_pi25.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
 
 binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
 selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
@@ -262,7 +260,6 @@ nbinswp = len(binswp)-1
 obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
 selwp = (obscfwp['col3']<smax)&(obscfwp['col3']>=smin)
 OBSwp   = obscfwp['col4'][selwp]
-OBSwp1   = Table.read(obs2pcfwp1,format='ascii.no_header')['col4'][selwp]
 
 # Read the covariance matrices
 """
@@ -484,7 +481,7 @@ if rscale == 'linear':
     plt.close()
 
 # plot the wp
-fig = plt.figure(figsize=(7,8))
+fig = plt.figure(figsize=(6,7))
 spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
 ax = np.empty((2,1), dtype=type(plt.axes))
 #import pdb;pdb.set_trace()
@@ -494,9 +491,8 @@ for k in range(1):
 
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-        ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='b', marker='^',ecolor='b',ls="none",label='SHAM')
-        ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='m', marker='o',ls="none",label='PIP pi80')
-        ax[j,k].plot(swp,(OBSwp1-values[j])/err[j],color='r', marker='*',ls="none",label='PIP pi25')
+        ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='b', marker='^',ecolor='b',ls="none",label='SHAM_pi80')
+        ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='m', marker='o',ls="none",label='PIP_pi80')
         #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
         plt.xlabel('rp (Mpc $h^{-1}$)')
         plt.xscale('log')
@@ -509,7 +505,7 @@ for k in range(1):
             ax[j,k].set_ylabel('$\Delta$ wp/err')
             plt.ylim(-3,3)
 
-plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
+plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
 plt.close()
 
 # plot the histogram
