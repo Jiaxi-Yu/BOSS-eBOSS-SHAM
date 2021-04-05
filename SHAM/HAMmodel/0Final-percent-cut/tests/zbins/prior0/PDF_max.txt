@@ -1,0 +1,13 @@
+LRG:
+z0.6z0.7 PDF max: [562.5] km/s
+z0.6z0.8 PDF max: [577.5] km/s
+z0.65z0.8 PDF max: [547.5] km/s
+z0.7z0.9 PDF max: [517.5] km/s
+z0.8z1.0 PDF max: [547.5] km/s
+
+ELG:
+z0.6z0.8 PDF max: [1492.5] km/s
+z0.7z0.9 PDF max: [262.5] km/s
+z0.8z1.0 PDF max: [1417.5] km/s
+z0.9z1.1 PDF max: [1492.5] km/s
+
