@@ -294,6 +294,7 @@ else:
             true_array = np.hstack((((np.array(tmp)).T)[:nbinswp],((np.array(tmp)).T)[nbinswp:]))
             wp[h]= (np.array([swp,np.mean(true_array,axis=1),np.std(true_array,axis=1)]).reshape(3,nbinswp)).T
             np.savetxt('{}best-fit-wp_{}_{}-python_pi{}.dat'.format(fileroot[:-10],gal,GC,pimax),wp[h],header='s wp wperr')
+            """
             if zmin =='0.65':
                 pairfile = '{}catalog/nersc_zbins_wp_mps_{}/pairs_rp-pi_log_eBOSS_{}_{}_{}_pip_zs_{}-{}0.dat'.format(home,gal,gal,GC,verwp,zmin,zmax)
             else:
@@ -306,6 +307,7 @@ else:
             arr = np.array([mins,maxs,mids,OBSwp1]).reshape(4,33).T 
             np.savetxt('{}catalog/nersc_zbins_wp_mps_{}/wp_rp_pip_eBOSS_{}_{}_{}_{}-{}_pi{}.dat'.format(home,gal,gal,GC,ver,zmin,zmax,pimax),arr)
             OBSwp1 = OBSwp1[selwp]
+            """
         
 # wp pimax 
 for h,pimax in enumerate(pimaxs):
