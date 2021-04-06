@@ -182,7 +182,7 @@ for zbin in range(zbinnum):
             else:
                 ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbars[zbin][k*nbins:(k+1)*nbins]/err[j],\
                     color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",\
-                    label='z{}z{}, $\chi^2/dof={:.4}$/16'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood']))
+                    label='z{}z{}, $\chi^2/dof={:.4}$/13'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood']))
 
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
