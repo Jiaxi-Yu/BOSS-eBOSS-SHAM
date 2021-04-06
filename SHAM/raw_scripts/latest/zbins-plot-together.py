@@ -37,7 +37,7 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-smin=0.5; smax=35
+smin=5; smax=35
 home     = '/home/astro/jiayu/Desktop/SHAM/'
 if gal == 'LRG':
     zbinnum = 5
