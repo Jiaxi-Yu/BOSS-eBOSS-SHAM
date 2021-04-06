@@ -360,7 +360,7 @@ for k in range(1):
     for j in range(2):
         ax[j,k] = fig.add_subplot(spec[j,k]);#import pdb;pdb.set_trace()
         ax[j,k].errorbar(swp,(wp80[:,1]-values[j])/err[j],wp80[:,2]/err[j],color='k', marker='D',ecolor='k',ls="none",label='SHAM_pi80')
-        ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='b',label='PIP_pi80'.format(pimax))
+        ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='b',label='PIP_pi80')
         #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
         plt.xlabel('rp (Mpc $h^{-1}$)')
         plt.xscale('log')
