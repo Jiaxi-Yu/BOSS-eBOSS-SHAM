@@ -66,7 +66,7 @@ pdfs= [x for x in range(zbinnum)]
 for zbin in range(zbinnum):
     zmin,zmax = zmins[zbin],zmaxs[zbin]
     # getdist results
-    fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
+    fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,sys.argv[2],function,rscale,gal,GC,zmin,zmax)
     parameters = ["sigma","Vsmear","Vceil"]
     npar = len(parameters)
     a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
