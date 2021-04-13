@@ -84,7 +84,7 @@ def comb(ifmt,rfmt,ds=1, ns=100, nmu=120):
                 if line[0] == COMMENT_CHAR:
                     info = re.split(' +', line)
                     columns.append(info)
-        num[i] = np.sqrt(np.float64(columns[2][-1][:-1]))
+        num[i] = np.float64(columns[1][-2])
         # dr,rr
         ifile = ifmt.format(cap,'dr')
         Smin,Smax,MUmin,MUmax,dr[i] = np.loadtxt(ifile,unpack=True)        
