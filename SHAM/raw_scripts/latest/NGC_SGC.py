@@ -62,7 +62,7 @@ def read_xi(ifmt, rfmt=None, ds=1, ns=200, nmu=120):
     return s, xi0, xi2, xi4
  
 # FCFC paircounts
-def comb(ifmt,rfmt,ds=1, ns=100, nmu=120):
+def FCFCcomb(ifmt,rfmt,ds=1, ns=100, nmu=120):
     caps = ['NGC', 'SGC']
     dd = [None] * 3
     dr = [None] * 3
