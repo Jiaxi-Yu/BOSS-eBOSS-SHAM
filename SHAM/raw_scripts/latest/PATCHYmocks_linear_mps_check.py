@@ -43,7 +43,7 @@ def cf(xifile):
     cnt = np.sum(mono.reshape([nmu,sbin, ds]), axis=-1)
     quad = cnt * 2.5 * (3 * mu**2 - 1)
     hexa = cnt * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-    return [s,np.sum(cnt,axis=0)/nmu,np.sum(quad,axis=0)/nmu,np.sum(hexa,axis=0)/nmu]
+    return [s,np.sum(cnt,axis=0)/nmu/ds,np.sum(quad,axis=0)/nmu/ds,np.sum(hexa,axis=0)/nmu/ds]
 
     ######################################################
 
