@@ -4,6 +4,7 @@ matplotlib.use('agg')
 import numpy as np 
 from numpy import log, pi,sqrt,cos,sin,argpartition,copy,trapz,float32,int32,append,mean,cov,vstack,hstack 
 import matplotlib.pyplot as plt 
+from multiprocessing import Pool
 import glob 
 import matplotlib.gridspec as gridspec 
 import sys 
@@ -13,7 +14,7 @@ if sys.argv[3] =='S':
     cap='South'
 else:
     cap='North'
-mocks = glob.glob('/hpcstorage/jiayu/PATCHY/'+sys.argv[2]+'_1200/'+zrange+'/2PCF/2PCF_PATCHYmock_'+sys.argv[2]+'_'+sys.argv[3]+'GC_DR12_'+zrange+'_*.xi') 
+mocks = glob.glob('/hpcstorage/jiayu/PATCHY/{}_1200/{}/2PCF/2PCF_PATCHYmock_{}_{}GC_DR12_{}_*.xi'.format(sys.argv[2],zrange,sys.argv[2],sys.argv[3],zrange)) 
 
 # part
 SMIN=5;SMAX=25
@@ -21,13 +22,45 @@ obscut = np.loadtxt('/hpcstorage/jiayu/BOSS_clustering/2PCF/OBS_'+sys.argv[2]+'_
 sel = (obscut[:,0]>=SMIN)&(obscut[:,0]<=SMAX)
 s = obscut[:,0][sel]
 obscut = obscut[sel,3:]
+
+# load file in threads
+def loadmps(name):
+    return np.loadtxt(name[:-2]+'mps')[sel,3:]
+
+# s binwidth 5Mpc/h function
+def cf(xifile):
+    ds=5;ns=100;nmu=120
+    smin,smax,mumin,mumax,mono = np.loadtxt(xifile,unpack=True)
+    mu = (mumin+mumax)/2
+    mask = np.isnan(mono)
+    mono[mask] = 0
+    sbin = int(ns / ds)
+    se = np.linspace(smin[0], smax[-1], sbin+1)
+    s = (se[1:] + se[:-1]) * 0.5
+    ######################################################
+    # reshape style different from EZmocks
+    mu = np.median(mu.reshape([nmu,sbin, ds]), axis=-1)
+    cnt = np.sum(mono.reshape([nmu,sbin, ds]), axis=-1)
+    quad = cnt * 2.5 * (3 * mu**2 - 1)
+    hexa = cnt * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+    return [s,np.sum(cnt,axis=0)/nmu,np.sum(quad,axis=0)/nmu,np.sum(hexa,axis=0)/nmu]
+
+    ######################################################
+
+
 mpscut = [i for i in range(len(mocks))]
-for m,mock in enumerate(mocks):    
-    print(mock)
-    mpscut[m] = np.loadtxt(mock[:-2]+'mps')[sel,3:]
+mps = [i for i in range(len(mocks))]
+pool = Pool()    
+for n, temp_array in enumerate(pool.imap(loadmps,mocks)):
+    mpscut[n]= temp_array 
+for n, temp in enumerate(pool.imap(cf,mocks)):
+    mps[n]= temp
+pool.close() 
+pool.join()
 mpsmean =  np.mean(mpscut,axis=0)
 mpsstd = np.std(mpscut,axis=0)
 
+# plot 5-25Mpc/h for SHAM
 fig = plt.figure(figsize=(21,8))
 spec = gridspec.GridSpec(nrows=2,ncols=3, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
 ax = np.empty((2,3), dtype=type(plt.axes))
@@ -46,34 +79,18 @@ for k in range(3):
 
 plt.savefig('{}_s5s25_{}_{}.png'.format(sys.argv[2],zrange,cap),bbox_tight=True)
 plt.close()
-"""
-def cf(xifile,isobs=True):
-    ds=5;ns=100;nmu=120
-    smin,smax,mumin,mumax,mono = np.loadtxt(xifile,unpack=True)
-    mu = (mumin+mumax)/2
-    mask = np.isnan(mono)
-    mono[mask] = 0
-    sbin = int(ns / ds)
-    se = np.linspace(smin[0], smax[-1], sbin+1)
-    s = (se[1:] + se[:-1]) * 0.5
 
-    ######################################################
-    # wrong dimension reshape
-    mu = np.median(mu.reshape([sbin, ds, nmu]), axis=1)
-    cnt = np.sum(mono.reshape([sbin, ds, nmu]), axis=1)
-    quad = cnt * 2.5 * (3 * mu**2 - 1)
-    hexa = cnt * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
-    return [s,np.sum(cnt,axis=1)/nmu,np.sum(quad,axis=1)/nmu,np.sum(hexa,axis=1)/nmu]
-
-    ######################################################
-
-obs  = cf('/hpcstorage/jiayu/BOSS_clustering//2PCF/OBS_'+sys.argv[2]+'_'+cap+'_DR12v5_'+zrange+'.xi')
 
 # full
-mps = [i for i in range(len(mocks))]
-for j,mock in enumerate(mocks):
-    mps[j] = cf(mock[:-2]+'{}',isobs=False)
 
+# file reading
+obs  = cf('/hpcstorage/jiayu/BOSS_clustering/2PCF/OBS_{}_{}_DR12v5_{}.xi'.format(sys.argv[2],cap,zrange))
+#pool = Pool()    
+
+#pool.close() 
+#pool.join()
+
+# plot
 fig = plt.figure(figsize=(21,8))
 spec = gridspec.GridSpec(nrows=2,ncols=3, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
 ax = np.empty((2,3), dtype=type(plt.axes))
@@ -94,4 +111,3 @@ for k in range(3):
 plt.savefig('{}_s{}s{}_{}_{}.png'.format(sys.argv[2],0,100,zrange,cap),bbox_tight=True)
 plt.close()
 
-"""

@@ -34,7 +34,7 @@ mockFITS  = ['{}{}_{}_z{}z{}_mocks_'.format(datapath,gal,rscale,Zrange[k],Zrange
 
 for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS): 
     start=time.time()
-    ddpath = glob.glob(mockdir+'*'+gal+'_NGC'+'*.dd')
+    ddpath = glob.glob(mockdir+'*'+gal+'_SGC'+'*.dd')
     nfile = len(ddpath)
     # read all the 2pcf data
     mockmono = [x for x in range(nfile)]
