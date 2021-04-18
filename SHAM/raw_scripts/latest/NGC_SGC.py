@@ -121,7 +121,7 @@ def FCFCcomb(ifmt,rfmt,ds=1, ns=100, nmu=120):
         smin = np.unique(Smin)
         smax = np.unique(Smax)
         smid = (smin+smax)/2
-        np.savetxt(ifmt.format('NGC+SGC','xi'),np.array([Smin,Smax,MUmin,MUmax,dd[2],dr[2],rr[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+        np.savetxt(ifmt.format('NGC+SGC','xi'),np.array([Smin,Smax,MUmin,MUmax,mono]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
         np.savetxt(ifmt.format('NGC+SGC','mps'),np.array([smid,smin,smax,xi0[2],xi2[2],xi4[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
 
     return xi0,xi2,xi4
