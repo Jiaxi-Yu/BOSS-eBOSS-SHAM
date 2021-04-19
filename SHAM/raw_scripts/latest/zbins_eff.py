@@ -23,22 +23,24 @@ if sys.argv[1] == 'eBOSS':
         f.close()
 else:
     ver = 'DR12v5'
-    root = '/home/jiaxi/Desktop/BOSS_clustering/'
-    for gal in ['CMASS','LOWZ']:
+    root =  '/global/cscratch1/sd/jiaxi/SHAM/catalog/BOSS_data/' #'/home/jiaxi/Desktop/BOSS_clustering/'
+    for gal in ['CMASSLOWZTOT','CMASS','LOWZ']:
         f = open(root+gal+'zbins.txt','w')
         f.write('# zmin zmax zeff Ngal ngal(e-4)\n')
         for GC in ['North','South']:
-            filename = root+'galaxy_{}_{}_{}.fits.gz'.format(ver,gal,GC)
-            hdu = fits.open(filename)
-            zw[gal+'_'+GC+'_z']=hdu[1].data['Z']
+            filename = root+'galaxy_{}_{}_{}.dat'.format(ver,gal,GC)
+            X,Y,Z,w_tot = np.loadtxt(filename,unpack=True,skiprows=1)
+            zw[gal+'_'+GC+'_z'] = np.copy(Z)
+            zw[gal+'_'+GC+'_w'] = np.copy(w_tot)
             if gal == 'LOWZ':
                 zmins = [0.15,0.2, 0.33,0.2]
                 zmaxs = [0.2, 0.33,0.43,0.43]
-                zw[gal+'_'+GC+'_w']=hdu[1].data['WEIGHT_FKP']
             elif gal == 'CMASS':
                 zmins = [0.43,0.51,0.57,0.43]
                 zmaxs = [0.51,0.57,0.70,0.70]
-                zw[gal+'_'+GC+'_w']=hdu[1].data['WEIGHT_FKP']*hdu[1].data['WEIGHT_SYSTOT']*hdu[1].data['WEIGHT_CP']*hdu[1].data['WEIGHT_NOZ']
+            elif gal == 'CMASSLOWZTOT':
+                zmins = [0.2]
+                zmaxs = [0.75]
                 
         for zmin,zmax in zip(zmins,zmaxs):
             sel1 = (zw[gal+'_North_z']>zmin)&(zw[gal+'_North_z']<=zmax)
