@@ -64,7 +64,7 @@ def read_xi(ifmt, rfmt=None, ds=1, ns=200, nmu=120):
     return s, xi0, xi2, xi4
  
 # FCFC paircounts
-def FCFCcomb(ifmt,rfmt,ds=1, ns=100, nmu=120,islog=False):
+def FCFCcomb(ifmt,rfmt,ds=1, ns=100, nmu=120,islog=False,isobs=False):
     if os.path.exists(ifmt.format('NGC+SGC','mps')):
         xi0 = [None] * 3
         xi2 = [None] * 3
@@ -124,7 +124,9 @@ def FCFCcomb(ifmt,rfmt,ds=1, ns=100, nmu=120,islog=False):
             smid = 10**((np.log10(smin)+np.log10(smax))/2)
         else:
             smid = (smin+smax)/2
-        np.savetxt(ifmt.format('NGC+SGC','xi'),np.array([Smin,Smax,MUmin,MUmax,mono]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
-        np.savetxt(ifmt.format('NGC+SGC','mps'),np.array([smid,smin,smax,xi0[2],xi2[2],xi4[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+            
+        if isobs:
+            np.savetxt(ifmt.format('NGC+SGC','xi'),np.array([Smin,Smax,MUmin,MUmax,mono]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+            np.savetxt(ifmt.format('NGC+SGC','mps'),np.array([smid,smin,smax,xi0[2],xi2[2],xi4[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
 
     return xi0,xi2,xi4
