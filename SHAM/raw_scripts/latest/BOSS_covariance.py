@@ -83,11 +83,11 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
 
     # save data as binary table
     # name of the mock 2pcf and covariance matrix file(function return)
-    for k,name in enumerate(['mono','quad','hexa']):
+    for j,name in enumerate(['mono','quad','hexa']):
         cols = []
-        cols.append(fits.Column(name='NGCmocks',format=str(nfile)+'D',array=NGC[k]))
-        cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC[k]))
-        cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC[k]))
+        cols.append(fits.Column(name='NGCmocks',format=str(nfile)+'D',array=NGC[j]))
+        cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC[j]))
+        cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC[j]))
 
         hdulist = fits.BinTableHDU.from_columns(cols)
         hdulist.header.update(sbins=nbins,nmu=nmu)
