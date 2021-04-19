@@ -22,14 +22,18 @@ function  = 'mps'
 nbins = 100
 k=0
 nmu=120
+ver = 'DR12'
 if gal=='CMASS':
     Zrange =  np.array([0.43,0.51,0.57,0.43,\
                         0.51,0.57,0.7, 0.7])
 elif gal == 'LOWZ':
     Zrange =  np.array([0.2, 0.33,0.2,\
                         0.33,0.43,0.43])
+elif gal == 'CMASSLOWZ':
+    Zrange = np.array([0.2,0.75])
+    ver = 'DR12v5'
 znum = int(len(Zrange)/2)
-mockDIR  = ['/hpcstorage/jiayu/PATCHY/{}_1200/z{}z{}/2PCF/'.format(gal,Zrange[k],Zrange[k+znum]) for k in range(znum)]
+mockDIR  = ['/hpcstorage/jiayu/PATCHY/{}/z{}z{}/2PCF/'.format(gal,Zrange[k],Zrange[k+znum]) for k in range(znum)]
 mockFITS  = ['{}{}_{}_z{}z{}_mocks_'.format(datapath,gal,rscale,Zrange[k],Zrange[k+znum]) for k in range(znum)]
 
 for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS): 
@@ -40,8 +44,11 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
     mockmono = [x for x in range(nfile)]
     mockquad = [x for x in range(nfile)]
     mockhexa = [x for x in range(nfile)]
-    pairroot = [mockdir+'2PCF_PATCHYmock_'+gal+'_{}_DR12_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'_'+str(n+1).zfill(4)+'.{}' for n in range(nfile)]
-    rrfile   = mockdir+'2PCF_PATCHYmock_'+gal+'_{}_DR12_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'.rr')
+
+    pairroot = [mockdir+'2PCF_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'_'+str(n+1).zfill(4)+'.{}' for n in range(nfile)]
+    if gal == 'CMASS':
+        pairroot[9] = mockdir+'2PCF_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'_1200.{}'
+    rrfile   = mockdir+'2PCF_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'.rr'
     comb_part = partial(FCFCcomb,rfmt = rrfile)
 
     pool = Pool()     
@@ -92,8 +99,8 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
         mocks = hdu[1].data[GC+'mocks'] 
         Nmock = mocks.shape[1] 
         Ns = int(mocks.shape[0]/2)
-        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
-        covcut  = cov(mocks).astype('float32')
+        mocks = np.vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
+        covcut  = np.cov(mocks).astype('float32')
         Nbins = len(mocks)
         covR  = np.linalg.pinv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
         np.savetxt(datapath+'covR-'+gal+'_'+GC+'-s'+str(binmin)+'_'+str(binmax)+'-z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'-quad.dat',covR)
