@@ -18,4 +18,4 @@ if len(sys.argv) != 3:
   t = Table.from_pandas(data)
   #t.write('UNIT_hlist_{}.fits.gz'.format(sys.argv[1]), format='fits', overwrite=True)
   print('writing the new one')
-  t.write('UNIT_hlist_{}.dat'.format(sys.argv[2]), format='ascii.no_header', overwrite=True)
+  t.write('UNIT_hlist_{}.dat'.format(sys.argv[1]), format='ascii.no_header', overwrite=True)
