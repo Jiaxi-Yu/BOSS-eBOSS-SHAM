@@ -143,23 +143,35 @@ if finish:
             z = 0.5609
             a_t = '0.64210'
         elif gal=='CMASS':
-            if (zmin=='0.43')&(zmax=='0.7'):            
-                SHAMnum = int(9.39e4)
-                z = 0.6518
-                a_t = '0.60080'
-            elif (zmin=='0.43')&(zmax=='0.51'): 
-                SHAMnum = int(8.80e4)
-                z = 0.7273
-                a_t = '0.57470'
+            if (zmin=='0.43')&(zmax=='0.51'): 
+                SHAMnum = 342000
+                z = 0.4686
+                a_t = '0.68620'
             elif zmin=='0.51':
-                SHAMnum = int(1.54e5)
-                z = 0.9938
-                a_t = '0.50320'
+                SHAMnum = 363000
+                z = 0.5417 
+                a_t = '0.64210'
             elif zmin=='0.57':
-                SHAMnum = int(1.54e5)
-                z = 0.9938
-                a_t = '0.50320'
-        
+                SHAMnum = 160000
+                z = 0.6399
+                a_t =  '0.61420'
+           elif (zmin=='0.43')&(zmax=='0.7'):            
+                SHAMnum = 264000
+                z = 0.5897
+                a_t = '0.62800'
+        elif gal=='LOWZ':
+            if (zmin=='0.2')&(zmax=='0.33'):            
+                SHAMnum = 337000
+                z = 0.2754
+                a_t = '0.78370' 
+            elif zmin=='0.33':
+                SHAMnum = 258000
+                z = 0.3865
+                a_t = '0.71730'
+            elif (zmin=='0.2')&(zmax=='0.43'): 
+                SHAMnum = 295000
+                z = 0.3441
+                a_t = '0.74980'
         # generate s bins
         bins  = np.arange(rmin,rmax+1,1)
         nbins = len(bins)-1
