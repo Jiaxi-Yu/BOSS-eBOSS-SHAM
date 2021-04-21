@@ -27,11 +27,11 @@ gal      = sys.argv[1]
 GC       = sys.argv[2]
 rscale   = sys.argv[3] #'linear' # 'log'
 function = 'mps' # 'wp'
-zmin     = sys.argv[5]
-zmax     = sys.argv[6]
-finish   = int(sys.argv[7])
+zmin     = sys.argv[4]
+zmax     = sys.argv[5]
+finish   = int(sys.argv[6])
 nseed    = 15
-date     = sys.argv[4]#'0122'
+date     = '0218'
 npoints  = 100 
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
@@ -49,8 +49,7 @@ nmu      = 120
 autocorr = 1
 smin=5; smax=35
 home     = '/home/astro/jiayu/Desktop/SHAM/'
-fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,sys.argv[8],function,rscale,gal,GC,zmin,zmax)
-bestfit   = '{}bestfit_{}_{}.dat'.format(fileroot[:-10],function,date)
+fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,sys.argv[7],function,rscale,gal,GC,zmin,zmax)
 cols = ['col4','col5']
 
 # read the posterior file
@@ -90,8 +89,24 @@ for yi in range(3):
 g.export('{}{}_{}_{}_posterior.png'.format(fileroot[:-10],date,gal,GC))
 plt.close()
 
-# write the report
-if finish:
+# cormer results
+A=a.get_equal_weighted_posterior()
+figure = corner.corner(A[:,:3],labels=[r"$sigma$",r"$Vsmear$", r"$Vceil$"],\
+                       show_titles=True,title_fmt=None)
+axes = np.array(figure.axes).reshape((3,3))
+for yi in range(3): 
+    for xi in range(yi):
+        ax = axes[yi, xi]
+        ax.axvline(a.get_best_fit()['parameters'][xi], color="g")
+        ax.axhline(a.get_best_fit()['parameters'][yi], color="g")
+        ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "sg") 
+plt.savefig('{}{}_posterior_check_{}_{}.png'.format(fileroot[:-10],date,gal,GC))
+plt.close()
+print('the best-fit parameters: sigma {:.4},Vsmear {:.6} km/s, Vceil {:.6} km/s'.format(a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2]))
+print('its chi2: {:.6}'.format(-2*a.get_best_fit()['log_likelihood']))
+
+if finish: 
+    # write the multinest/gedist analysis report
     stats = a.get_stats()    
     file = '{}Vzsmear_report_{}_{}.txt'.format(fileroot[:-10],gal,GC)
     f = open(file,'a')
@@ -110,241 +125,237 @@ if finish:
     f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
     f.close()
 
-# cormer results
-A=a.get_equal_weighted_posterior()
-figure = corner.corner(A[:,:3],labels=[r"$sigma$",r"$Vsmear$", r"$Vceil$"],\
-                       show_titles=True,title_fmt=None)
-axes = np.array(figure.axes).reshape((3,3))
-for yi in range(3): 
-    for xi in range(yi):
-        ax = axes[yi, xi]
-        ax.axvline(a.get_best_fit()['parameters'][xi], color="g")
-        ax.axhline(a.get_best_fit()['parameters'][yi], color="g")
-        ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "sg") 
-plt.savefig('{}{}_posterior_check_{}_{}.png'.format(fileroot[:-10],date,gal,GC))
-plt.close()
-print('the best-fit parameters: sigma {:.4},Vsmear {:.6} km/s, Vceil {:.6} km/s'.format(a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2]))
-print('its chi2: {:.6}'.format(-2*a.get_best_fit()['log_likelihood']))
+    # start the final 2pcf, wp, Vpeak histogram, PDF
+    if (rscale=='linear')&(function=='mps'):
+        if gal == 'LRG':
+            SHAMnum   = int(6.26e4)
+            z = 0.7018
+            a_t = '0.58760'
+            ver = 'v7_2'
+        elif gal=='ELG':
+            SHAMnum   = int(2.93e5)
+            z = 0.8594
+            a_t = '0.53780'
+            ver = 'v7'
+            cols = ['col3','col4']
+        elif gal=='CMASSLOWZTOT':
+            SHAMnum = 208000
+            z = 0.5609
+            a_t = '0.64210'
+        
+        # generate s bins
+        bins  = np.arange(rmin,rmax+1,1)
+        nbins = len(bins)-1
+        binmin = rmin
+        binmax = rmax
+        s = (bins[:-1]+bins[1:])/2
 
-if (rscale=='linear')&(function=='mps'):
-    if gal == 'LRG':
-        SHAMnum   = int(6.26e4)
-        z = 0.7018
-        a_t = '0.58760'
-        ver = 'v7_2'
+        # covariance matrices and observations
+        if (gal == 'LRG')|(gal=='ELG'):
+            obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
+            covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
+        else:
+            obs2pcf = '{}catalog/BOSS_zbins_mps/OBS_{}_NGC+SGC_DR12v5_z{}z{}.mps'.format(home,gal,zmin,zmax)
+            covfits  = '{}catalog/BOSS_zbins_mps/{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,rscale,zmin,zmax,multipole)
+        
+        # Read the covariance matrices and observations
+        hdu = fits.open(covfits) #
+        mock = hdu[1].data[GC+'mocks']
+        Nmock = mock.shape[1] 
+        hdu.close()
+        if (gal == 'LRG')|(gal=='ELG'):
+            Nstot=200
+        else:
+            Nstot=100
+        mocks = vstack((mock[binmin:binmax,:],mock[binmin+Nstot:binmax+Nstot,:]))
+        covcut  = cov(mocks).astype('float32')
+        obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]       
+        if gal == 'ELG':
+            OBS   = append(obscf['col3'],obscf['col4']).astype('float32')
+        else:
+            OBS   = append(obscf['col4'],obscf['col5']).astype('float32')            
+        covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
+        print('the covariance matrix and the observation 2pcf vector are ready.')
+        
+    elif (rscale=='log'):
+        # read s bins
+        binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header');ver1='v7_2'
+        sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
+        bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
+        s = binfile['col3'][sel]
+        nbins = len(bins)-1
+        binmin = np.where(binfile['col3']>=rmin)[0][0]
+        binmax = np.where(binfile['col3']<rmax)[0][-1]+1
+
+        if gal == 'LRG':
+            ver = 'v7_2'
+            extra = np.ones_like(s)
+            #extra = binfile['col3'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]**2
+        else:
+            ver = 'v7'
+            extra = np.ones_like(s)
+        # filenames
+        covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
+        obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
+        # Read the covariance matrices 
+        hdu = fits.open(covfits) # cov([mono,quadru])
+        mocks = hdu[1].data[GC+'mocks']
+        Nmock = mocks.shape[1]
+        hdu.close()
+        # observations
+        obscf = Table.read(obs2pcf,format='ascii.no_header')
+        obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
+        # prepare OBS, covariance and errobar for chi2
+        Ns = int(mocks.shape[0]/2)
+        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
+        covcut  = cov(mocks).astype('float32')
+        OBS   = append(obscf['col4']/extra,obscf['col5']/extra).astype('float32')# LRG columns are s**2*xi
+        covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
+
+        # zbins, z_eff ans ngal
+        if (zmin=='0.6')&(zmax=='0.8'):
+            if gal=='ELG':
+                SHAMnum = int(3.26e5)
+                z = 0.7136
+            else:
+                SHAMnum = int(8.86e4)
+                z = 0.7051
+            a_t = '0.58760'
+        elif (zmin=='0.6')&(zmax=='0.7'):            
+            SHAMnum = int(9.39e4)
+            z = 0.6518
+            a_t = '0.60080'
+        elif zmin=='0.65':
+            SHAMnum = int(8.80e4)
+            z = 0.7273
+            a_t = '0.57470'
+        elif zmin=='0.9':
+            SHAMnum = int(1.54e5)
+            z = 0.9938
+            a_t = '0.50320'
+        elif zmin=='0.7':
+            if gal=='ELG':
+                SHAMnum = int(4.38e5)
+                z = 0.8045# To be calculated
+            else:
+                SHAMnum = int(6.47e4)
+                z=0.7968
+            a_t = '0.54980'
+        else:
+            if gal=='ELG':
+                SHAMnum = int(3.34e5)
+                z = 0.9045 # To be calculated
+            else:
+                SHAMnum = int(3.01e4)
+                z= 0.8777
+            a_t = '0.52600'
     else:
-        SHAMnum   = int(2.93e5)
-        z = 0.8594
-        a_t = '0.53780'
-        ver = 'v7'
-        cols = ['col3','col4']
-       
-    # generate s bins
-    bins  = np.arange(rmin,rmax+1,1)
-    nbins = len(bins)-1
-    binmin = rmin
-    binmax = rmax
-    s = (bins[:-1]+bins[1:])/2
+        print('wrong 2pcf function input')
 
-    # covariance matrices and observations
-    obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
-    covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
-    # Read the covariance matrices and observations
-    hdu = fits.open(covfits) #
-    mock = hdu[1].data[GC+'mocks']
-    Nmock = mock.shape[1] 
+
+    # wp plot
+    binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
+    selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
+    binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
+    swp = binfilewp['col3'][selwp]
+    binminwp = np.where(binfilewp['col3']>=smin)[0][0]
+    binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
+    nbinswp = len(binswp)-1
+    """
+    if rscale == 'linear':
+        covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
+        obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
+    elif rscale == 'log':
+        covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
+        obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
+    # observation
+    obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
+    selwp = (obscfwp['col3']<smax)&(obscfwp['col3']>=smin)
+    OBSwp   = obscfwp['col4'][selwp]
+    """
+    # Read the covariance matrices
+    """
+    hdu = fits.open(covfitswp) 
+    mockswp = hdu[1].data[GC+'mocks'][binminwp:binmaxwp,:]
+    Nmockwp = mockswp.shape[1] 
+    errbarwp = np.std(mockswp,axis=1)
     hdu.close()
-    mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:]))
-    covcut  = cov(mocks).astype('float32')
-    obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]       
-    if gal == 'LRG':
-        OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
-    else:
-        OBS   = append(obscf['col3'],obscf['col4']).astype('float32')
-        
-    covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
-    print('the covariance matrix and the observation 2pcf vector are ready.')
-    
-elif (rscale=='log'):
-    # read s bins
-    binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header');ver1='v7_2'
-    sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
-    bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
-    s = binfile['col3'][sel]
-    nbins = len(bins)-1
-    binmin = np.where(binfile['col3']>=rmin)[0][0]
-    binmax = np.where(binfile['col3']<rmax)[0][-1]+1
+    """
+    # analytical RR
+    mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
+    # Analytical RR calculation
+    RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)
+    rr=((RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu)
+    print('the analytical random pair counts are ready.')
 
-    if gal == 'LRG':
-        ver = 'v7_2'
-        extra = np.ones_like(s)
-        #extra = binfile['col3'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]**2
-    else:
-        ver = 'v7'
-        extra = np.ones_like(s)
-    # filenames
-    covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
-    obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
-    # Read the covariance matrices 
-    hdu = fits.open(covfits) # cov([mono,quadru])
-    mocks = hdu[1].data[GC+'mocks']
-    Nmock = mocks.shape[1]
-    hdu.close()
-    # observations
-    obscf = Table.read(obs2pcf,format='ascii.no_header')
-    obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
-    # prepare OBS, covariance and errobar for chi2
-    Ns = int(mocks.shape[0]/2)
-    mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
-    covcut  = cov(mocks).astype('float32')
-    OBS   = append(obscf['col4']/extra,obscf['col5']/extra).astype('float32')# LRG columns are s**2*xi
-    covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
+    # cosmological parameters
+    Ode = 1-Om
+    H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
-    # zbins, z_eff ans ngal
-    if (zmin=='0.6')&(zmax=='0.8'):
-        if gal=='ELG':
-            SHAMnum = int(3.26e5)
-            z = 0.7136
+    # SHAM halo catalogue
+    if os.path.exists('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC)):
+        xi = np.loadtxt('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
+        wp = np.loadtxt('{}best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
+        bbins,UNITv,SHAMv = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
+    else:
+        print('reading the UNIT simulation snapshot with a(t)={}'.format(a_t))  
+        halofile = home+'catalog/UNIT_hlist_'+a_t+'.hdf5'        
+        read = time.time()
+        f=h5py.File(halofile,"r")
+        sel = f["halo"]['Vpeak'][:]>0
+        if len(f["halo"]['Vpeak'][:][sel])%2 ==1:
+            datac = np.zeros((len(f["halo"]['Vpeak'][:][sel])-1,5))
+            for i,key in enumerate(f["halo"].keys()):
+                datac[:,i] = (f["halo"][key][:][sel])[:-1]
         else:
-            SHAMnum = int(8.86e4)
-            z = 0.7051
-        a_t = '0.58760'
-    elif (zmin=='0.6')&(zmax=='0.7'):            
-        SHAMnum = int(9.39e4)
-        z = 0.6518
-        a_t = '0.60080'
-    elif zmin=='0.65':
-        SHAMnum = int(8.80e4)
-        z = 0.7273
-        a_t = '0.57470'
-    elif zmin=='0.9':
-        SHAMnum = int(1.54e5)
-        z = 0.9938
-        a_t = '0.50320'
-    elif zmin=='0.7':
-        if gal=='ELG':
-            SHAMnum = int(4.38e5)
-            z = 0.8045# To be calculated
-        else:
-            SHAMnum = int(6.47e4)
-            z=0.7968
-        a_t = '0.54980'
-    else:
-        if gal=='ELG':
-            SHAMnum = int(3.34e5)
-            z = 0.9045 # To be calculated
-        else:
-            SHAMnum = int(3.01e4)
-            z= 0.8777
-        a_t = '0.52600'
-else:
-    print('wrong 2pcf function input')
+            datac = np.zeros((len(f["halo"]['Vpeak'][:][sel]),5))
+            for i,key in enumerate(f["halo"].keys()):
+                datac[:,i] = f["halo"][key][:][sel]
+        f.close()        
+        half = int32(len(datac)/2)
+        print(len(datac))
+        print('read the halo catalogue costs {:.6}s'.format(time.time()-read))
 
+        # generate uniform random numbers
+        print('generating uniform random number arrays...')
+        uniform_randoms = [np.random.RandomState(seed=1000*x).rand(len(datac)).astype('float32') for x in range(nseed)] 
+        uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype('float32') for x in range(nseed)] 
 
-# wp plot
-if rscale == 'linear':
-    covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
-    obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
-elif rscale == 'log':
-    covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
-    obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
+        # SHAM application
+        def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
+            x00,x20,v0,n0,wp0= sham_cal(uni,sigM,sigV,Mtrun)
+            x01,x21,v1,n1,wp1= sham_cal(uni1,sigM,sigV,Mtrun)
+            return [append(x00,x01),append(x20,x21),(v0+v1)/2, (n0+n1)/2, append(wp0,wp1)]
 
-binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
-selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
-binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
-swp = binfilewp['col3'][selwp]
-binminwp = np.where(binfilewp['col3']>=smin)[0][0]
-binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
-nbinswp = len(binswp)-1
-# observation
-obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
-selwp = (obscfwp['col3']<smax)&(obscfwp['col3']>=smin)
-OBSwp   = obscfwp['col4'][selwp]
+        def sham_cal(uniform,sigma_high,sigma,v_high):
+            # scatter Vpeak
+            scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
+            scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
+            datav = datac[:,1]*scatter
+            # select halos
+            percentcut = int(len(datac)*v_high/100)
+            LRGscat = datac[argpartition(-datav,SHAMnum+percentcut)[:(SHAMnum+percentcut)]]
+            datav = datav[argpartition(-datav,SHAMnum+percentcut)[:(SHAMnum+percentcut)]]
+            LRGscat = LRGscat[argpartition(-datav,percentcut)[percentcut:]]
+            datav = datav[argpartition(-datav,percentcut)[percentcut:]]
+            # binnning Vpeak of the selected halos
+            n,BINS = np.histogram(LRGscat[:,1],range =(0,1500),bins=100)
+            
+            # transfer to the redshift space
+            scathalf = int(len(LRGscat)/2)
+            z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
+            z_redshift %=boxsize
+            
+            # Corrfunc 2pcf and wp
+            DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,2],LRGscat[:,3],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
+            wp_dat = wp(boxsize,80,nthread,binswp,LRGscat[:,2],LRGscat[:,3],z_redshift)
+            # calculate the 2pcf and the multipoles
+            mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
+            quad = mono * 2.5 * (3 * mu**2 - 1)
+            # use sum to integrate over mu
+            return [np.sum(mono,axis=-1)/nmu,np.sum(quad,axis=-1)/nmu,min(datav),n,wp_dat['wp']]
 
-# Read the covariance matrices
-"""
-hdu = fits.open(covfitswp) 
-mockswp = hdu[1].data[GC+'mocks'][binminwp:binmaxwp,:]
-Nmockwp = mockswp.shape[1] 
-errbarwp = np.std(mockswp,axis=1)
-hdu.close()
-"""
-# analytical RR
-mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
-# Analytical RR calculation
-RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)
-rr=((RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu)
-print('the analytical random pair counts are ready.')
-
-# cosmological parameters
-Ode = 1-Om
-H = 100*np.sqrt(Om*(1+z)**3+Ode)
-
-# SHAM halo catalogue
-if os.path.exists('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC)):
-    xi = np.loadtxt('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
-    wp = np.loadtxt('{}best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
-    bbins,UNITv,SHAMv = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
-else:
-    print('reading the UNIT simulation snapshot with a(t)={}'.format(a_t))  
-    halofile = home+'catalog/UNIT_hlist_'+a_t+'.hdf5'        
-    read = time.time()
-    f=h5py.File(halofile,"r")
-    sel = f["halo"]['Vpeak'][:]>0
-    if len(f["halo"]['Vpeak'][:][sel])%2 ==1:
-        datac = np.zeros((len(f["halo"]['Vpeak'][:][sel])-1,5))
-        for i,key in enumerate(f["halo"].keys()):
-            datac[:,i] = (f["halo"][key][:][sel])[:-1]
-    else:
-        datac = np.zeros((len(f["halo"]['Vpeak'][:][sel]),5))
-        for i,key in enumerate(f["halo"].keys()):
-            datac[:,i] = f["halo"][key][:][sel]
-    f.close()        
-    half = int32(len(datac)/2)
-    print(len(datac))
-    print('read the halo catalogue costs {:.6}s'.format(time.time()-read))
-
-    # generate uniform random numbers
-    print('generating uniform random number arrays...')
-    uniform_randoms = [np.random.RandomState(seed=1000*x).rand(len(datac)).astype('float32') for x in range(nseed)] 
-    uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype('float32') for x in range(nseed)] 
-
-    # SHAM application
-    def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
-        x00,x20,v0,n0,wp0= sham_cal(uni,sigM,sigV,Mtrun)
-        x01,x21,v1,n1,wp1= sham_cal(uni1,sigM,sigV,Mtrun)
-        return [append(x00,x01),append(x20,x21),(v0+v1)/2, (n0+n1)/2, append(wp0,wp1)]
-
-    def sham_cal(uniform,sigma_high,sigma,v_high):
-        # scatter Vpeak
-        scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
-        scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
-        datav = datac[:,1]*scatter
-        # select halos
-        percentcut = int(len(datac)*v_high/100)
-        LRGscat = datac[argpartition(-datav,SHAMnum+percentcut)[:(SHAMnum+percentcut)]]
-        datav = datav[argpartition(-datav,SHAMnum+percentcut)[:(SHAMnum+percentcut)]]
-        LRGscat = LRGscat[argpartition(-datav,percentcut)[percentcut:]]
-        datav = datav[argpartition(-datav,percentcut)[percentcut:]]
-        # binnning Vpeak of the selected halos
-        n,BINS = np.histogram(LRGscat[:,1],range =(0,1500),bins=100)
-        
-        # transfer to the redshift space
-        scathalf = int(len(LRGscat)/2)
-        z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
-        z_redshift %=boxsize
-        
-        # Corrfunc 2pcf and wp
-        DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,2],LRGscat[:,3],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
-        wp_dat = wp(boxsize,80,nthread,binswp,LRGscat[:,2],LRGscat[:,3],z_redshift)
-        # calculate the 2pcf and the multipoles
-        mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
-        quad = mono * 2.5 * (3 * mu**2 - 1)
-        # use sum to integrate over mu
-        return [np.sum(mono,axis=-1)/nmu,np.sum(quad,axis=-1)/nmu,min(datav),n,wp_dat['wp']]
-
-    # calculate the SHAM 2PCF
-    if finish: 
+        # calculate the SHAM 2PCF
         with Pool(processes = nseed) as p:
             xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(a.get_best_fit()['parameters'][0])),repeat(np.float32(a.get_best_fit()['parameters'][1])),repeat(np.float32(a.get_best_fit()['parameters'][2]))))) 
         # xi0
@@ -392,76 +403,25 @@ else:
 
 
 
-
-# plot the results
-errbar = np.std(mocks,axis=1)
-#print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
-if rscale=='linear':
-    Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
-else:
-    Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
-
-# plot the 2PCF multipoles   
-fig = plt.figure(figsize=(14,8))
-spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
-ax = np.empty((2,2), dtype=type(plt.axes))
-for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
-    values=[np.zeros(nbins),obscf[col]]        
-    err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
-    for j in range(2):
-        ax[j,k] = fig.add_subplot(spec[j,k])
-        #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-        ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-3)))
-        ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
-        plt.xlabel('s (Mpc $h^{-1}$)')
-        if rscale=='log':
-            plt.xscale('log')
-        if (j==0):
-            ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
-            if k==0:
-                plt.legend(loc=2)
-            else:
-                plt.legend(loc=1)
-            plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
-        if (j==1):
-            ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
-            plt.ylim(-3,3)
-
-plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
-plt.close()
-
-# plot the 2PCF multipoles 2-25Mpc/h
-if rscale == 'linear':
-    Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[2:binmax]
-    obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
-    covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
-    # Read the covariance matrices and observations
-    hdu = fits.open(covfits) #
-    mock = hdu[1].data[GC+'mocks']
-    Nmock = mock.shape[1] 
-    hdu.close()
-    binmin = 2
-    nbins = binmax-binmin
-    bins  = np.arange(binmin,binmax+1,1)
-    s = (bins[:-1]+bins[1:])/2
-    mocks = vstack((mock[binmin:binmax,:],mock[binmin+200:binmax+200,:]))
+    # plot the results
     errbar = np.std(mocks,axis=1)
-    covcut  = cov(mocks).astype('float32')
-    obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]       
-    if gal == 'LRG':
-        OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
+    #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
+    if rscale=='linear':
+        Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
     else:
-        OBS   = append(obscf['col3'],obscf['col4']).astype('float32')
+        Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
+
+    # plot the 2PCF multipoles   
     fig = plt.figure(figsize=(14,8))
     spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
     ax = np.empty((2,2), dtype=type(plt.axes))
-    for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
+    for col,covbin,name,k in zip(cols,[int(0),int(Nstot)],['monopole','quadrupole'],range(2)):
         values=[np.zeros(nbins),obscf[col]]        
         err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-            ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*(len(s)-3)-3)))
+            ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-3)))
             ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
@@ -477,71 +437,121 @@ if rscale == 'linear':
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
                 plt.ylim(-3,3)
 
-    plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,2,rmax),bbox_tight=True)
+    plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
     plt.close()
 
-# plot the wp
-fig = plt.figure(figsize=(6,7))
-spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
-ax = np.empty((2,1), dtype=type(plt.axes))
-#import pdb;pdb.set_trace()
-for k in range(1):
-    values=[np.zeros_like(OBSwp),OBSwp]
-    err   = [np.ones_like(OBSwp),wp[:,2]]
+    # plot the 2PCF multipoles 2-25Mpc/h
+    if rscale == 'linear':
+        Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[2:binmax]
+        obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
+        covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
+        # Read the covariance matrices and observations
+        hdu = fits.open(covfits) #
+        mock = hdu[1].data[GC+'mocks']
+        Nmock = mock.shape[1] 
+        hdu.close()
+        binmin = 2
+        nbins = binmax-binmin
+        bins  = np.arange(binmin,binmax+1,1)
+        s = (bins[:-1]+bins[1:])/2
+        mocks = vstack((mock[binmin:binmax,:],mock[binmin+Nstot:binmax+Nstot,:]))
+        errbar = np.std(mocks,axis=1)
+        covcut  = cov(mocks).astype('float32')
+        obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]       
+        if gal == 'ELG':
+            OBS   = append(obscf['col3'],obscf['col4']).astype('float32')
+        else:
+            OBS   = append(obscf['col4'],obscf['col5']).astype('float32')
+        fig = plt.figure(figsize=(14,8))
+        spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+        ax = np.empty((2,2), dtype=type(plt.axes))
+        for col,covbin,name,k in zip(cols,[int(0),int(Nstot)],['monopole','quadrupole'],range(2)):
+            values=[np.zeros(nbins),obscf[col]]        
+            err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
+            for j in range(2):
+                ax[j,k] = fig.add_subplot(spec[j,k])
+                #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
+                ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*(len(s)-3)-3)))
+                ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+                plt.xlabel('s (Mpc $h^{-1}$)')
+                if rscale=='log':
+                    plt.xscale('log')
+                if (j==0):
+                    ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
+                    if k==0:
+                        plt.legend(loc=2)
+                    else:
+                        plt.legend(loc=1)
+                    plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+                if (j==1):
+                    ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
+                    plt.ylim(-3,3)
 
-    for j in range(2):
-        ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-        ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='k', marker='D',ecolor='k',ls="none",label='SHAM_pi80')
-        ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='b',label='PIP_pi80')
-        #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
-        plt.xlabel('rp (Mpc $h^{-1}$)')
-        plt.xscale('log')
-        if (j==0):        
-            plt.yscale('log')
-            ax[j,k].set_ylabel('wp')
-            plt.legend(loc=0)
-            plt.title('projected 2pcf: {} in {}'.format(gal,GC))
-        if (j==1):
-            ax[j,k].set_ylabel('$\Delta$ wp/err')
-            plt.ylim(-3,3)
+        plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,2,rmax),bbox_tight=True)
+        plt.close()
 
-plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
-plt.close()
+    # plot the wp
+    fig = plt.figure(figsize=(6,7))
+    spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
+    ax = np.empty((2,1), dtype=type(plt.axes))
+    #import pdb;pdb.set_trace()
+    for k in range(1):
+        values=[np.zeros_like(OBSwp),OBSwp]
+        err   = [np.ones_like(OBSwp),wp[:,2]]
 
-# plot the histogram
-fig,ax = plt.subplots()
-plt.plot(bbins[:-1],SHAMv[:-1]/SHAMv[-1],color='b',label='SHAM')
-plt.plot(bbins[:-1],UNITv[:-1]/UNITv[-1],color='k',label='UNIT')
-plt.legend(loc=1)
-plt.xlim(0,1500)
-plt.ylim(1e-5,1)
-plt.yscale('log')
-plt.ylabel('frequency')
-plt.xlabel('Vpeak (km/s)')
-plt.savefig(fileroot[:-10]+'best_SHAM_Vpeak_hist_{}_{}.png'.format(gal,GC))
-plt.close()
+        for j in range(2):
+            ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
+            ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='k', marker='D',ecolor='k',ls="none",label='SHAM_pi80')
+            ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='b',label='PIP_pi80')
+            #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+            plt.xlabel('rp (Mpc $h^{-1}$)')
+            plt.xscale('log')
+            if (j==0):        
+                plt.yscale('log')
+                ax[j,k].set_ylabel('wp')
+                plt.legend(loc=0)
+                plt.title('projected 2pcf: {} in {}'.format(gal,GC))
+            if (j==1):
+                ax[j,k].set_ylabel('$\Delta$ wp/err')
+                plt.ylim(-3,3)
 
-fig,ax = plt.subplots()
-plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
-plt.xlim(0,1500)
-plt.ylim(1e-5,1.0)
-plt.yscale('log')
-plt.ylabel('prob of having a galaxy')
-plt.xlabel('Vpeak (km/s)')
-plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}_log.png'.format(gal,GC))
-plt.close()
+    plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
+    plt.close()
 
-fig,ax = plt.subplots()
-plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
-plt.xlim(0,1500)
-if gal =='LRG':
-    plt.ylim(0,0.2)
-elif gal == 'ELG':
-    plt.ylim(0,0.02)
-plt.ylabel('prob of having a galaxy')
-plt.xlabel('Vpeak (km/s)')
-plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
-plt.close()
+    # plot the histogram
+    fig,ax = plt.subplots()
+    plt.plot(bbins[:-1],SHAMv[:-1]/SHAMv[-1],color='b',label='SHAM')
+    plt.plot(bbins[:-1],UNITv[:-1]/UNITv[-1],color='k',label='UNIT')
+    plt.legend(loc=1)
+    plt.xlim(0,1500)
+    plt.ylim(1e-5,1)
+    plt.yscale('log')
+    plt.ylabel('frequency')
+    plt.xlabel('Vpeak (km/s)')
+    plt.savefig(fileroot[:-10]+'best_SHAM_Vpeak_hist_{}_{}.png'.format(gal,GC))
+    plt.close()
 
-pdf = SHAMv[:-1]/UNITv[:-1]
-print('z{}z{} PDF max: {} km/s'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))
+    fig,ax = plt.subplots()
+    plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
+    plt.xlim(0,1500)
+    plt.ylim(1e-5,1.0)
+    plt.yscale('log')
+    plt.ylabel('prob of having a galaxy')
+    plt.xlabel('Vpeak (km/s)')
+    plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}_log.png'.format(gal,GC))
+    plt.close()
+
+    fig,ax = plt.subplots()
+    plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
+    plt.xlim(0,1500)
+    if gal =='LRG':
+        plt.ylim(0,0.2)
+    elif gal == 'ELG':
+        plt.ylim(0,0.02)
+    plt.ylabel('prob of having a galaxy')
+    plt.xlabel('Vpeak (km/s)')
+    plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
+    plt.close()
+
+    pdf = SHAMv[:-1]/UNITv[:-1]
+    print('z{}z{} PDF max: {} km/s'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))
