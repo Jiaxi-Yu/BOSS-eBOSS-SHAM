@@ -142,6 +142,23 @@ if finish:
             SHAMnum = 208000
             z = 0.5609
             a_t = '0.64210'
+        elif gal=='CMASS':
+            if (zmin=='0.43')&(zmax=='0.7'):            
+                SHAMnum = int(9.39e4)
+                z = 0.6518
+                a_t = '0.60080'
+            elif (zmin=='0.43')&(zmax=='0.51'): 
+                SHAMnum = int(8.80e4)
+                z = 0.7273
+                a_t = '0.57470'
+            elif zmin=='0.51':
+                SHAMnum = int(1.54e5)
+                z = 0.9938
+                a_t = '0.50320'
+            elif zmin=='0.57':
+                SHAMnum = int(1.54e5)
+                z = 0.9938
+                a_t = '0.50320'
         
         # generate s bins
         bins  = np.arange(rmin,rmax+1,1)
@@ -154,9 +171,11 @@ if finish:
         if (gal == 'LRG')|(gal=='ELG'):
             obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
             covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
+            obstool = 'PIP'
         else:
             obs2pcf = '{}catalog/BOSS_zbins_mps/OBS_{}_NGC+SGC_DR12v5_z{}z{}.mps'.format(home,gal,zmin,zmax)
             covfits  = '{}catalog/BOSS_zbins_mps/{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,rscale,zmin,zmax,multipole)
+            obstool = ''
         
         # Read the covariance matrices and observations
         hdu = fits.open(covfits) #
@@ -422,7 +441,7 @@ if finish:
             ax[j,k] = fig.add_subplot(spec[j,k])
             #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
             ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-3)))
-            ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+            ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
                 plt.xscale('log')
@@ -472,7 +491,7 @@ if finish:
                 ax[j,k] = fig.add_subplot(spec[j,k])
                 #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
                 ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*(len(s)-3)-3)))
-                ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+                ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='{} obs 1$\sigma$'.format(obstool))
                 plt.xlabel('s (Mpc $h^{-1}$)')
                 if rscale=='log':
                     plt.xscale('log')
@@ -503,7 +522,7 @@ if finish:
             ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
             ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='k', marker='D',ecolor='k',ls="none",label='SHAM_pi80')
             ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='b',label='PIP_pi80')
-            #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+            #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",,label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):        
