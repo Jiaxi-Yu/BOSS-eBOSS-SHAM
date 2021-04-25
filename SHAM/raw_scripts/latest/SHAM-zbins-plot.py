@@ -82,7 +82,7 @@ g.settings.figure_legend_frame = False
 g.settings.alpha_filled_add=0.4
 g = plots.getSubplotPlotter()
 g.triangle_plot(sample,parameters, filled=True)
-for yi in range(3): 
+for yi in range(npar): 
     for xi in range(yi):
         ax = g.subplots[yi,xi]
         ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "*",color='k') 
@@ -91,10 +91,10 @@ plt.close()
 
 # cormer results
 A=a.get_equal_weighted_posterior()
-figure = corner.corner(A[:,:3],labels=[r"$sigma$",r"$Vsmear$", r"$Vceil$"],\
+figure = corner.corner(A[:,:npar],labels=[r"$sigma$",r"$Vsmear$", r"$Vceil$"],\
                        show_titles=True,title_fmt=None)
-axes = np.array(figure.axes).reshape((3,3))
-for yi in range(3): 
+axes = np.array(figure.axes).reshape((npar,npar))
+for yi in range(npar): 
     for xi in range(yi):
         ax = axes[yi, xi]
         ax.axvline(a.get_best_fit()['parameters'][xi], color="g")
@@ -155,7 +155,7 @@ if finish:
                 SHAMnum = 160000
                 z = 0.6399
                 a_t =  '0.61420'
-           elif (zmin=='0.43')&(zmax=='0.7'):            
+            elif (zmin=='0.43')&(zmax=='0.7'):            
                 SHAMnum = 264000
                 z = 0.5897
                 a_t = '0.62800'
