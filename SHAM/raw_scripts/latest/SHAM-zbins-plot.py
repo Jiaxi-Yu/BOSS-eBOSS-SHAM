@@ -292,26 +292,7 @@ if finish:
     binminwp = np.where(binfilewp['col3']>=smin)[0][0]
     binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
     nbinswp = len(binswp)-1
-    """
-    if rscale == 'linear':
-        covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
-        obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
-    elif rscale == 'log':
-        covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
-        obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
-    # observation
-    obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
-    selwp = (obscfwp['col3']<smax)&(obscfwp['col3']>=smin)
-    OBSwp   = obscfwp['col4'][selwp]
-    """
-    # Read the covariance matrices
-    """
-    hdu = fits.open(covfitswp) 
-    mockswp = hdu[1].data[GC+'mocks'][binminwp:binmaxwp,:]
-    Nmockwp = mockswp.shape[1] 
-    errbarwp = np.std(mockswp,axis=1)
-    hdu.close()
-    """
+
     # analytical RR
     mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
     # Analytical RR calculation
@@ -378,7 +359,7 @@ if finish:
             z_redshift %=boxsize
             
             # Corrfunc 2pcf and wp
-            DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,2],LRGscat[:,3],z_redshift,periodic=True, verbose=True,boxsize=boxsize)
+            DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,2],LRGscat[:,3],z_redshift,periodic=True, verbose=False,boxsize=boxsize)
             wp_dat = wp(boxsize,80,nthread,binswp,LRGscat[:,2],LRGscat[:,3],z_redshift)
             # calculate the 2pcf and the multipoles
             mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
@@ -433,7 +414,6 @@ if finish:
         f.close()
 
 
-
     # plot the results
     errbar = np.std(mocks,axis=1)
     #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
@@ -474,8 +454,6 @@ if finish:
     # plot the 2PCF multipoles 2-25Mpc/h
     if rscale == 'linear':
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[2:binmax]
-        obs2pcf = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_{}.dat'.format(home,gal,ver,function,rscale,gal,GC)
-        covfits  = '{}catalog/nersc_mps_{}_{}/{}_{}_{}_mocks_{}.fits.gz'.format(home,gal,ver,function,rscale,gal,multipole)
         # Read the covariance matrices and observations
         hdu = fits.open(covfits) #
         mock = hdu[1].data[GC+'mocks']
@@ -521,33 +499,6 @@ if finish:
         plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,2,rmax),bbox_tight=True)
         plt.close()
 
-    # plot the wp
-    fig = plt.figure(figsize=(6,7))
-    spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
-    ax = np.empty((2,1), dtype=type(plt.axes))
-    #import pdb;pdb.set_trace()
-    for k in range(1):
-        values=[np.zeros_like(OBSwp),OBSwp]
-        err   = [np.ones_like(OBSwp),wp[:,2]]
-
-        for j in range(2):
-            ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-            ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='k', marker='D',ecolor='k',ls="none",label='SHAM_pi80')
-            ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='b',label='PIP_pi80')
-            #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",,label='{} obs 1$\sigma$'.format(obstool))
-            plt.xlabel('rp (Mpc $h^{-1}$)')
-            plt.xscale('log')
-            if (j==0):        
-                plt.yscale('log')
-                ax[j,k].set_ylabel('wp')
-                plt.legend(loc=0)
-                plt.title('projected 2pcf: {} in {}'.format(gal,GC))
-            if (j==1):
-                ax[j,k].set_ylabel('$\Delta$ wp/err')
-                plt.ylim(-3,3)
-
-    plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
-    plt.close()
 
     # plot the histogram
     fig,ax = plt.subplots()
@@ -586,3 +537,52 @@ if finish:
 
     pdf = SHAMv[:-1]/UNITv[:-1]
     print('z{}z{} PDF max: {} km/s'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))
+    """
+    if rscale == 'linear':
+        covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
+        obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
+    elif rscale == 'log':
+        covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
+        obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
+    # observation
+    obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
+    selwp = (obscfwp['col3']<smax)&(obscfwp['col3']>=smin)
+    OBSwp   = obscfwp['col4'][selwp]
+    """
+    """
+    # Read the covariance matrices
+    hdu = fits.open(covfitswp) 
+    mockswp = hdu[1].data[GC+'mocks'][binminwp:binmaxwp,:]
+    Nmockwp = mockswp.shape[1] 
+    errbarwp = np.std(mockswp,axis=1)
+    hdu.close()
+    """
+    """    
+    # plot the wp
+    fig = plt.figure(figsize=(6,7))
+    spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
+    ax = np.empty((2,1), dtype=type(plt.axes))
+    #import pdb;pdb.set_trace()
+    for k in range(1):
+        values=[np.zeros_like(OBSwp),OBSwp]
+        err   = [np.ones_like(OBSwp),wp[:,2]]
+
+        for j in range(2):
+            ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
+            ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='k', marker='D',ecolor='k',ls="none",label='SHAM_pi80')
+            ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='b',label='PIP_pi80')
+            #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",,label='{} obs 1$\sigma$'.format(obstool))
+            plt.xlabel('rp (Mpc $h^{-1}$)')
+            plt.xscale('log')
+            if (j==0):        
+                plt.yscale('log')
+                ax[j,k].set_ylabel('wp')
+                plt.legend(loc=0)
+                plt.title('projected 2pcf: {} in {}'.format(gal,GC))
+            if (j==1):
+                ax[j,k].set_ylabel('$\Delta$ wp/err')
+                plt.ylim(-3,3)
+
+    plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
+    plt.close()
+    """
