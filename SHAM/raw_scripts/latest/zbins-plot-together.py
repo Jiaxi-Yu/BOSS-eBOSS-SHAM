@@ -20,8 +20,9 @@ import h5py
 
 # variables
 gal      = sys.argv[1]
+pre      = sys.argv[2]
 GC       = 'NGC+SGC'
-rscale   = 'log'
+rscale   = sys.argv[3]#'log'
 function = 'mps' 
 nseed    = 15
 date     = '0218'
@@ -31,7 +32,10 @@ var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
 rmin     = 5
-rmax = 30
+if rscale =='linear':
+    rmax = 25
+else:
+    rmax = 30
 nthread  = 32
 autocorr = 1
 mu_max   = 1
@@ -40,15 +44,20 @@ autocorr = 1
 smin=5; smax=35
 home     = '/home/astro/jiayu/Desktop/SHAM/'
 if gal == 'LRG':
-    zbinnum = 5
     zmins = [0.6,0.6,0.65,0.7,0.8]
     zmaxs = [0.7,0.8,0.8, 0.9,1.0]
     ver = 'v7_2'
 elif gal == 'ELG':
-    zbinnum = 4
     zmins = [0.6,0.7,0.8,0.9]
     zmaxs = [0.8,0.9,1.0,1.1]
     ver = 'v7'
+elif gal == 'CMASS':
+    zmins = [0.43,0.51,0.57]
+    zmaxs = [0.51,0.57,0.7]
+elif gal == 'LOWZ':
+    zmins = [0.2, 0.33]
+    zmaxs = [0.33,0.43]
+zbinnum = len(zmins)
 colors = ['m','b','orange','r','c']
 cols = ['col4','col5']
 ver1 = 'v7_2'
@@ -66,24 +75,36 @@ pdfs= [x for x in range(zbinnum)]
 for zbin in range(zbinnum):
     zmin,zmax = zmins[zbin],zmaxs[zbin]
     # getdist results
-    fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,sys.argv[2],function,rscale,gal,GC,zmin,zmax)
+    fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,pre,function,rscale,gal,GC,zmin,zmax)
     parameters = ["sigma","Vsmear","Vceil"]
     npar = len(parameters)
     a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
     sample = loadMCSamples(fileroot)
 
     # read s bins
-    binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
-    sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
-    bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
-    s = binfile['col3'][sel]
-    nbins = len(bins)-1
-    binmin = np.where(binfile['col3']>=rmin)[0][0]
-    binmax = np.where(binfile['col3']<rmax)[0][-1]+1
-
-    # filenames
-    covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
-    obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
+    if (gal == 'LRG')|(gal=='ELG'):
+        binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
+        sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
+        bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
+        s = binfile['col3'][sel]
+        nbins = len(bins)-1
+        binmin = np.where(binfile['col3']>=rmin)[0][0]
+        binmax = np.where(binfile['col3']<rmax)[0][-1]+1
+        # filenames
+        covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
+        obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
+    else:
+        # generate s bins
+        bins  = np.arange(rmin,rmax+1,1)
+        nbins = len(bins)-1
+        binmin = rmin
+        binmax = rmax
+        s = (bins[:-1]+bins[1:])/2
+        # filenames
+        obs2pcf = '{}catalog/BOSS_zbins_mps/OBS_{}_NGC+SGC_DR12v5_z{}z{}.mps'.format(home,gal,zmin,zmax)
+        covfits  = '{}catalog/BOSS_zbins_mps/{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,rscale,zmin,zmax,multipole)
+        obstool = ''
+        
     # Read the covariance matrices 
     hdu = fits.open(covfits) # cov([mono,quadru])
     mocks = hdu[1].data[GC+'mocks']
@@ -99,6 +120,7 @@ for zbin in range(zbinnum):
     OBS   = append(obscf['col4'],obscf['col5']).astype('float32')# LRG columns are s**2*xi
     covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
 
+    """
     # wp plot
     covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
     obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
@@ -114,8 +136,8 @@ for zbin in range(zbinnum):
     obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
     obscfwp = obscfwp[(obscfwp['col3']<smax)&(obscfwp['col3']>=smin)]
     OBSwp   = obscfwp['col4']
+    
     # Read the covariance matrices
-    """
     hdu = fits.open(covfitswp) 
     mockswp = hdu[1].data[GC+'mocks'][binminwp:binmaxwp,:]
     Nmockwp = mockswp.shape[1] 
@@ -124,22 +146,24 @@ for zbin in range(zbinnum):
     """
 
     # SHAM halo catalogue
-    xi = np.loadtxt('{}/best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
-    wp = np.loadtxt('{}/best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
+    if rscale=='linear':
+        xi = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
+    else:
+        xi = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
+    #wp = np.loadtxt('{}/best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
     bbins,UNITv,SHAMv = np.loadtxt('{}/best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
     pdf = SHAMv[:-1]/UNITv[:-1]
     # plot the results
     errbar = np.std(mocks,axis=1)
     #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
-    Ccode = np.loadtxt('{}/best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
     
     # data summary
     samples[zbin] = sample
-    Ccodes[zbin] = Ccode
+    Ccodes[zbin] = xi
     obscfs[zbin] = obscf
     errbars[zbin] = errbar
-    OBSwps[zbin] = OBSwp
-    wps[zbin]     = wp    
+    #OBSwps[zbin] = OBSwp
+    #wps[zbin]     = wp    
     pdfs[zbin]  = pdf
     bestfits[zbin] = a.get_best_fit()
 
@@ -154,13 +178,13 @@ g.triangle_plot(samples,parameters,filled=True,\
     legend_labels=['z{}z{}'.format(zmins[x],zmaxs[x]) for x in range(zbinnum)],\
         contour_colors=colors[:zbinnum+1])
 for zbin in range(zbinnum):
-    for yi in range(3): 
+    for yi in range(npar): 
         for xi in range(yi):
             ax = g.subplots[yi,xi]
-            #ax.axvline(bestfits[zbin]['parameters'][xi], color=colors[zbin])
-            #ax.axhline(bestfits[zbin]['parameters'][yi], color=colors[zbin])
-            ax.plot(bestfits[zbin]['parameters'][xi],bestfits[zbin]['parameters'][yi], "D",markersize=5,color='k') 
-g.export('{}{}_{}_{}_posterior.png'.format(home,date,gal,GC))
+            ax.axvline(bestfits[zbin]['parameters'][xi], color=colors[zbin])
+            ax.axhline(bestfits[zbin]['parameters'][yi], color=colors[zbin])
+            ax.plot(bestfits[zbin]['parameters'][xi],bestfits[zbin]['parameters'][yi], "*",markersize=5,color='k') 
+g.export('{}ztot_{}_{}_{}_posterior.png'.format(home,date,gal,GC))
 plt.close()
 
 # plot the 2PCF multipoles   
@@ -200,7 +224,7 @@ for zbin in range(zbinnum):
 
 plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,multipole,gal,GC,rmin,rmax),bbox_tight=True)
 plt.close()
-
+"""
 # plot the wp
 fig = plt.figure(figsize=(6,7))
 spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
@@ -228,32 +252,6 @@ for zbin in range(zbinnum):
 
 plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(home,gal,GC,smin,smax),bbox_tight=True)
 plt.close()
-
-# plot the PDF
-fig,ax = plt.subplots()
-for zbin in range(zbinnum):
-    plt.plot(bbins[:-1],pdfs[zbin],color=colors[zbin],label='z{}z{}'.format(zmins[zbin],zmaxs[zbin]))
-plt.xlim(0,1500)
-plt.ylim(1e-5,1.0)
-plt.yscale('log')
-plt.legend(loc=0)
-plt.ylabel('prob of having a galaxy')
-plt.xlabel('Vpeak (km/s)')
-plt.savefig(home+'best_SHAM_PDF_hist_{}_{}_log.png'.format(gal,GC))
-plt.close()
-
-fig,ax = plt.subplots()
-for zbin in range(zbinnum):
-    plt.plot(bbins[:-1],pdfs[zbin],color=colors[zbin],\
-        label='z{}z{}, PDF max: {} km/s'.format(zmins[zbin],zmaxs[zbin],(bbins[:-1])[pdfs[zbin]==max(pdfs[zbin][~np.isnan(pdfs[zbin])])]))
-plt.xlim(0,1500)
-plt.legend(loc=0)
-plt.ylabel('prob of having a galaxy')
-plt.xlabel('Vpeak (km/s)')
-plt.savefig(home+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
-plt.close()
-
-
 
 # plot
 smin=5;smax=35
@@ -307,3 +305,27 @@ for pimax in pimaxs:
 
     plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi{}.png'.format(home,gal,GC,smin,smax,pimax),bbox_tight=True)
     plt.close()
+"""
+# plot the PDF
+fig,ax = plt.subplots()
+for zbin in range(zbinnum):
+    plt.plot(bbins[:-1],pdfs[zbin],color=colors[zbin],label='z{}z{}'.format(zmins[zbin],zmaxs[zbin]))
+plt.xlim(0,1500)
+plt.ylim(1e-5,1.0)
+plt.yscale('log')
+plt.legend(loc=0)
+plt.ylabel('prob of having a galaxy')
+plt.xlabel('Vpeak (km/s)')
+plt.savefig(home+'best_SHAM_PDF_hist_{}_{}_log.png'.format(gal,GC))
+plt.close()
+
+fig,ax = plt.subplots()
+for zbin in range(zbinnum):
+    plt.plot(bbins[:-1],pdfs[zbin],color=colors[zbin],\
+        label='z{}z{}, PDF max: {} km/s'.format(zmins[zbin],zmaxs[zbin],(bbins[:-1])[pdfs[zbin]==max(pdfs[zbin][~np.isnan(pdfs[zbin])])]))
+plt.xlim(0,1500)
+plt.legend(loc=0)
+plt.ylabel('prob of having a galaxy')
+plt.xlabel('Vpeak (km/s)')
+plt.savefig(home+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
+plt.close()
