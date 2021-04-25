@@ -112,7 +112,10 @@ for zbin in range(zbinnum):
     hdu.close()
     # observations
     obscf = Table.read(obs2pcf,format='ascii.no_header')
-    obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
+    if rscale == 'linear':
+        obscf= obscf[(obscf['col1']<rmax)&(obscf['col1']>=rmin)]
+    else:
+        obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
     # prepare OBS, covariance and errobar for chi2
     Ns = int(mocks.shape[0]/2)
     mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
@@ -206,7 +209,7 @@ for zbin in range(zbinnum):
             else:
                 ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbars[zbin][k*nbins:(k+1)*nbins]/err[j],\
                     color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",\
-                    label='z{}z{}, $\chi^2/dof={:.4}$/13'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood']))
+                    label='z{}z{}, $\chi^2/dof={:.4}$/{}'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood'],int(2*len(s)-3)))
 
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
