@@ -1,0 +1,24 @@
+CMASS NGC+SGC multinest: 
+(-2)* max loglike: 55.066687139670954 
+max-loglike params: [0.1669175917539505, 79.59865862190892, 0.04768743733871569]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma [0.133403,0.340811], sigma_smear [55.2467,80.0] km/s, Vceil [0.0280373,0.0505038] km/s 
+another way around: sigma 0.166918+0.173893-0.0335146, sigma_smear 79.5987+0.401341-24.3519km/s,Vceil 0.0476874+0.00281635-0.0196502km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma [0.158611,0.335142], sigma_smear [40.5125,76.6737] km/s, Vceil [0.02779,0.0477845] km/s 
+another way around: sigma 0.166918+0.168224-0.00830632, sigma_smear 79.5987+-2.92495-39.0862km/s,Vceil 0.0476874+9.70256e-05-0.0198975km/s  
+CMASS NGC+SGC multinest: 
+(-2)* max loglike: 55.066687139670954 
+max-loglike params: [0.1669175917539505, 79.59865862190892, 0.04768743733871569]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma [0.133403,0.340811], sigma_smear [55.2467,80.0] km/s, Vceil [0.0280373,0.0505038] km/s 
+another way around: sigma 0.166918+0.173893-0.0335146, sigma_smear 79.5987+0.401341-24.3519km/s,Vceil 0.0476874+0.00281635-0.0196502km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma [0.158611,0.335142], sigma_smear [40.5125,76.6737] km/s, Vceil [0.02779,0.0477845] km/s 
+another way around: sigma 0.166918+0.168224-0.00830632, sigma_smear 79.5987+-2.92495-39.0862km/s,Vceil 0.0476874+9.70256e-05-0.0198975km/s  
+python chi2 = 64.872, correspond to Vceil = 493.603km/s 
+z0.57z0.7 PDF max: [547.5] km/s 
