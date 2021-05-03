@@ -221,7 +221,7 @@ else:
     figure = corner.corner(A[:,:npar],labels=[r"$sigma$",r"$Vsmear$"],\
                         show_titles=True,title_fmt=None)
     axes = np.array(figure.axes).reshape((npar,npar))
-    for yi in range(3): 
+    for yi in range(npar)): 
         for xi in range(yi):
             ax = axes[yi, xi]
             ax.axvline(a.get_best_fit()['parameters'][xi], color="g")
