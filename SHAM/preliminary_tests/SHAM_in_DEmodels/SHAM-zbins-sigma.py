@@ -9,6 +9,8 @@ from astropy.table import Table
 from astropy.io import fits
 from Corrfunc.theory.DDsmu import DDsmu
 from Corrfunc.theory.wp import wp
+from halotools.mock_observables import s_mu_tpcf
+from halotools.mock_observables import tpcf_multipole
 import os
 import warnings
 import matplotlib.pyplot as plt
@@ -67,7 +69,9 @@ obstool = ''
     
 # Read the covariance matrices and observations
 hdu = fits.open(covfits) #
-mock = hdu[1].data[GC+'mocks']
+##############################################
+mock = hdu[1].data[GC+'mocks']*10 # *10 considering the boxsize
+##############################################
 Nmock = mock.shape[1] 
 hdu.close()
 Nstot=100
@@ -115,36 +119,36 @@ uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype
 
 # SHAM application
 def sham_tpcf(uni,uni1,sigM):
-    x00,x20= sham_cal(uni,sigM)
-    x01,x21= sham_cal(uni1,sigM)
-    return [(x00+x01)/2,(x20+x21)/2]
+    if finish:
+        return sham_cal(uni,sigM)
+    else:
+        x00,x20= sham_cal(uni,sigM)
+        x01,x21= sham_cal(uni1,sigM)
+        return [(x00+x01)/2,(x20+x21)/2]
 
 def sham_cal(uniform,sigma_high):
     # scatter Vpeak
-    Ta = time.time()
+    #Ta = time.time()
     scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
     scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
     datav = datac[:,1]*scatter
     # select halos
     LRGscat = datac[argpartition(-datav,SHAMnum)[:(SHAMnum)]]
-    print('LRGcat length: ',len(LRGscat)) # should be SHAMnum
-    Tb=time.time()
-    print('selecting halo takes {:.3}s'.format(Tb-Ta))
     # transfer to the redshift space
     z_redshift  = (LRGscat[:,4]+LRGscat[:,0]*(1+z)/H)
     z_redshift %=boxsize
     
-    # Corrfunc 2pcf 
-    #DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,2],LRGscat[:,3],z_redshift,periodic=True, verbose=False,boxsize=boxsize)
-    DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,np.zeros(0),np.zeros(0),np.zeros(0),periodic=True, verbose=False,boxsize=boxsize)
-    # calculate the 2pcf and the multipoles
-    mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
-    quad = mono * 2.5 * (3 * mu**2 - 1)
+    # Corrfunc 2pcf and wp
+    LRGscat[:,-1] = z_redshift*1
+    mu1 = np.linspace(0,mu_max,nmu+1)
+    xi_s_mu = s_mu_tpcf(LRGscat[:,2:],bins, mu1, period=boxsize, num_threads=nthread)
+    xi0 = tpcf_multipole(xi_s_mu, mu1, order=0)
+    xi2 = tpcf_multipole(xi_s_mu, mu1, order=2)
     # use sum to integrate over mu
     if finish:
         return LRGscat
     else:
-        return [np.sum(mono,axis=-1)/nmu,np.sum(quad,axis=-1)/nmu]
+        return [xi0,xi2]
 # chi2
 def chi2(sigma_M):
 # calculate mean monopole in parallel
@@ -157,7 +161,7 @@ def chi2(sigma_M):
     model = append(xi0,xi2)
     # calculate the residuals and chi2
     res = OBS-model
-    print(res.dot(covR.dot(res)))
+    #print(res.dot(covR.dot(res)))
     return res.dot(covR.dot(res))
 
 # read the posterior file
@@ -175,7 +179,7 @@ def loglike(cube, ndim, nparams):
     
 if mode == 'debug':
     print('debug mode on')
-    chisq = chi2(0.2)
+    chisq = chi2(3)
     print('chi2 = {:.3f}'.format(chisq))
 else:
     # run MultiNest & write the parameter's name
@@ -221,7 +225,7 @@ else:
     figure = corner.corner(A[:,:npar],labels=[r"$sigma$",r"$Vsmear$"],\
                         show_titles=True,title_fmt=None)
     axes = np.array(figure.axes).reshape((npar,npar))
-    for yi in range(npar)): 
+    for yi in range(npar): 
         for xi in range(yi):
             ax = axes[yi, xi]
             ax.axvline(a.get_best_fit()['parameters'][xi], color="g")
@@ -284,6 +288,7 @@ else:
 
     # plot the results
     errbar = np.std(mocks,axis=1)
+    stdSHAM = [std0,std1]
     # plot the 2PCF multipoles   
     fig = plt.figure(figsize=(14,8))
     spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
@@ -293,14 +298,13 @@ else:
         err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
-            ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-            #ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-3)))
             ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
                 plt.xscale('log')
             if (j==0):
                 ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
+                ax[j,k].errorbar(s+0.2,s**2*(xi[:,k]-values[j]),s**2*stdSHAM[k],c='c', marker='^',ecolor='c',ls="none",alpha=0.8,label='SHAM-python')
                 if k==0:
                     plt.legend(loc=2)
                 else:
@@ -308,6 +312,7 @@ else:
                 plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
             if (j==1):
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
+                ax[j,k].plot(s,s**2*(xi[:,k]-values[j])/err[j],c='c',alpha=0.8)
                 plt.ylim(-3,3)
 
     plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)

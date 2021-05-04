@@ -70,12 +70,15 @@ obstool = ''
     
 # Read the covariance matrices and observations
 hdu = fits.open(covfits) #
-mock = hdu[1].data[GC+'mocks']
-Nmock = mock.shape[1] 
+
+##############################################
+mock = hdu[1].data[GC+'mocks']*10 # *10 considering the boxsize
+##############################################
+Nmock = mock.shape[1]
 hdu.close()
 Nstot=100
 mocks = vstack((mock[binmin:binmax,:],mock[binmin+Nstot:binmax+Nstot,:]))
-covcut  = cov(mocks).astype('float32')
+covcut  = cov(mocks).astype('float32') 
 obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]       
 OBS   = append(obscf['col4'],obscf['col5']).astype('float32')            
 covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
@@ -186,8 +189,8 @@ fileroot = '{}MCMCout/zbins_{}/{}_Vsmear/multinest_'.format(home,'python',catana
 
 # prior
 def prior(cube, ndim, nparams):
-    cube[0] = 3*cube[0]
-    cube[1] = 100*cube[1]+50
+    cube[0] = cube[0]
+    cube[1] = 100*cube[1]+100
 
 # loglikelihood = -0.5*chi2    
 def loglike(cube, ndim, nparams):
@@ -196,7 +199,7 @@ def loglike(cube, ndim, nparams):
 if mode == 'debug':
     print('debug mode on')
     T0 = time.time()
-    chisq = chi2(0.1,20)
+    chisq = chi2(0.5009077426917794, 145.38649650635975)
     print('chi2 = {:.3f}, time {:.3} s'.format(chisq,time.time()-T0))
 else:
     # run MultiNest & write the parameter's name
@@ -279,7 +282,8 @@ else:
         return [append(x00,x01),append(x20,x21)]
 
     with Pool(processes = nseed) as p:
-        xi1_ELG = p.starmap(sham_tpcf1,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(a.get_best_fit()['parameters'][0])),repeat(np.float32(a.get_best_fit()['parameters'][1])))))
+        xi1_ELG = p.starmap(sham_tpcf1,list(zip(uniform_randoms,uniform_randoms1,\
+        repeat(np.float32(a.get_best_fit()['parameters'][0])),repeat(np.float32(a.get_best_fit()['parameters'][1])))))
     # xi0
     tmp = [xi1_ELG[a][0] for a in range(nseed)]
     true_array = np.hstack((((np.array(tmp)).T)[:nbins],((np.array(tmp)).T)[nbins:]))
@@ -301,11 +305,12 @@ else:
 
     # save one of the best-fit catalogue
     finish = True
-    catalog = sham_cal(uniform_randoms[0],sigM)
+    catalog = sham_cal(uniform_randoms[0],a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1])
     np.savetxt('{}best-fit_catalog-python.dat'.format(fileroot[:-10]),xi,header='Vz Vpeak X Y Z')
 
     # plot the results
     errbar = np.std(mocks,axis=1)
+    stdSHAM = [std0,std1]
     # plot the 2PCF multipoles   
     fig = plt.figure(figsize=(14,8))
     spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
@@ -315,14 +320,13 @@ else:
         err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
-            ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-            #ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-3)))
             ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
                 plt.xscale('log')
             if (j==0):
                 ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
+                ax[j,k].errorbar(s+0.2,s**2*(xi[:,k]-values[j]),s**2*stdSHAM[k],c='c', marker='^',ecolor='c',ls="none",alpha=0.8,label='SHAM-python')
                 if k==0:
                     plt.legend(loc=2)
                 else:
@@ -330,6 +334,7 @@ else:
                 plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
             if (j==1):
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
+                ax[j,k].plot(s,s**2*(xi[:,k]-values[j])/err[j],c='c',alpha=0.8)
                 plt.ylim(-3,3)
 
     plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
