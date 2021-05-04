@@ -326,10 +326,11 @@ else:
                 plt.xscale('log')
             if (j==0):
                 ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))#('\\xi_{}$'.format(k*2))#
-                ax[j,k].errorbar(s+0.2,s**2*(xi[:,k]-values[j]),s**2*stdSHAM[k],c='c', marker='^',ecolor='c',ls="none",alpha=0.8,label='SHAM-python')
                 if k==0:
+                    ax[j,k].errorbar(s+0.2,s**2*(xi[:,k]-values[j]),s**2*stdSHAM[k],c='c', marker='^',ecolor='c',ls="none",alpha=0.8,label='SHAM')
                     plt.legend(loc=2)
                 else:
+                    ax[j,k].errorbar(s+0.2,s**2*(xi[:,k]-values[j]),s**2*stdSHAM[k],c='c', marker='^',ecolor='c',ls="none",alpha=0.8,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*(len(s)-3)-3)))
                     plt.legend(loc=1)
                 plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
             if (j==1):
