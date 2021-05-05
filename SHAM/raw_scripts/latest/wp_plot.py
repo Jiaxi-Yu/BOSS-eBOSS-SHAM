@@ -11,7 +11,6 @@ home = '/global/homes/j/jiaxi/'
 rpmin=0.01
 rpmax=200
 if sys.argv[1] == 'lightcone':
-    """
     # all z range: PIP, CUTE, FCFC
     for GC in ['NGC','SGC']:
         for gal,ver in zip(['LRG','ELG'],['v7_2','v7']):
@@ -19,8 +18,10 @@ if sys.argv[1] == 'lightcone':
             CUTE = Table.read('{}codes/CUTE/CUTE/wp_test/wp_CUTE_{}_{}_rp80.dat'.format(home,gal,GC),format='ascii.no_header')
             obs = Table.read('{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver),format='ascii.no_header')
 
-            obs = obs[(obs['col3']>=rpmin)&(obs['col3']<rpmax)]
-            CUTEdata = 2*np.sum(CUTE['col3'].reshape(len(obs),80),axis=1)
+            sel = (obs['col3']>=rpmin)&(obs['col3']<rpmax)
+            obs = obs[sel]
+            CUTEdata = 2*np.sum(CUTE['col3'].reshape(33,80),axis=1)[sel]
+            A = A[sel]
 
             fig = plt.figure(figsize=(7,8))
             spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
@@ -53,7 +54,7 @@ if sys.argv[1] == 'lightcone':
 
             plt.savefig('{}/codes/FCFC/wp_test/wp-{}_{}_rp80.png'.format(home,gal,GC))
             plt.close()
-    """
+
     """  
     # zbins
     for GC in ['NGC']:
@@ -110,15 +111,16 @@ elif sys.argv[1]=='box':
         datasel = np.loadtxt('/global/cscratch1/sd/jiaxi/SHAM/catalog/UNIT_ascii_selected/UNIT_hlist_{}_cut300.dat'.format(a))
         binswp = np.unique(np.loadtxt('/global/homes/j/jiaxi/codes/FCFC/wp_test/binfile_full.dat').flatten())
         smid = 10**((np.log10(binswp[:-1])+np.log10(binswp[1:]))/2)
-        wp_dat = wp(1000,80,64,binswp,datasel[:,0],datasel[:,1],datasel[:,2])
+        wp_dat = wp(1000,70,64,binswp,datasel[:,0],datasel[:,1],datasel[:,2])
         corrfunc = np.array([binswp[:-1],binswp[1:],smid,wp_dat['wp']]).reshape(4,len(wp_dat)).T
-        np.savetxt('{}codes/FCFC/wp_test/full/wp_corrfunc_UNIT_hlist_{}.dat'.format(home,a),corrfunc)
-        """    
+        np.savetxt('{}codes/FCFC/wp_test/full_logpi/wp_corrfunc_UNIT_hlist_{}.dat'.format(home,a),corrfunc)
+        """
         # plot
         #dire = '/global/cscratch1/sd/jiaxi/SHAM/catalog/UNIT_hlist_{}.hdf5'
         #for a in ['0.50320','0.52600','0.53780','0.54980']:    
-        smin,smax,smid,corrfunc = np.loadtxt('{}codes/FCFC/wp_test/full/wp_corrfunc_UNIT_hlist_{}.dat'.format(home,a),unpack=True)
-        A = Table.read('{}codes/FCFC/wp_test/full/wp_UNIT_hlist_{}.dat'.format(home,a),format='ascii.no_header')
+        smin,smax,smid,corrfunc = np.loadtxt('{}codes/FCFC/wp_test/full_logpi/wp_corrfunc_UNIT_hlist_{}.dat'.format(home,a),unpack=True)
+        A = Table.read('{}codes/FCFC/wp_test/full_logpi/wp_UNIT_hlist_{}.dat'.format(home,a),format='ascii.no_header')
+        Aa = Table.read('{}codes/FCFC/wp_test/full_logpi/wp_UNIT_hlist_{}.no0.dat'.format(home,a),format='ascii.no_header')
 
         # plot
         fig = plt.figure(figsize=(7,8))
@@ -129,24 +131,25 @@ elif sys.argv[1]=='box':
             plt.xlabel('rp (Mpc $h^{-1}$)')
             if (j==0):
                 ax[j,0].scatter(smid,corrfunc,label='Corrfunc.theory.wp',marker='o',color='k')
-                ax[j,0].scatter(smid,A['col4'],label='FCFC_box',marker='*',color='r')  
+                ax[j,0].scatter(smid,A['col4'],label='FCFC_box_pi-with0',marker='*',color='r')  
+                ax[j,0].scatter(smid,Aa['col4'],label='FCFC_box_pi-no0',marker='X',color='b')  
                 ax[j,0].set_ylabel('wp$(r_p)$')
                 plt.legend(loc=0)
                 plt.ylim(0.01,2e3)
                 plt.xlim(0.07,200)
                 plt.xscale('log')
                 plt.yscale('log')
-                plt.title('projected 2PCF in truncated UNIT with a(t)={}'.format(a))
+                plt.title('wp in truncated UNIT with a(t)={}'.format(a))
             if (j==1):
                 ax[j,0].scatter(smid,(A['col4']-corrfunc)/corrfunc*100,marker='*',color='r')
+                ax[j,0].scatter(smid,(Aa['col4']-corrfunc)/corrfunc*100,marker='X',color='b')
                 ax[j,0].plot(smid,np.zeros_like(corrfunc),color='k')
                 ax[j,0].set_ylabel('$\Delta$wp(%)')
                 plt.xlim(0.07,200)
                 plt.xscale('log')
-                ax[j,0].set_ylim(-0.001,0.001) 
+                ax[j,0].set_ylim(-5,5) 
 
-
-        plt.savefig('{}/codes/FCFC/wp_test/wp-UNIT_{}.png'.format(home,a))
+        plt.savefig('{}/codes/FCFC/wp_test/wp-UNIT_{}.wo0.png'.format(home,a))
         plt.close()
     
 else:
