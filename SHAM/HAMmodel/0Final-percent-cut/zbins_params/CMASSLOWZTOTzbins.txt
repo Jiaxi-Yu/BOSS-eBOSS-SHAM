@@ -1,0 +1,2 @@
+# zmin zmax zeff UNITz UNITa Ngal ngal(e-4)
+0.2 0.75 0.5609368399685365 0.5574      0.6421 1198004 2.08
