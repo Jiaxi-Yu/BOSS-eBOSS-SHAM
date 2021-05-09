@@ -3,14 +3,21 @@ from astropy.table import Table, join
 import fitsio
 import numpy as np
 import pylab as plt
-from scipy.stats import norm
+from scipy.optimize import curve_fit
 import os
 
 
 c_kms = 299792.
+home = '/global/homes/j/jiaxi/'
 
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
+
+def targetid2platemjdfiber(targetid):
+    fiber = targetid % 10000
+    mjd = (targetid // 10000) % 100000
+    plate = (targetid // (10000 * 100000))
+    return plate, mjd, fiber
 
 def write_spall_redrock_join(spallname, zbestname, output):
 
@@ -21,8 +28,9 @@ def write_spall_redrock_join(spallname, zbestname, output):
                          'SN_MEDIAN', 
                          'SPEC1_G', 'SPEC1_R', 'SPEC1_I', 
                          'SPEC2_G', 'SPEC2_R', 'SPEC2_I',
+                         'CHUNK','THING_ID_TARGETING',
                          'ZWARNING', 'ZWARNING_NOQSO', 'Z', 'Z_NOQSO', 'DOF', 
-                         'RCHI2DIFF', 'RCHI2DIFF_NOQSO'])
+                         'RCHI2DIFF', 'RCHI2DIFF_NOQSO', 'SPECPRIMARY'])
 
     print('Reading zbest')
     redrock = fitsio.read(zbestname)
@@ -36,7 +44,12 @@ def write_spall_redrock_join(spallname, zbestname, output):
     
     for name in tc.colnames:
         if name not in ['PLATE', 'MJD', 'FIBERID']:
-            tc[name].name = name+'_REDROCK'
+            if name=='Z':
+                tc[name].name = 'Z-_REDROCK'
+            elif name == 'Z_REDROCK':
+                pass
+            else:
+                tc[name].name = name+'_REDROCK'
 
     print('Joining tables')
     tac = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
@@ -77,44 +90,47 @@ def get_targets(spall, target='LRG'):
     elif target=='ELG':
         w = (spall['EBOSS_TARGET1'] & 2**43 > 0)|\
             (spall['EBOSS_TARGET1'] & 2**44 > 0) 
+    elif target=='CMASS':
+        w = spall['BOSS_TARGET1'] & 2**1 > 0
+    elif target=='LOWZ':
+        w = spall['BOSS_TARGET1'] & 2**0 > 0
+    elif target == 'BOSS':
+        w = (spall['BOSS_TARGET1'] & 2**0 > 0)|\
+            (spall['BOSS_TARGET1'] & 2**1 > 0)
     else:
-        print("Target type unknown", target)
+        print("Target type should be: ELG, LRG, CMASS, LOWZ, BOSS")
         return
 
     return spall[w]
 
-def targetid2platemjdfiber(targetid):
-    fiber = targetid % 10000
-    mjd = (targetid // 10000) % 100000
-    plate = (targetid // (10000 * 100000))
-    return plate, mjd, fiber
-
- 
-def get_delta_velocities_from_repeats(spall,proj,target, spec1d=0, redrock=0, redmonster=0):
-    
-    if os.path.exists('{}-{}_deltav-z.fits.gz'.format(proj,target)):
+def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redrock=0, redmonster=0):
+    # zwarning, chi2difference
+    if spec1d:
+        zwar_field = 'ZWARNING_NOQSO'
+        chi2diff_field = 'RCHI2DIFF_NOQSO'
+        z_field = 'Z_NOQSO'
+        dof_field = 'DOF'
+    elif redrock:
+        zwar_field = 'ZWARN_REDROCK'
+        chi2diff_field = 'DELTACHI2_REDROCK'
+        z_field = 'Z_REDROCK'
+    elif redmonster:
+        zwar_field = 'ZWARNING_REDMONSTER'
+        chi2diff_field = 'RCHI2DIFF_REDMONSTER'
+        z_field = 'Z_REDMONSTER'
+        dof_field = 'DOF_REDMONSTER'
+    print(zwar_field, ',',z_field)    
+    # select repeats
+    if os.path.exists('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax)):
         info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'z':[], 'sn_i': [], 'sn_z': []}
-        hdu = fits.open('{}-{}_deltav-z.fits.gz'.format(proj,target))
+        hdu = fits.open('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax))
         data = hdu[1].data
+        hdu.close()
         for k in info.keys():
             info[k] = np.array(data[k])
-    else:
-        if spec1d:
-            zwar_field = 'ZWARNING_NOQSO'
-            chi2diff_field = 'RCHI2DIFF_NOQSO'
-            z_field = 'Z_NOQSO'
-            dof_field = 'DOF'
-        elif redrock:
-            zwar_field = 'ZWARN_REDROCK'
-            chi2diff_field = 'DELTACHI2_REDROCK'
-            z_field = 'Z_REDROCK'
-        elif redmonster:
-            zwar_field = 'ZWARNING_REDMONSTER'
-            chi2diff_field = 'RCHI2DIFF_REDMONSTER'
-            z_field = 'Z_REDMONSTER'
-            dof_field = 'DOF_REDMONSTER'
-            
+        print('{}<z<{} has {} duplicates'.format(zmin,zmax,len(np.array(data['z']))))
 
+    else:
         print('Total galaxies', len(spall))
         w =  (spall[zwar_field] == 0) | (spall[zwar_field]==4)
         print(' cut on zwarn=0 or zwarn=4:', np.sum(w))
@@ -125,14 +141,12 @@ def get_delta_velocities_from_repeats(spall,proj,target, spec1d=0, redrock=0, re
 
         info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'z':[], 'sn_i': [], 'sn_z': []}
 
-        uthid, index, inverse, counts = np.unique(spall['THING_ID'], 
-                                                return_index=True, 
-                                                return_inverse=True, 
-                                                return_counts=True)
+        uthid, index, inverse, counts = np.unique(spall['THING_ID'], return_index=True, return_inverse=True, return_counts=True)
 
         w = (counts == 2)
         print('Selecting only duplicates', np.sum(w), w.size)
         uthid = uthid[w]
+        zflag=[]
 
         for thid in uthid:
             if thid in info['thids']:
@@ -150,6 +164,7 @@ def get_delta_velocities_from_repeats(spall,proj,target, spec1d=0, redrock=0, re
 
             z1 = spall[z_field][j1]
             z2 = spall[z_field][j2]
+            z_clustering = spall["SPECPRIMARY"][j2]*z2+spall["SPECPRIMARY"][j1]*z1
             dc1 = spall[chi2diff_field][j1] 
             dc2 = spall[chi2diff_field][j2] 
             if redrock==0:
@@ -158,27 +173,135 @@ def get_delta_velocities_from_repeats(spall,proj,target, spec1d=0, redrock=0, re
 
             dv = (z1-z2)*c_kms/(1+np.min([z1, z2]))
             dc_min = np.min([dc1, dc2])
-            z_min = np.min([z1, z2])
             sn_i = np.min([spall['SN_MEDIAN'][j1, 3], spall['SN_MEDIAN'][j2, 3]])
             sn_z = np.min([spall['SN_MEDIAN'][j1, 4], spall['SN_MEDIAN'][j2, 4]])
             info['thids'].append(thid) 
             info['delta_v'].append(dv)
             info['delta_chi2'].append(dc_min)
-            info['z'].append(z_min)
+            info['z'].append(z_clustering)
             info['sn_i'].append(sn_i)
             info['sn_z'].append(sn_z)
-
+        zflag = (np.array(info['z'])>zmin)&(np.array(info['z'])<zmax)
+        print('{}<z<{} has {} duplicates'.format(zmin,zmax,len(np.array(info['z'])[zflag])))
+        
         cols = []
+        print('before:',np.array(info['z']).shape)
         for k in info.keys():
-            info[k] = np.array(info[k])
-            cols.append(fits.Column(name=k,format=str(len(info[k]))+'D',array=info[k]))
+            info[k] = np.array(info[k])[zflag]
+            cols.append(fits.Column(name=k,format='D',array=info[k]))
         hdulist = fits.BinTableHDU.from_columns(cols)
-        hdulist.writeto('{}-{}_deltav-z.fits.gz'.format(proj,target),overwrite=True)
+        hdulist.writeto('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax),overwrite=True)
+        print('after:',np.array(info['z']).shape)
 
     return info
 
+def jacknife_hist(dvsel,bins,nsub,max_dv,save):
+    if os.path.exists(save):
+        hists = np.loadtxt(save)
+        return [hists[:,0],hists[:,1:]]
+    else:
+        # -- generate catalogues
+        BIN = (bins[1:]+bins[:-1])/2
+        partlen = len(dvsel)//nsub
+        dvsub = [i for i in range(nsub)]
+        dens = [i for i in range(nsub)]
+        for index in range(nsub):
+            if index == nsub-1:
+                dvsub[index] = dvsel[:index*partlen]
+            else:
+                dvsub[index] = np.append(dvsel[:index*partlen],dvsel[(index+1)*partlen:])
 
-def plot_deltav_deltachi2(info,dchi2_values=9, title=None, save=0):
+            dens[index],BINS,plot = plt.hist(dvsub[index], bins=bins, histtype='step')#, density=True)
+        
+        np.savetxt(save,np.hstack((BIN.reshape(len(BIN),1),np.array(dens).T)),header='bins(width=1) density for 100 sub-catalogues')
+
+    return [BIN,np.array(dens).T]
+    
+def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 100,title=None, save=0):
+    #-- select inside redshift range, reject outliers
+    dc = info['delta_chi2']
+    dv = info['delta_v']
+    z = info['z']
+    w = (dc > min_deltachi2)&(abs(dv)<max_dv)
+    dvsel = dv[w]
+    
+    # binning dv[w]
+    bins = np.arange(-max_dv, max_dv+1, 5)
+    dens,BINS = np.histogram(dvsel,bins=bins)
+    
+    # histogram jacknife
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,max_dv=max_dv,save = save[:40]+save[-23:-14]+'-maxdv'+str(max_dv)+'-jacknife.dat')
+    histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
+    histcovR = np.linalg.pinv(np.cov(hists*nsubvolume))*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
+    
+    #-- fit a Gaussian
+    def gaussian(x,a,sigma,mu):
+        return a/np.sqrt(2*np.pi)/sigma*np.exp(-(x-mu)**2/(2*sigma**2))
+
+    popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histstd)
+    res = gaussian(BIN,*popt)-dens
+    
+    plt.figure(figsize=(7.5,6))
+    plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
+    plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\mu = {:.1f} \pm {:.1f}, \ \sigma = {:.1f} \pm {:.1f}$'.format(popt[2],np.sqrt(np.diag(pcov))[2], popt[1],np.sqrt(np.diag(pcov))[1]))
+    plt.xlabel(r'$\Delta v$ (km/s)')
+    plt.ylabel('counts')
+    plt.legend(loc=1)
+    plt.ylim(-20,max(dens)*1.3)
+    if title:
+        plt.title(title+r' %d pairs with $\Delta \chi^2 > %.1f$'%(dv[w].size, min_deltachi2))
+    plt.tight_layout()
+    if save:
+        plt.savefig(save, bbox_inches='tight')
+    plt.close()
+
+def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=500,spec1d=0, redrock=0, redmonster=0):
+
+    spall = Table.read(spall)
+    sp = get_targets(spall, target=target)
+    
+    if spec1d:
+        zsource = 'spec1d'
+        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,spec1d=1)
+    elif redrock:
+        zsource = 'redrock'
+        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redrock=1)
+    elif redmonster:
+        zsource='redmonster'
+        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redmonster=1)
+
+    plot_deltav_hist(info,min_deltachi2=dchi2,  max_dv=maxdv,title='eBOSS {} -'.format(target), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
+        
+
+# eBOSS LRG:
+#write_spall_redrock_join('spAll-v5_13_0.fits', 'spAll_trimmed_pREDROCK.fits','spAll-zbest-v5_13_0.fits')
+#write_spall_repeats('spAll-zbest-v5_13_0.fits', 'spAll-zbest-v5_13_0-repeats-2x_redrock.fits')
+
+zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
+zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
+maxdvs = [235,275,275,300,255,380]
+for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
+    #plot_all_deltav_deltachi2('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1)
+    plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv)
+
+#write_spall_repeats('spAll-v5_4_45.fits', 'spAll-zbest-v5_4_45-repeats-2x.fits')
+
+zmins = [0.43,0.51,0.57,0.43]
+zmaxs = [0.51,0.57,0.7,0.7]
+maxdvs = [205,200,235,270]
+for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
+    #plot_all_deltav_deltachi2('spAll-zbest-v5_4_45-repeats-2x.fits','BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1)
+    plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1,maxdv=maxdv)
+
+zmins = [0.2, 0.33,0.2]
+zmaxs = [0.33,0.43,0.43]
+maxdvs = [105,140,140]
+for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
+    #plot_all_deltav_deltachi2('spAll-zbest-v5_4_45-repeats-2x.fits','BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1)
+    plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1,maxdv=maxdv)
+
+##############################################################################################
+def plot_deltav_deltachi2(info,dchi2=9, title=None, save=0):
     
     dc = info['delta_chi2']
     dv = info['delta_v']
@@ -200,19 +323,21 @@ def plot_deltav_deltachi2(info,dchi2_values=9, title=None, save=0):
     ylim = plt.ylim()
     plt.axhline(1000, color='r', ls='--')
     #dchi2_values = [1, 4, 9, 16, 25]
-    for i, dchi2 in enumerate(dchi2_values):
-        nspec = dc.size
-        nconf = np.sum(dc>dchi2)
-        ncata = np.sum((dc>dchi2)&(dv>1000))
-        conf_rate = nconf/nspec
-        catastrophic_rate = ncata/nconf
+    #for i, dchi2 in enumerate(dchi2_values):
+    i=0
+    nspec = dc.size
+    nconf = np.sum(dc>dchi2)
+    ncata = np.sum((dc>dchi2)&(dv>1000))
+    conf_rate = nconf/nspec
+    catastrophic_rate = ncata/nconf
 
-        print(f'N = {nspec}')
-        print(f'N(delta_chi2 > {dchi2}) = {nconf}')
-        print(f'N(delta_chi2 > {dchi2} & delta_v > 1000) = {ncata}')
-        label = r'$\Delta \chi^2_{\rm thres} = %d, f_{\rm good}= %.2f, f_{\Delta v>1000{\rm km/s}} = %.3f$'%\
-                  (dchi2, conf_rate, catastrophic_rate)
-        plt.axvline(dchi2, ls=':', color='C%d'%i, label=label)
+    print(f'N = {nspec}')
+    print(f'N(delta_chi2 > {dchi2}) = {nconf}')
+    print(f'N(delta_chi2 > {dchi2} & delta_v > 1000) = {ncata}')
+    label = r'$\Delta \chi^2_{\rm thres} = %d, f_{\rm good}= %.2f, f_{\Delta v>1000{\rm km/s}} = %.3f$'%\
+              (dchi2, conf_rate, catastrophic_rate)
+    plt.axvline(dchi2, ls=':', color='C%d'%i, label=label)
+    ####################################
     plt.xlabel(r'$\Delta \chi^2$')
     plt.ylabel(r'$\Delta v$ (km/s)')
     #plt.legend(loc=0, fontsize=8)
@@ -223,104 +348,23 @@ def plot_deltav_deltachi2(info,dchi2_values=9, title=None, save=0):
         plt.savefig(save, bbox_inches='tight')
 
     print('Total pairs in plot', dc.size)
-
-def plot_deltav_hist(info, bins=300, zmin=0.6, zmax=1.0, max_dv=500., min_deltachi2=9, title=None, save=0):
-
-    dc = info['delta_chi2']
-    dv = info['delta_v']
-    z = info['z']
-
-    #-- select good redshifts, inside redshift range, reject outliers
-    w = (dc > min_deltachi2)&(z>=zmin)&(z<=zmax)&(abs(dv)<max_dv)
-    wfit = w&(abs(dv)< 250)
     
-    plt.figure(figsize=(5,4))
-    
-
-    bins = np.linspace(-max_dv, max_dv, bins)
-    _ = plt.hist(dv[w], bins=bins, histtype='step', density=True)
-    
-    #-- fit a Gaussian
-    (mu, sigma) = norm.fit(dv[wfit])
-    gauss = 1/np.sqrt(2*np.pi)/sigma*np.exp( -(bins-mu)**2/(2*sigma**2))
-
-    plt.plot(bins, gauss, label=r'Gaussian fit $\mu = {mu:.1f}, \ \sigma = {sigma:.1f}$'.format(mu=mu, sigma=sigma))
-    plt.xlabel(r'$\Delta v$ (km/s)')
-    plt.ylabel('Normalized distribution')
-    plt.legend(loc=0)
-    if title:
-        plt.title(title+r' %d pairs with $\Delta \chi^2 > %.1f$'%(dv[w].size, min_deltachi2))
-    plt.tight_layout()
-    if save:
-        plt.savefig(save, bbox_inches='tight')
-
-
-def plot_all_deltav_deltachi2(spall,proj,dchi2=9):
+def plot_all_deltav_deltachi2(spall,proj,zmin,zmax,target='LRG',dchi2=9,spec1d=0, redrock=0, redmonster=0):
 
     spall = Table.read(spall)
+    sp = get_targets(spall, target=target)
 
-    #for target in ['ELG', 'LRG']:
-    for target in ['LRG']:
-        sp = get_targets(spall, target=target)
-
-        #- spec1d
-        #info0 = get_delta_velocities_from_repeats(sp, spec1d=1)
-        #plot_deltav_deltachi2(info0, title=f'eBOSS {target} repeats - spec1d', 
-        #           save=f'plots/eboss-{target}-repeats-spec1d.pdf')
-        
-        #-- Redrock
-        info1 = get_delta_velocities_from_repeats(sp,proj,target, spec1d=1)
-        
-        plot_deltav_deltachi2(info1, dchi2_values=dchi2,title='eBOSS {} repeats - redrock'.format(target), 
-                   save='eboss-{}-repeats-spec1d.pdf'.format(target))
-
-def plot_all_deltav_histograms(spall,proj,dchi2=9,maxdv=500):
-
-    spall = Table.read(spall)
-
-    for target in ['LRG']:
-        sp = get_targets(spall, target=target)
-        info = get_delta_velocities_from_repeats(sp,proj,target,spec1d=1)
-        plot_deltav_hist(info, min_deltachi2=dchi2,  max_dv=maxdv,title='eBOSS {} -'.format(target), 
-                   save='eboss-{}-repeats-spec1d-histogram.pdf'.format(target))
-        
-
-def get_false_positives(spall, redrock=0, spec1d=0):
-
-    spall = Table.read(spall)
-
+    #- read repetitive catalogues for targets
     if spec1d:
-        zwar_field = 'ZWARNING'
-        chi2diff_field = 'RCHI2DIFF'
-        z_field = 'Z'
-        dof_field = 'DOF'
-        zwar = spall[zwar_field] - 1
+        zsource = 'spec1d'
+        info1 = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,spec1d=1)
     elif redrock:
-        zwar_field = 'ZWARN_REDROCK'
-        chi2diff_field = 'DELTACHI2_REDROCK'
-        z_field = 'Z_REDROCK'
-        zwar = spall[zwar_field] 
-    
-
-    print('Total skies', len(spall))
-    w =  (zwar == 0) | (zwar == 4) 
-    print(' cut on zwarn=0 or zwarn=4:', np.sum(w))
-
-    ww = (zwar == 0 ) 
-    print(' Confident detections in sky fibers', np.sum(ww), np.sum(ww)/np.sum(w))
-
-#write_spall_redrock_join('/uufs/chpc.utah.edu/common/home/sdss/ebosswork/eboss/spectro/redux/v5_13_0/spAll-v5_13_0.fits', 
-#                         '/uufs/chpc.utah.edu/common/home/bolton-group1/bolton_data2/kdawson/bautista/redrock_redux/v5_13_0/zbest-v5_13_0.fits',
-#                         'data/spAll-zbest-v5_13_0.fits')
-#write_spall_repeats('spAll-v5_13_0.fits', 'spAll-zbest-v5_13_0-repeats-2x.fits')
-#plot_all_deltav_deltachi2('spAll-zbest-v5_13_0-repeats-2x.fits','eBOSS',dchi2=25)
-plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x.fits','eBOSS',dchi2=25)
-#write_spall_redrock_join('spAll-zbest-v5_13_0-repeats-2x.fits', 
-#                         '/uufs/chpc.utah.edu/common/home/bolton-group1/bolton_data2/kdawson/bautista/redrock_redux/v5_13_0_no_andmask/zbest-v5_13_0_no_andmask-eBOSS.fits',
-#                         'spAll-zbest-v5_13_0_no_andmask-repeats-2x-eBOSS.fits')
-#plot_all_deltav_deltachi2('spAll-zbest-v5_13_0_no_andmask-repeats-2x-eBOSS.fits')
-#plot_all_deltav_histograms('spAll-zbest-v5_13_0_no_andmask-repeats-2x-eBOSS.fits')
-#plt.show()
-#get_false_positives('spAll-zbest-v5_13_0_no_andmask-skies.fits', spec1d=1)
-#get_false_positives('spAll-zbest-v5_13_0_no_andmask-skies.fits', redrock=1)
+        zsource = 'redrock'
+        info1 = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redrock=1)
+    elif redmonster:
+        zsource='redmonster'
+        info1 = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redmonster=1)
+        
+    plot_deltav_deltachi2(info1,dchi2,title='eBOSS {} repeats - redrock'.format(target), 
+               save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.pdf'.format(home,proj,target,zsource,dchi2,zmin,zmax))
 
