@@ -273,7 +273,8 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
     print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[abs(dv)<1000])-STD*np.sqrt(nsubvolume),np.std(dv[abs(dv)<1000])+STD*np.sqrt(nsubvolume)))
     print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))    
-    
+    print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt1[1]-np.sqrt(np.diag(pcov1))[1],popt1[1]+np.sqrt(np.diag(pcov1))[1]))    
+        
     # plot the gaussian
     plt.figure(figsize=(7.5,6))
     plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
@@ -287,7 +288,7 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     #plt.yscale('log')
     plt.ylim(-20,max(dens)*1.3)
     if title:
-        plt.title(title+'{} pairs '.format(dv[w].size))
+        plt.title(title+' {} pairs, std = {:.1f}'.format(dv[w].size,np.std(dv[abs(dv)<1000])))
     plt.tight_layout()
     if save:
         plt.savefig(save, bbox_inches='tight')
@@ -308,7 +309,7 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
         zsource='redmonster'
         info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redmonster=1)
 
-    plot_deltav_hist(info,min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} -'.format(proj,target), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
+    plot_deltav_hist(info,min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
         
 
 # eBOSS LRG:
