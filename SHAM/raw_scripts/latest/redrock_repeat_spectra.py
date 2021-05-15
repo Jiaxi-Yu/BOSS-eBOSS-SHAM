@@ -195,13 +195,31 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
 
     return info
 
-def jacknife_hist(dvsel,bins,nsub,max_dv,save):
-    if os.path.exists(save):
-        hists = np.loadtxt(save)
-        return [hists[:,0],hists[:,1:]]
+def jacknife_hist(dvsel,bins,nsub,save=0,gaussian=True):
+    if gaussian:
+        if os.path.exists(save):
+            hists = np.loadtxt(save)
+            output = [hists[:,0],hists[:,1:]]
+        else:
+            # -- generate catalogues
+            BIN = (bins[1:]+bins[:-1])/2
+            partlen = len(dvsel)//nsub
+            dvsub = [i for i in range(nsub)]
+            dens = [i for i in range(nsub)]
+            stds = []
+            for index in range(nsub):
+                if index == nsub-1:
+                    dvsub[index] = dvsel[:index*partlen]
+                else:
+                    dvsub[index] = np.append(dvsel[:index*partlen],dvsel[(index+1)*partlen:])
+
+                dens[index],BINS = np.histogram(dvsub[index], bins=bins)
+
+            np.savetxt(save,np.hstack((BIN.reshape(len(BIN),1),np.array(dens).T)),header='bins(width=1) density for 100 sub-catalogues')
+
+            output  = [BIN,np.array(dens).T]
     else:
         # -- generate catalogues
-        BIN = (bins[1:]+bins[:-1])/2
         partlen = len(dvsel)//nsub
         dvsub = [i for i in range(nsub)]
         dens = [i for i in range(nsub)]
@@ -211,13 +229,13 @@ def jacknife_hist(dvsel,bins,nsub,max_dv,save):
             else:
                 dvsub[index] = np.append(dvsel[:index*partlen],dvsel[(index+1)*partlen:])
 
-            dens[index],BINS,plot = plt.hist(dvsub[index], bins=bins, histtype='step')#, density=True)
-        
-        np.savetxt(save,np.hstack((BIN.reshape(len(BIN),1),np.array(dens).T)),header='bins(width=1) density for 100 sub-catalogues')
-
-    return [BIN,np.array(dens).T]
+            dens[index] = np.std(dvsub[index])
+        output = np.std(dens)
     
-def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 100,title=None, save=0):
+    return output
+        
+    
+def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0):
     #-- select inside redshift range, reject outliers
     dc = info['delta_chi2']
     dv = info['delta_v']
@@ -226,30 +244,50 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 100,title=N
     dvsel = dv[w]
     
     # binning dv[w]
-    bins = np.arange(-max_dv, max_dv+1, 5)
+    binwidth = 5
+    bins = np.arange(-max_dv, max_dv+1, binwidth)
+    outliern = len(dv[(dv>-1000)&(dv<-max_dv)])
+    outlierp = len(dv[(dv<1000)&(dv>max_dv)])
     dens,BINS = np.histogram(dvsel,bins=bins)
+    norm = 1#np.sum(dens)
+    dens = dens/norm
     
     # histogram jacknife
-    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,max_dv=max_dv,save = save[:40]+save[-23:-14]+'-maxdv'+str(max_dv)+'-jacknife.dat')
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:40]+save[-23:-14]+'-maxdv'+str(max_dv)+'-jacknife.dat')
+    hists =hists/norm
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
-    histcovR = np.linalg.pinv(np.cov(hists*nsubvolume))*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
+    histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
     
-    #-- fit a Gaussian
+    #-- fit a Gaussian 
     def gaussian(x,a,sigma,mu):
         return a/np.sqrt(2*np.pi)/sigma*np.exp(-(x-mu)**2/(2*sigma**2))
-
+    def lorentzian(x,a,w,p):#
+        return a/(1+((x-p)*2/w)**2)
+    
     popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histstd)
     res = gaussian(BIN,*popt)-dens
+    popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histstd)
+    res1 = lorentzian(BIN,*popt1)-dens
     
+    # directly calculate the std
+    STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
+    print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[abs(dv)<1000])-STD*np.sqrt(nsubvolume),np.std(dv[abs(dv)<1000])+STD*np.sqrt(nsubvolume)))
+    print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))    
+    
+    # plot the gaussian
     plt.figure(figsize=(7.5,6))
     plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
-    plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\mu = {:.1f} \pm {:.1f}, \ \sigma = {:.1f} \pm {:.1f}$'.format(popt[2],np.sqrt(np.diag(pcov))[2], popt[1],np.sqrt(np.diag(pcov))[1]))
+    plt.scatter(-max_dv,outliern/norm,c='r')
+    plt.scatter(max_dv,outlierp/norm,c='r')
+    plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\mu = {:.1f} \pm {:.1f}, \ \sigma = {:.1f} \pm {:.1f}$, $\chi^2$ /dof = {:.1f}/{}'.format(popt[2],np.sqrt(np.diag(pcov))[2], popt[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
+    plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit $p_0 = {:.1f} \pm {:.1f}, w = {:.1f} \pm {:.1f}$, $\chi^2$ /dof = {:.1f}/{}'.format(popt1[2],np.sqrt(np.diag(pcov1))[2], popt1[1],np.sqrt(np.diag(pcov1))[1],res1.dot(histcovR.dot(res1)),len(res1)))
     plt.xlabel(r'$\Delta v$ (km/s)')
     plt.ylabel('counts')
     plt.legend(loc=1)
+    #plt.yscale('log')
     plt.ylim(-20,max(dens)*1.3)
     if title:
-        plt.title(title+r' %d pairs with $\Delta \chi^2 > %.1f$'%(dv[w].size, min_deltachi2))
+        plt.title(title+'{} pairs '.format(dv[w].size))
     plt.tight_layout()
     if save:
         plt.savefig(save, bbox_inches='tight')
@@ -270,7 +308,7 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
         zsource='redmonster'
         info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redmonster=1)
 
-    plot_deltav_hist(info,min_deltachi2=dchi2,  max_dv=maxdv,title='eBOSS {} -'.format(target), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
+    plot_deltav_hist(info,min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} -'.format(proj,target), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
         
 
 # eBOSS LRG:
@@ -279,7 +317,7 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
 
 zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
 zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
-maxdvs = [235,275,275,300,255,380]
+maxdvs = [235,275,275,300,255,360]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
     #plot_all_deltav_deltachi2('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1)
     plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv)
