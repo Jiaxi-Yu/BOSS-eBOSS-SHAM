@@ -1,0 +1,13 @@
+LOWZ NGC+SGC multinest: 
+(-2)* max loglike: 44.998874309442144 
+max-loglike params: [0.22436448686084876, 76.27690400720391, 0.0029294303741067246]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma [0.185616,0.259495], sigma_smear [67.2681,84.8866] km/s, Vceil [0.00107863,0.00454749] km/s 
+another way around: sigma 0.224364+0.0351302-0.0387489, sigma_smear 76.2769+8.60971-9.00875km/s,Vceil 0.00292943+0.00161806-0.0018508km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma [0.171504,0.248941], sigma_smear [68.4435,86.8838] km/s, Vceil [0.00157494,0.0053933] km/s 
+another way around: sigma 0.224364+0.0245767-0.0528609, sigma_smear 76.2769+10.6069-7.8334km/s,Vceil 0.00292943+0.00246387-0.00135449km/s  
+python chi2 = 51.634, correspond to Vceil = 488.75km/s 
+z0.2z0.43 PDF max: [772.5] km/s 
