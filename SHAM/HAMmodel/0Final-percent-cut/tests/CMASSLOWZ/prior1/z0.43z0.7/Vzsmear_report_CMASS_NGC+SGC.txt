@@ -1,0 +1,13 @@
+CMASS NGC+SGC multinest: 
+(-2)* max loglike: 80.58292688876836 
+max-loglike params: [0.2000087575176598, 65.42214085553951, 0.026850271731338103]
+
+----------------------------------------------------------------------
+getdist 1-sigma errors: sigma [0.168954,0.395738], sigma_smear [11.3174,79.1242] km/s, Vceil [0.00793659,0.0301186] km/s 
+another way around: sigma 0.200009+0.195729-0.0310545, sigma_smear 65.4221+13.7021-54.1047km/s,Vceil 0.0268503+0.00326837-0.0189137km/s  
+
+----------------------------------------------------------------------
+multinest analyser results: sigma [0.168675,0.3959], sigma_smear [18.9427,72.5742] km/s, Vceil [0.00789828,0.0301308] km/s 
+another way around: sigma 0.200009+0.195891-0.0313339, sigma_smear 65.4221+7.15206-46.4794km/s,Vceil 0.0268503+0.00328048-0.018952km/s  
+python chi2 = 90.534, correspond to Vceil = 472.909km/s 
+z0.43z0.7 PDF max: [577.5] km/s 
