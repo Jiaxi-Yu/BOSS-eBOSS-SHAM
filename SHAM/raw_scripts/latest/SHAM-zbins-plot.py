@@ -42,7 +42,7 @@ if rscale =='linear':
     rmax = 25
 else:
     rmax = 30
-nthread  = 32
+nthread  = 1
 autocorr = 1
 mu_max   = 1
 nmu      = 120
@@ -107,7 +107,6 @@ print('its chi2: {:.6}'.format(-2*a.get_best_fit()['log_likelihood']))
 
 if finish: 
     # write the multinest/gedist analysis report
-    stats = a.get_stats()    
     file = '{}Vzsmear_report_{}_{}.txt'.format(fileroot[:-10],gal,GC)
     f = open(file,'a')
     f.write('{} {} multinest: \n'.format(gal,GC))
@@ -116,10 +115,11 @@ if finish:
     f.write('\n----------------------------------------------------------------------\n')
     f.write('getdist 1-sigma errors: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
     f.write('another way around: sigma {:.6}+{:.6}{:.6}, sigma_smear {:.6}+{:.6}{:.6}km/s,Vceil {:.6}+{:.6}{:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
-
+    
+    stats = a.get_stats()    
     for j in range(npar):
         lower[j], upper[j] = stats['marginals'][j]['1sigma']
-        print('getdist {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  upper[j], lower[j]))
+        print('multinest {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  upper[j], lower[j]))
     f.write('\n----------------------------------------------------------------------\n')
     f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
     f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
