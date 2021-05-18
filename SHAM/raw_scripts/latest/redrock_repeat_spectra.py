@@ -288,7 +288,7 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     #plt.yscale('log')
     plt.ylim(-20,max(dens)*1.3)
     if title:
-        plt.title(title+' {} pairs, std = {:.1f}'.format(dv[w].size,np.std(dv[abs(dv)<1000])))
+        plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}'.format(dv[w].size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
     plt.tight_layout()
     if save:
         plt.savefig(save, bbox_inches='tight')
