@@ -12,16 +12,24 @@ import sys
 import re
 
 Om = 0.31
-home     = '/home/astro/jiayu/Desktop/SHAM/'
-datapath = home+'catalog/BOSS_zbins_mps/'
 binmin=5
 binmax=25
 gal  = sys.argv[1]
-rscale = 'linear'
-function  = 'mps' 
-nbins = 100
-k=0
-nmu=120
+function  = sys.argv[2] # '2PCF'  'wp'
+if function == '2PCF':
+    rscale = 'linear'
+    nbins = 100
+    nmu = 120
+    func = 'mps'
+elif function == 'wp':
+    rscale = 'log'
+    nbins = 8
+    nmu = 80
+    func = 'wp'
+
+home     = '/home/astro/jiayu/Desktop/SHAM/'
+datapath = '{}catalog/BOSS_zbins_{}/'.format(home,func)
+
 ver = 'DR12'
 if gal=='CMASS':
     Zrange =  np.array([0.43,0.51,0.57,0.43,\
@@ -33,7 +41,10 @@ elif gal == 'CMASSLOWZ':
     Zrange = np.array([0.2,0.75])
     ver = 'DR12v5'
 znum = int(len(Zrange)/2)
-mockDIR  = ['/hpcstorage/jiayu/PATCHY/{}/z{}z{}/2PCF/'.format(gal,Zrange[k],Zrange[k+znum]) for k in range(znum)]
+
+#######################
+# Patchy mocks
+mockDIR  = ['/hpcstorage/jiayu/PATCHY/{}/z{}z{}/{}/'.format(gal,Zrange[k],Zrange[k+znum],function) for k in range(znum)]
 mockFITS  = ['{}{}_{}_z{}z{}_mocks_'.format(datapath,gal,rscale,Zrange[k],Zrange[k+znum]) for k in range(znum)]
 
 for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS): 
@@ -45,11 +56,14 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
     mockquad = [x for x in range(nfile)]
     mockhexa = [x for x in range(nfile)]
 
-    pairroot = [mockdir+'2PCF_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'_'+str(n+1).zfill(4)+'.{}' for n in range(nfile)]
+    pairroot = [mockdir+function+'_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'_'+str(n+1).zfill(4)+'.{}' for n in range(nfile)]
     if gal == 'CMASS':
-        pairroot[9] = mockdir+'2PCF_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'_1200.{}'
-    rrfile   = mockdir+'2PCF_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'.rr'
-    comb_part = partial(FCFCcomb,rfmt = rrfile)
+        pairroot[9] = mockdir+function+'_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'_1200.{}'
+    rrfile   = mockdir+function+'_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'.rr'
+    if function == '2PCF':
+        comb_part = partial(FCFCcomb,rfmt = rrfile)
+    elif function == 'wp':
+        comb_part = partial(FCFCcomb,rfmt = rrfile)
 
     pool = Pool()     
     for n, temp_array in enumerate(pool.imap(comb_part,pairroot)):
@@ -93,18 +107,26 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
         hdulist.header.update(sbins=nbins,nmu=nmu)
         hdulist.writeto(mockfits+name+'.fits.gz',overwrite=True)
 
-    # covR calculation for 5-25Mpc/h & quadrupole
-    hdu = fits.open(mockfits+'quad.fits.gz')
-    for GC in ['NGC','SGC','NGC+SGC']:
-        mocks = hdu[1].data[GC+'mocks'] 
-        Nmock = mocks.shape[1] 
-        Ns = int(mocks.shape[0]/2)
-        mocks = np.vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
-        covcut  = np.cov(mocks).astype('float32')
-        Nbins = len(mocks)
-        covR  = np.linalg.pinv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
-        np.savetxt(datapath+'covR-'+gal+'_'+GC+'-s'+str(binmin)+'_'+str(binmax)+'-z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'-quad.dat',covR)
-    hdu.close()
-    fin=time.time()
-    print('z{}z{} NGC+SGC and covariance calculation finished in {:.6}s'.format(Zrange[k],Zrange[k+znum],-start+fin))
+    if function == '2PCF':
+        # covR calculation for 5-25Mpc/h & quadrupole
+        hdu = fits.open(mockfits+'quad.fits.gz')
+        for GC in ['NGC','SGC','NGC+SGC']:
+            mocks = hdu[1].data[GC+'mocks'] 
+            Nmock = mocks.shape[1] 
+            Ns = int(mocks.shape[0]/2)
+            mocks = np.vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
+            covcut  = np.cov(mocks).astype('float32')
+            Nbins = len(mocks)
+            covR  = np.linalg.pinv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
+            np.savetxt(datapath+'covR-'+gal+'_'+GC+'-s'+str(binmin)+'_'+str(binmax)+'-z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'-quad.dat',covR)
+        hdu.close()
+        fin=time.time()
+        print('z{}z{} NGC+SGC and covariance calculation finished in {:.6}s'.format(Zrange[k],Zrange[k+znum],-start+fin))
 
+
+############
+# observations:
+obsfiles  = [datapath+'OBS_'+gal+'_{}_DR12v5_'+'z{}z{}'.format(Zrange[k],Zrange[k+znum]) for k in range(znum)]
+
+for k,obsfile in zip(range(znum),obsfiles): 
+    obsxi0,obsxi2,obsxi4 = FCFCcomb(obsfile+'.{}',obsfile+'.rr',ns=nbins,nmu=nmu,islog=True,isobs=True,ismps=False)
