@@ -64,7 +64,7 @@ def read_xi(ifmt, rfmt=None, ds=1, ns=200, nmu=120):
     return s, xi0, xi2, xi4
  
 # FCFC paircounts
-def FCFCcomb(ifmt,rfmt,ds=1, ns=100, nmu=120,islog=False,isobs=False):
+def FCFCcomb(ifmt,rfmt, ns=100, nmu=120,islog=False,isobs=False,ismps=True):
     if os.path.exists(ifmt.format('NGC+SGC','mps')):
         xi0 = [None] * 3
         xi2 = [None] * 3
@@ -108,25 +108,45 @@ def FCFCcomb(ifmt,rfmt,ds=1, ns=100, nmu=120,islog=False,isobs=False):
         dr[2] = dr[0] * norm[0] + dr[1] * norm[1]
         rr[2] = rr[0] * norm[0] + rr[1] * norm[1]
 
-        for i in range(3):
-            mask = (rr[i]==0)
-            mono = np.zeros_like(rr[i])
-            mono[~mask]=(dd[i][~mask]-2*dr[i][~mask]+rr[i][~mask])/rr[i][~mask]
-            quad = mono * 2.5 * (3 * mu**2 - 1)
-            hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+        if ismps:
+            for i in range(3):
+                mask = (rr[i]==0)
+                mono = np.zeros_like(rr[i])
+                mono[~mask]=(dd[i][~mask]-2*dr[i][~mask]+rr[i][~mask])/rr[i][~mask]
+                quad = mono * 2.5 * (3 * mu**2 - 1)
+                hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
 
-            xi0[i] = np.sum(mono.reshape(nmu,ns),axis=0)/nmu
-            xi2[i] = np.sum(quad.reshape(nmu,ns),axis=0)/nmu
-            xi4[i] = np.sum(hexa.reshape(nmu,ns),axis=0)/nmu
-        smin = np.unique(Smin)
-        smax = np.unique(Smax)
-        if islog:
-            smid = 10**((np.log10(smin)+np.log10(smax))/2)
+                xi0[i] = np.sum(mono.reshape(nmu,ns),axis=0)/nmu
+                xi2[i] = np.sum(quad.reshape(nmu,ns),axis=0)/nmu
+                xi4[i] = np.sum(hexa.reshape(nmu,ns),axis=0)/nmu
+            smin = np.unique(Smin)
+            smax = np.unique(Smax)
+            if islog:
+                smid = 10**((np.log10(smin)+np.log10(smax))/2)
+            else:
+                smid = (smin+smax)/2
+                
+            if isobs:
+                np.savetxt(ifmt.format('NGC+SGC','xi'),np.array([Smin,Smax,MUmin,MUmax,mono]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+                np.savetxt(ifmt.format('NGC+SGC','mps'),np.array([smid,smin,smax,xi0[2],xi2[2],xi4[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+
+            tpcf = [xi0,xi2,xi4]
         else:
-            smid = (smin+smax)/2
-            
-        if isobs:
-            np.savetxt(ifmt.format('NGC+SGC','xi'),np.array([Smin,Smax,MUmin,MUmax,mono]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
-            np.savetxt(ifmt.format('NGC+SGC','mps'),np.array([smid,smin,smax,xi0[2],xi2[2],xi4[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+            for i in range(3):
+                mask = (rr[i]==0)
+                mono = np.zeros_like(rr[i])
+                mono[~mask]=(dd[i][~mask]-2*dr[i][~mask]+rr[i][~mask])/rr[i][~mask]
+                xi0[i] = np.sum(mono.reshape(nmu,ns),axis=0)*2
+            smin = np.unique(Smin)
+            smax = np.unique(Smax)
+            if islog:
+                smid = 10**((np.log10(smin)+np.log10(smax))/2)
+            else:
+                smid = (smin+smax)/2
+                
+            if isobs:
+                np.savetxt(ifmt.format('NGC+SGC','xi'),np.array([Smin,Smax,MUmin,MUmax,mono]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+                np.savetxt(ifmt.format('NGC+SGC','mps'),np.array([smid,smin,smax,xi0[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
 
-    return xi0,xi2,xi4
+            tpcf = [xi0,xi2,xi4]
+    return tpcf
