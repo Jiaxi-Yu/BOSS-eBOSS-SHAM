@@ -11,7 +11,6 @@ import glob
 import sys
 import re
 
-Om = 0.31
 binmin=5
 binmax=25
 gal  = sys.argv[1]
@@ -62,52 +61,50 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
     rrfile   = mockdir+function+'_PATCHYmock_'+gal+'_{}_'+ver+'_z'+str(Zrange[k])+'z'+str(Zrange[k+znum])+'.rr'
     if function == '2PCF':
         comb_part = partial(FCFCcomb,rfmt = rrfile)
-    elif function == 'wp':
-        comb_part = partial(FCFCcomb,rfmt = rrfile)
 
-    pool = Pool()     
-    for n, temp_array in enumerate(pool.imap(comb_part,pairroot)):
-        mockmono[n],mockquad[n],mockhexa[n]= temp_array
-        if n==0:
-            print('Ezmock reading&2PCF calculation start')
-        elif (n+1)%100==0:
-            print('{} {} bin PATCHY mocks at {}<z<{} has finished {}%'.format(gal,rscale,Zrange[k],Zrange[k+znum],(n+1)//10))
-    pool.close() 
-    pool.join()
+        # NGC+SGC for mono, quad, hexadeca-pole
+        pool = Pool()     
+        for n, temp_array in enumerate(pool.imap(comb_part,pairroot)):
+            mockmono[n],mockquad[n],mockhexa[n]= temp_array
+            if n==0:
+                print('mock reading&2PCF calculation start')
+            elif (n+1)%(nfile/10)==0:
+                print('{} {} bin PATCHY mocks at {}<z<{} has finished {}%'.format(gal,rscale,Zrange[k],Zrange[k+znum],(n+1)//(nfile/100)))
+        pool.close() 
+        pool.join()
 
-    # calculate the covariance
-    NGC  = [np.array([mockmono[k][0] for k in range(nfile)]).T,\
-            np.vstack((np.array([mockmono[k][0] for k in range(nfile)]).T,\
-                        np.array([mockquad[k][0] for k in range(nfile)]).T)),\
-            np.vstack((np.array([mockmono[k][0] for k in range(nfile)]).T,\
-                        np.array([mockquad[k][0] for k in range(nfile)]).T,\
-                        np.array([mockhexa[k][0] for k in range(nfile)]).T))]
-    SGC  = [np.array([mockmono[k][1] for k in range(nfile)]).T,\
-            np.vstack((np.array([mockmono[k][1] for k in range(nfile)]).T,\
-                        np.array([mockquad[k][1] for k in range(nfile)]).T)),\
-            np.vstack((np.array([mockmono[k][1] for k in range(nfile)]).T,\
-                        np.array([mockquad[k][1] for k in range(nfile)]).T,\
-                        np.array([mockhexa[k][1] for k in range(nfile)]).T))]
-    NGCSGC = [np.array([mockmono[k][2] for k in range(nfile)]).T,\
-            np.vstack((np.array([mockmono[k][2] for k in range(nfile)]).T,\
-                        np.array([mockquad[k][2] for k in range(nfile)]).T)),\
-            np.vstack((np.array([mockmono[k][2] for k in range(nfile)]).T,\
-                        np.array([mockquad[k][2] for k in range(nfile)]).T,\
-                        np.array([mockhexa[k][2] for k in range(nfile)]).T))]
+        # stack mono, mono+quad, mono+quad+hexa
+        NGC  = [np.array([mockmono[k][0] for k in range(nfile)]).T,\
+                np.vstack((np.array([mockmono[k][0] for k in range(nfile)]).T,\
+                            np.array([mockquad[k][0] for k in range(nfile)]).T)),\
+                np.vstack((np.array([mockmono[k][0] for k in range(nfile)]).T,\
+                            np.array([mockquad[k][0] for k in range(nfile)]).T,\
+                            np.array([mockhexa[k][0] for k in range(nfile)]).T))]
+        SGC  = [np.array([mockmono[k][1] for k in range(nfile)]).T,\
+                np.vstack((np.array([mockmono[k][1] for k in range(nfile)]).T,\
+                            np.array([mockquad[k][1] for k in range(nfile)]).T)),\
+                np.vstack((np.array([mockmono[k][1] for k in range(nfile)]).T,\
+                            np.array([mockquad[k][1] for k in range(nfile)]).T,\
+                            np.array([mockhexa[k][1] for k in range(nfile)]).T))]
+        NGCSGC = [np.array([mockmono[k][2] for k in range(nfile)]).T,\
+                np.vstack((np.array([mockmono[k][2] for k in range(nfile)]).T,\
+                            np.array([mockquad[k][2] for k in range(nfile)]).T)),\
+                np.vstack((np.array([mockmono[k][2] for k in range(nfile)]).T,\
+                            np.array([mockquad[k][2] for k in range(nfile)]).T,\
+                            np.array([mockhexa[k][2] for k in range(nfile)]).T))]
 
-    # save data as binary table
-    # name of the mock 2pcf and covariance matrix file(function return)
-    for j,name in enumerate(['mono','quad','hexa']):
-        cols = []
-        cols.append(fits.Column(name='NGCmocks',format=str(nfile)+'D',array=NGC[j]))
-        cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC[j]))
-        cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC[j]))
+        # save data as binary table
+        # name of the mock 2pcf and covariance matrix file(function return)
+        for j,name in enumerate(['mono','quad','hexa']):
+            cols = []
+            cols.append(fits.Column(name='NGCmocks',format=str(nfile)+'D',array=NGC[j]))
+            cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC[j]))
+            cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC[j]))
 
-        hdulist = fits.BinTableHDU.from_columns(cols)
-        hdulist.header.update(sbins=nbins,nmu=nmu)
-        hdulist.writeto(mockfits+name+'.fits.gz',overwrite=True)
+            hdulist = fits.BinTableHDU.from_columns(cols)
+            hdulist.header.update(sbins=nbins,nmu=nmu)
+            hdulist.writeto(mockfits+name+'.fits.gz',overwrite=True)
 
-    if function == '2PCF':
         # covR calculation for 5-25Mpc/h & quadrupole
         hdu = fits.open(mockfits+'quad.fits.gz')
         for GC in ['NGC','SGC','NGC+SGC']:
@@ -122,11 +119,42 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
         hdu.close()
         fin=time.time()
         print('z{}z{} NGC+SGC and covariance calculation finished in {:.6}s'.format(Zrange[k],Zrange[k+znum],-start+fin))
+    elif function == 'wp':
+        comb_part = partial(FCFCcomb,rfmt = rrfile,ns=nbins,nmu=nmu,islog=True,ismps=False)
+
+        # NGC+SGC for wp
+        pool = Pool()     
+        for n, temp_array in enumerate(pool.imap(comb_part,pairroot)):
+            mockmono[n] = temp_array
+            if n==0:
+                print('mock reading&2PCF calculation start')
+            elif (n+1)%(nfile/10)==0:
+                print('{} {} bin PATCHY mocks at {}<z<{} has finished {}%'.format(gal,rscale,Zrange[k],Zrange[k+znum],(n+1)//(nfile/100)))
+        pool.close() 
+        pool.join()
+
+        # stack mono, mono+quad, mono+quad+hexa
+        NGC  = np.array([mockmono[k][0] for k in range(nfile)]).T
+        SGC  = np.array([mockmono[k][1] for k in range(nfile)]).T
+        NGCSGC = np.array([mockmono[k][2] for k in range(nfile)]).T
+
+        # save data as binary table
+        # name of the mock 2pcf and covariance matrix file(function return)
+        cols = []
+        cols.append(fits.Column(name='NGCmocks',format=str(nfile)+'D',array=NGC))
+        cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC))
+        cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC))
+
+        hdulist = fits.BinTableHDU.from_columns(cols)
+        hdulist.header.update(sbins=nbins,nmu=nmu)
+        hdulist.writeto(mockfits+'wp.fits.gz',overwrite=True)
 
 
+"""
 ############
 # observations:
 obsfiles  = [datapath+'OBS_'+gal+'_{}_DR12v5_'+'z{}z{}'.format(Zrange[k],Zrange[k+znum]) for k in range(znum)]
 
 for k,obsfile in zip(range(znum),obsfiles): 
     obsxi0,obsxi2,obsxi4 = FCFCcomb(obsfile+'.{}',obsfile+'.rr',ns=nbins,nmu=nmu,islog=True,isobs=True,ismps=False)
+"""
