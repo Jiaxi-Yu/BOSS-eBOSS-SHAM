@@ -569,7 +569,6 @@ if finish:
     #import pdb;pdb.set_trace()
 
     # plot the wp
-    errbarwp = np.std(mockswp,axis=1)
     fig = plt.figure(figsize=(6,7))
     spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
     ax = np.empty((2,1), dtype=type(plt.axes))
