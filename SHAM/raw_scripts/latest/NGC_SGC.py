@@ -64,7 +64,7 @@ def read_xi(ifmt, rfmt=None, ds=1, ns=200, nmu=120):
     return s, xi0, xi2, xi4
  
 # FCFC paircounts
-def FCFCcomb(ifmt,rfmt, ns=100, nmu=120,islog=False,isobs=False,ismps=True):
+def FCFCcomb(ifmt,rfmt, ns=100, nmu=120, upperint = None,islog=False,isobs=False,ismps=True):
     if os.path.exists(ifmt.format('NGC+SGC','xi')):
         xi0 = [None] * 3
         xi2 = [None] * 3
@@ -142,7 +142,13 @@ def FCFCcomb(ifmt,rfmt, ns=100, nmu=120,islog=False,isobs=False,ismps=True):
                 mask = (rr[i]==0)
                 mono = np.zeros_like(rr[i])
                 mono[~mask]=(dd[i][~mask]-2*dr[i][~mask]+rr[i][~mask])/rr[i][~mask]
-                xi0[i] = np.sum(mono.reshape(nmu,ns),axis=0)*2
+                # cut the pairs
+                if upperint:
+                    monocut = (mono.reshape(nmu,ns))[:upperint,:]
+                    xi0[i] = np.sum(monocut,axis=0)*2
+                else:
+                    xi0[i] = np.sum(mono.reshape(nmu,ns),axis=0)*2
+                    
             smin = np.unique(Smin)
             smax = np.unique(Smax)
             if islog:

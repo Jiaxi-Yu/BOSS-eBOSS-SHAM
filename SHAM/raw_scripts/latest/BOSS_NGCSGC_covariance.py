@@ -22,9 +22,10 @@ if function == '2PCF':
     func = 'mps'
 elif function == 'wp':
     rscale = 'log'
-    nbins = 8
-    nmu = 80
-    func = 'wp'
+    nbins  = 8
+    nmu    = 80
+    func   = 'wp'
+    pimaxs  = [25,30,35]
 
 home     = '/home/astro/jiayu/Desktop/SHAM/'
 datapath = '{}catalog/BOSS_zbins_{}/'.format(home,func)
@@ -120,6 +121,7 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
         fin=time.time()
         print('z{}z{} NGC+SGC and covariance calculation finished in {:.6}s'.format(Zrange[k],Zrange[k+znum],-start+fin))
     elif function == 'wp':
+        """
         comb_part = partial(FCFCcomb,rfmt = rrfile,ns=nbins,nmu=nmu,islog=True,ismps=False)
 
         # NGC+SGC for wp
@@ -148,6 +150,36 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
         hdulist = fits.BinTableHDU.from_columns(cols)
         hdulist.header.update(sbins=nbins,nmu=nmu)
         hdulist.writeto(mockfits+'wp.fits.gz',overwrite=True)
+        """
+        for pimax in pimaxs:
+            comb_part = partial(FCFCcomb,rfmt = rrfile,ns=nbins,nmu=nmu,upperint=pimax,islog=True,ismps=False)
+
+            # NGC+SGC for wp
+            pool = Pool()     
+            for n, temp_array in enumerate(pool.imap(comb_part,pairroot)):
+                mockmono[n] = temp_array
+                if n==0:
+                    print('mock reading&2PCF calculation start')
+                elif (n+1)%(nfile/10)==0:
+                    print('wp_pi{} of {} {} bin PATCHY mocks at {}<z<{} has finished {}%'.format(pimax,gal,rscale,Zrange[k],Zrange[k+znum],(n+1)//(nfile/100)))
+            pool.close() 
+            pool.join()
+
+            # stack mono, mono+quad, mono+quad+hexa
+            NGC  = np.array([mockmono[k][0] for k in range(nfile)]).T
+            SGC  = np.array([mockmono[k][1] for k in range(nfile)]).T
+            NGCSGC = np.array([mockmono[k][2] for k in range(nfile)]).T
+
+            # save data as binary table
+            # name of the mock 2pcf and covariance matrix file(function return)
+            cols = []
+            cols.append(fits.Column(name='NGCmocks',format=str(nfile)+'D',array=NGC))
+            cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC))
+            cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC))
+
+            hdulist = fits.BinTableHDU.from_columns(cols)
+            hdulist.header.update(sbins=nbins,nmu=nmu,pimax=pimax)
+            hdulist.writeto('{}wp_pi{}.fits.gz'.format(mockfits,pimax),overwrite=True)
 
 
 """
