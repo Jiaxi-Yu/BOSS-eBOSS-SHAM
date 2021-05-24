@@ -47,7 +47,7 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-smin=5; smax=35
+smin=5; smax=30
 home     = '/home/astro/jiayu/Desktop/SHAM/'
 fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,sys.argv[7],function,rscale,gal,GC,zmin,zmax)
 cols = ['col4','col5']
@@ -89,7 +89,7 @@ for yi in range(npar):
 g.export('{}{}_{}_{}_posterior.png'.format(fileroot[:-10],date,gal,GC))
 plt.close()
 
-# cormer results
+# corner results
 A=a.get_equal_weighted_posterior()
 figure = corner.corner(A[:,:npar],labels=[r"$sigma$",r"$Vsmear$", r"$Vceil$"],\
                        show_titles=True,title_fmt=None)
@@ -289,8 +289,8 @@ if finish:
     selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
     binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
     swp = binfilewp['col3'][selwp]
-    binminwp = np.where(binfilewp['col3']>=smin)[0][0]
-    binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
+    #binminwp = np.where(binfilewp['col3']>=smin)[0][0]
+    #binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
     nbinswp = len(binswp)-1
 
     # analytical RR
@@ -413,8 +413,7 @@ if finish:
         f.write('z{}z{} PDF max: {} km/s \n'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))        
         f.close()
 
-
-    # plot the results
+    # plot the 2pcf results
     errbar = np.std(mocks,axis=1)
     #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
     if rscale=='linear':
@@ -500,7 +499,7 @@ if finish:
         plt.close()
 
 
-    # plot the histogram
+    # plot the Vpeak histogram 
     fig,ax = plt.subplots()
     plt.plot(bbins[:-1],SHAMv[:-1]/SHAMv[-1],color='b',label='SHAM')
     plt.plot(bbins[:-1],UNITv[:-1]/UNITv[-1],color='k',label='UNIT')
@@ -512,7 +511,7 @@ if finish:
     plt.xlabel('Vpeak (km/s)')
     plt.savefig(fileroot[:-10]+'best_SHAM_Vpeak_hist_{}_{}.png'.format(gal,GC))
     plt.close()
-
+    # plot the PDF log scale
     fig,ax = plt.subplots()
     plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
     plt.xlim(0,1500)
@@ -522,7 +521,7 @@ if finish:
     plt.xlabel('Vpeak (km/s)')
     plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}_log.png'.format(gal,GC))
     plt.close()
-
+    # plot the PDF linear scale
     fig,ax = plt.subplots()
     plt.plot(bbins[:-1],SHAMv[:-1]/UNITv[:-1])
     plt.xlim(0,1500)
@@ -534,43 +533,54 @@ if finish:
     plt.xlabel('Vpeak (km/s)')
     plt.savefig(fileroot[:-10]+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
     plt.close()
-
     pdf = SHAMv[:-1]/UNITv[:-1]
     print('z{}z{} PDF max: {} km/s'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))
-    """
-    if rscale == 'linear':
-        covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
-        obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
-    elif rscale == 'log':
-        covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
-        obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
+
+
+    # plot wp with errorbars
+    if (gal == 'LRG')|(gal=='ELG'):
+        if rscale == 'linear':
+            covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
+            obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
+        elif rscale == 'log':
+            covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
+            obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
+        obstool = 'PIP'
+        colwp   = 'col3'
+    else:
+        obs2pcfwp = '{}catalog/BOSS_zbins_wp/OBS_{}_NGC+SGC_DR12v5_z{}z{}.wp'.format(home,gal,zmin,zmax)
+        covfitswp = '{}catalog/BOSS_zbins_wp/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,gal,zmin,zmax)
+        obstool = ''
+        colwp   = 'col1'
+        pythonsel = [(wp[:,0]>smin)&(wp[:,0]<smax)]
+        wp = wp[tuple(pythonsel)]
+
+
     # observation
     obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
-    selwp = (obscfwp['col3']<smax)&(obscfwp['col3']>=smin)
+    selwp = (obscfwp[colwp]<smax)&(obscfwp[colwp]>=smin)
     OBSwp   = obscfwp['col4'][selwp]
-    """
-    """
     # Read the covariance matrices
     hdu = fits.open(covfitswp) 
-    mockswp = hdu[1].data[GC+'mocks'][binminwp:binmaxwp,:]
+    mockswp = hdu[1].data[GC+'mocks']#[binminwp:binmaxwp,:]
     Nmockwp = mockswp.shape[1] 
     errbarwp = np.std(mockswp,axis=1)
-    hdu.close()
-    """
-    """    
+    hdu.close()  
+    #import pdb;pdb.set_trace()
+
     # plot the wp
+    errbarwp = np.std(mockswp,axis=1)
     fig = plt.figure(figsize=(6,7))
     spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
     ax = np.empty((2,1), dtype=type(plt.axes))
-    #import pdb;pdb.set_trace()
     for k in range(1):
         values=[np.zeros_like(OBSwp),OBSwp]
-        err   = [np.ones_like(OBSwp),wp[:,2]]
+        err   = [np.ones_like(OBSwp),errbarwp]
 
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-            ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color='k', marker='D',ecolor='k',ls="none",label='SHAM_pi80')
-            ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color='b',label='PIP_pi80')
+            ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='D',ecolor='k',ls="none",label='obs 1$\sigma$ $\pi$80')
+            ax[j,k].plot(swp,(wp[:,1]-values[j])/err[j],color='b',label='SHAM $\pi$80')
             #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",,label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
@@ -585,4 +595,4 @@ if finish:
 
     plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
     plt.close()
-    """
+    
