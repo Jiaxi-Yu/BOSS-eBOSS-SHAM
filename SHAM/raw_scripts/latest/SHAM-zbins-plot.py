@@ -447,7 +447,7 @@ if finish:
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
                 plt.ylim(-3,3)
 
-    plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,rmin,rmax),bbox_tight=True)
+    plt.savefig('{}cf_{}_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,zmin,zmax,rmin,rmax),bbox_tight=True)
     plt.close()
 
     # plot the 2PCF multipoles 2-25Mpc/h
@@ -490,7 +490,7 @@ if finish:
                         plt.legend(loc=2)
                     else:
                         plt.legend(loc=1)
-                    plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+                    plt.title('correlation function {} at {}<z<{}: {} in {}'.format(name,zmin,zmax,gal,GC))
                 if (j==1):
                     ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
                     plt.ylim(-3,3)
@@ -552,8 +552,8 @@ if finish:
         covfitswp = '{}catalog/BOSS_zbins_wp/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,gal,zmin,zmax)
         obstool = ''
         colwp   = 'col1'
-        pythonsel = [(wp[:,0]>smin)&(wp[:,0]<smax)]
-        wp = wp[tuple(pythonsel)]
+        pythonsel = (wp[:,0]>smin)&(wp[:,0]<smax)
+        wp = wp[tuple(pythonsel),:]
 
 
     # observation
@@ -569,6 +569,7 @@ if finish:
     #import pdb;pdb.set_trace()
 
     # plot the wp
+    errbarwp = np.std(mockswp,axis=1)
     fig = plt.figure(figsize=(6,7))
     spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
     ax = np.empty((2,1), dtype=type(plt.axes))
@@ -578,7 +579,7 @@ if finish:
 
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-            ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='D',ecolor='k',ls="none",label='obs 1$\sigma$ $\pi$80')
+            ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='obs 1$\sigma$ $\pi$80')
             ax[j,k].plot(swp,(wp[:,1]-values[j])/err[j],color='b',label='SHAM $\pi$80')
             #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",,label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('rp (Mpc $h^{-1}$)')
@@ -587,7 +588,7 @@ if finish:
                 plt.yscale('log')
                 ax[j,k].set_ylabel('wp')
                 plt.legend(loc=0)
-                plt.title('projected 2pcf: {} in {}'.format(gal,GC))
+                plt.title('projected 2pcf at {}<z<{}: {} in {}'.format(zmin,zmax,gal,GC))
             if (j==1):
                 ax[j,k].set_ylabel('$\Delta$ wp/err')
                 plt.ylim(-3,3)
