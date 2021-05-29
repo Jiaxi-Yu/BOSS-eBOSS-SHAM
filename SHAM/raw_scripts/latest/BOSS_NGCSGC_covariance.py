@@ -69,11 +69,11 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
             mockmono[n],mockquad[n],mockhexa[n]= temp_array
             if n==0:
                 print('mock reading&2PCF calculation start')
-            elif (n+1)%(nfile/10)==0:
-                print('{} {} bin PATCHY mocks at {}<z<{} has finished {}%'.format(gal,rscale,Zrange[k],Zrange[k+znum],(n+1)//(nfile/100)))
+            elif (n+1)%(np.ceil(nfile/10))==0:
+                print('{} {} bin PATCHY mocks at {}<z<{} has finished {}%'.format(gal,rscale,Zrange[k],Zrange[k+znum],(n+1)//(np.ceil(nfile/100))))
         pool.close() 
         pool.join()
-
+        print('finished')
         # stack mono, mono+quad, mono+quad+hexa
         NGC  = [np.array([mockmono[k][0] for k in range(nfile)]).T,\
                 np.vstack((np.array([mockmono[k][0] for k in range(nfile)]).T,\
@@ -101,6 +101,7 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
             cols.append(fits.Column(name='NGCmocks',format=str(nfile)+'D',array=NGC[j]))
             cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC[j]))
             cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC[j]))
+            print(name,' saved')
 
             hdulist = fits.BinTableHDU.from_columns(cols)
             hdulist.header.update(sbins=nbins,nmu=nmu)
