@@ -13,6 +13,11 @@ home = '/global/homes/j/jiaxi/'
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
 
+def gaussian(x,a,sigma,mu):
+    return a/np.sqrt(2*np.pi)/sigma*np.exp(-(x-mu)**2/(2*sigma**2))
+def lorentzian(x,a,w,p):#
+    return a/(1+((x-p)*2/w)**2)
+
 def targetid2platemjdfiber(targetid):
     fiber = targetid % 10000
     mjd = (targetid // 10000) % 100000
@@ -233,7 +238,6 @@ def jacknife_hist(dvsel,bins,nsub,save=0,gaussian=True):
         output = np.std(dens)
     
     return output
-        
     
 def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0):
     #-- select inside redshift range, reject outliers
@@ -249,7 +253,7 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     outliern = len(dv[(dv>-1000)&(dv<-max_dv)])
     outlierp = len(dv[(dv<1000)&(dv>max_dv)])
     dens,BINS = np.histogram(dvsel,bins=bins)
-    norm = 1#np.sum(dens)
+    norm = np.sum(dens)
     dens = dens/norm
     
     # histogram jacknife
@@ -258,12 +262,7 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
     
-    #-- fit a Gaussian 
-    def gaussian(x,a,sigma,mu):
-        return a/np.sqrt(2*np.pi)/sigma*np.exp(-(x-mu)**2/(2*sigma**2))
-    def lorentzian(x,a,w,p):#
-        return a/(1+((x-p)*2/w)**2)
-    
+    #-- fit a Gaussian
     popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histstd)
     res = gaussian(BIN,*popt)-dens
     popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histstd)
@@ -273,26 +272,129 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
     print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[abs(dv)<1000])-STD*np.sqrt(nsubvolume),np.std(dv[abs(dv)<1000])+STD*np.sqrt(nsubvolume)))
     print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))    
-    print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt1[1]-np.sqrt(np.diag(pcov1))[1],popt1[1]+np.sqrt(np.diag(pcov1))[1]))    
+    print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(popt1[1]-np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2)),(popt1[1]+np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2))))    
         
     # plot the gaussian
-    plt.figure(figsize=(7.5,6))
+    plt.figure(figsize=(8,6))
     plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
     plt.scatter(-max_dv,outliern/norm,c='r')
     plt.scatter(max_dv,outlierp/norm,c='r')
-    plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\mu = {:.1f} \pm {:.1f}, \ \sigma = {:.1f} \pm {:.1f}$, $\chi^2$ /dof = {:.1f}/{}'.format(popt[2],np.sqrt(np.diag(pcov))[2], popt[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
-    plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit $p_0 = {:.1f} \pm {:.1f}, w = {:.1f} \pm {:.1f}$, $\chi^2$ /dof = {:.1f}/{}'.format(popt1[2],np.sqrt(np.diag(pcov1))[2], popt1[1],np.sqrt(np.diag(pcov1))[1],res1.dot(histcovR.dot(res1)),len(res1)))
+    plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(popt[1],np.sqrt(np.diag(pcov))[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
+    plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$,$\chi^2$ /dof = {3:.1f}/{4:}'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
     plt.xlabel(r'$\Delta v$ (km/s)')
     plt.ylabel('counts')
     plt.legend(loc=1)
     #plt.yscale('log')
-    plt.ylim(-20,max(dens)*1.3)
+    plt.ylim(0,max(dens)*1.3)
     if title:
         plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}'.format(dv[w].size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
     plt.tight_layout()
     if save:
         plt.savefig(save, bbox_inches='tight')
     plt.close()
+    
+def lnprior(par):
+    a, fwhm,maxpos = par
+    if 0 <= a <= 5 and 0 <= fwhm <= 160 and -5 <= maxpos <= 5:
+        return 0.0
+    return -np.inf  
+
+
+def plot_deltav_hist_emcee(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0):
+    #-- select inside redshift range, reject outliers
+    dc = info['delta_chi2']
+    dv = info['delta_v']
+    z = info['z']
+    w = (dc > min_deltachi2)&(abs(dv)<max_dv)
+    dvsel = dv[w]
+    
+    # binning dv[w]
+    binwidth = 5
+    bins = np.arange(-max_dv, max_dv+1, binwidth)
+    outliern = len(dv[(dv>-1000)&(dv<-max_dv)])
+    outlierp = len(dv[(dv<1000)&(dv>max_dv)])
+    dens,BINS = np.histogram(dvsel,bins=bins)
+    norm = np.sum(dens)
+    dens = dens/norm
+    
+    # histogram jacknife
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:40]+save[-23:-14]+'-maxdv'+str(max_dv)+'-jacknife.dat')
+    hists =hists/norm
+    histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
+    histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
+    
+    def lnprob_gaussian(par):
+        lp = lnprior(par)
+        if not np.isfinite(lp):
+            return -np.inf
+        res = gaussian(BIN,*par)-dens
+        return lp - 0.5 * res.dot(histcovR.dot(res))
+
+    def lnprob_lorentzian(par):
+        lp = lnprior(par)
+        if not np.isfinite(lp):
+            return -np.inf
+        res = lorentzian(BIN,*par)-dens
+        return lp - 0.5 * res.dot(histcovR.dot(res))
+
+    # emcee fitting
+    import emcee
+    ndim, nwalkers = 3, 100
+    ini = np.array([0.1, 50., 0.])
+    ini = [ini + 1e-4 * np.random.randn(ndim) \
+            for i in range(nwalkers)]
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, \
+            lnprob_gaussian)    
+    sampler.run_mcmc(ini, 500)
+    samples = sampler.chain[:, 100:, :].reshape((-1, ndim))
+    a,sigma,mu = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), \
+                    zip(*np.percentile(samples, [16, 50, 84], axis=0)))
+    res = gaussian(BIN,a[0],sigma[0],mu[0])-dens
+    # lorentzian
+    ini = np.array([0.1, 50., 0.])
+    ini = [ini + 1e-4 * np.random.randn(ndim) \
+            for i in range(nwalkers)]
+    sampler1 = emcee.EnsembleSampler(nwalkers, ndim, \
+            lnprob_lorentzian)
+    sampler1.run_mcmc(ini, 500)
+    samples1 = sampler1.chain[:, 100:, :].reshape((-1, ndim))
+    a1,w,p = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), \
+                    zip(*np.percentile(samples1, [16, 50, 84], axis=0)))
+    res1 = lorentzian(BIN,a1[0],w[0],p[0])-dens
+
+    # directly calculate the std
+    STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
+    print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[abs(dv)<1000])-STD*np.sqrt(nsubvolume),np.std(dv[abs(dv)<1000])+STD*np.sqrt(nsubvolume)))
+    print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,sigma[0]-sigma[1],sigma[0]+sigma[2]))
+    print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(w[0]-w[1])/2/np.sqrt(2*np.log(2)),(w[0]+w[2])/2/np.sqrt(2*np.log(2))))
+
+    # plot the posterior
+    import corner
+    fig = corner.corner(samples, labels=[r'a', r'$\sigma$', r'$\mu$'])
+    plt.savefig(save[:-4]+'_posteriorG.png')
+    plt.close()
+    fig = corner.corner(samples1, labels=[r'a', r'w', r'$p_0$'])
+    plt.savefig(save[:-4]+'_posteriorL.png')
+    plt.close()
+    # plot the Delta v vs models
+    plt.figure(figsize=(8,6))
+    plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
+    plt.scatter(-max_dv,outliern/norm,c='r')
+    plt.scatter(max_dv,outlierp/norm,c='r')
+    plt.plot(BIN, gaussian(BIN,a[0],sigma[0],mu[0]), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(sigma[0],sigma[1],sigma[2],res.dot(histcovR.dot(res)),len(res)))
+    plt.plot(BIN, lorentzian(BIN,a1[0],w[0],p[0]),label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(w[0]/2/np.sqrt(2*np.log(2)),w[1]/2/np.sqrt(2*np.log(2)),w[2]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
+    plt.xlabel(r'$\Delta v$ (km/s)')
+    plt.ylabel('normalised counts')
+    plt.legend(loc=1)
+    #plt.yscale('log')
+    plt.ylim(0,max(dens)*1.3)
+    #if title:
+    #    plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}'.format(dv[w].size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
+    plt.tight_layout()
+    if save:
+        plt.savefig(save[:-4]+'_emcee.png', bbox_inches='tight')
+    plt.close()
+    
 
 def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=500,spec1d=0, redrock=0, redmonster=0):
 
@@ -310,6 +412,7 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
         info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redmonster=1)
 
     plot_deltav_hist(info,min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
+    plot_deltav_hist_emcee(info,min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
         
 
 # eBOSS LRG:
@@ -407,3 +510,4 @@ def plot_all_deltav_deltachi2(spall,proj,zmin,zmax,target='LRG',dchi2=9,spec1d=0
     plot_deltav_deltachi2(info1,dchi2,title='eBOSS {} repeats - redrock'.format(target), 
                save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.pdf'.format(home,proj,target,zsource,dchi2,zmin,zmax))
 
+#########################################################################################    
