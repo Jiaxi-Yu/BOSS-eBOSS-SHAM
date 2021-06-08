@@ -2,10 +2,18 @@ from astropy.io import fits
 from astropy.table import Table, join
 import fitsio
 import numpy as np
-import pylab as plt
 from scipy.optimize import curve_fit
+import pylab as plt
 import os
-
+"""
+from lmfit.models import VoigtModel
+mod = VoigtModel()
+from lmfit.models import LorentzianModel
+mod = LorentzianModel()
+pars = mod.guess(dens, x=BIN)
+out = mod.fit(dens, pars, x=BIN)
+print(out.fit_report(min_correl=0.25))
+"""
 
 c_kms = 299792.
 home = '/global/homes/j/jiaxi/'
@@ -16,7 +24,7 @@ plt.rc('font', family='serif', size=12)
 def gaussian(x,a,sigma,mu):
     return a/np.sqrt(2*np.pi)/sigma*np.exp(-(x-mu)**2/(2*sigma**2))
 def lorentzian(x,a,w,p):#
-    return a/(1+((x-p)*2/w)**2)
+    return a/np.pi/w/(1+((x-p)*2/w)**2)
 
 def targetid2platemjdfiber(targetid):
     fiber = targetid % 10000
@@ -28,7 +36,7 @@ def write_spall_redrock_join(spallname, zbestname, output):
 
     print('Reading spAll')
     spall = fitsio.read(spallname,
-                columns=['PLATE', 'MJD', 'FIBERID', 'THING_ID',
+                columns=['PLATzE', 'MJD', 'FIBERID', 'THING_ID',
                          'BOSS_TARGET1', 'EBOSS_TARGET0', 'EBOSS_TARGET1', 
                          'SN_MEDIAN', 
                          'SPEC1_G', 'SPEC1_R', 'SPEC1_I', 
@@ -115,19 +123,21 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
         chi2diff_field = 'RCHI2DIFF_NOQSO'
         z_field = 'Z_NOQSO'
         dof_field = 'DOF'
+        
     elif redrock:
         zwar_field = 'ZWARN_REDROCK'
         chi2diff_field = 'DELTACHI2_REDROCK'
         z_field = 'Z_REDROCK'
+        zerr_field = 'ZERR_REDROCK'
     elif redmonster:
         zwar_field = 'ZWARNING_REDMONSTER'
         chi2diff_field = 'RCHI2DIFF_REDMONSTER'
         z_field = 'Z_REDMONSTER'
         dof_field = 'DOF_REDMONSTER'
-    print(zwar_field, ',',z_field)    
+    zerr_field = 'ZERR_REDROCK'
     # select repeats
     if os.path.exists('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax)):
-        info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'z':[], 'sn_i': [], 'sn_z': []}
+        info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'z':[],'zerr':[], 'sn_i': [], 'sn_z': []}
         hdu = fits.open('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax))
         data = hdu[1].data
         hdu.close()
@@ -144,7 +154,7 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
 
         spall = spall[w]
 
-        info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'z':[], 'sn_i': [], 'sn_z': []}
+        info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'zerr':[], 'z':[], 'sn_i': [], 'sn_z': []}
 
         uthid, index, inverse, counts = np.unique(spall['THING_ID'], return_index=True, return_inverse=True, return_counts=True)
 
@@ -176,10 +186,11 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
                 dc1 *= 1 + (spall[dof_field][j1] -1)
                 dc2 *= 1 + (spall[dof_field][j2] -1)
 
-            dv = (z1-z2)*c_kms/(1+np.min([z1, z2]))
+            dv = (z1-z2)*c_kms/(1+z_clustering)
             dc_min = np.min([dc1, dc2])
             sn_i = np.min([spall['SN_MEDIAN'][j1, 3], spall['SN_MEDIAN'][j2, 3]])
             sn_z = np.min([spall['SN_MEDIAN'][j1, 4], spall['SN_MEDIAN'][j2, 4]])
+            info['zerr'].append(np.sqrt(spall[zerr_field][j1]**2+spall[zerr_field][j2]**2)*c_kms/(1+z_clustering))
             info['thids'].append(thid) 
             info['delta_v'].append(dv)
             info['delta_chi2'].append(dc_min)
@@ -239,11 +250,12 @@ def jacknife_hist(dvsel,bins,nsub,save=0,gaussian=True):
     
     return output
     
-def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0):
+def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0):
     #-- select inside redshift range, reject outliers
     dc = info['delta_chi2']
     dv = info['delta_v']
     z = info['z']
+    zerr = info['zerr']
     w = (dc > min_deltachi2)&(abs(dv)<max_dv)
     dvsel = dv[w]
     
@@ -257,12 +269,12 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     dens = dens/norm
     
     # histogram jacknife
-    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:40]+save[-23:-14]+'-maxdv'+str(max_dv)+'-jacknife.dat')
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:29]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife.dat')
     hists =hists/norm
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
     
-    #-- fit a Gaussian
+    #-- fit a Gaussian: delta_v
     popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histstd)
     res = gaussian(BIN,*popt)-dens
     popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histstd)
@@ -274,7 +286,7 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))    
     print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(popt1[1]-np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2)),(popt1[1]+np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2))))    
         
-    # plot the gaussian
+    # plot the gaussian: delta_v
     plt.figure(figsize=(8,6))
     plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
     plt.scatter(-max_dv,outliern/norm,c='r')
@@ -286,25 +298,55 @@ def plot_deltav_hist(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=
     plt.legend(loc=1)
     #plt.yscale('log')
     plt.ylim(0,max(dens)*1.3)
+
     if title:
-        plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}'.format(dv[w].size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
+        plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}, fitting by curve_fit'.format(dvsel.size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
     plt.tight_layout()
     if save:
         plt.savefig(save, bbox_inches='tight')
     plt.close()
+        
+    #-- fit a Gaussian: zerr
+    ratios = np.linspace(-5,5,101)
+    ratio = (ratios[1:]+ratios[:-1])/2
+    ratiodens,ratiobin = np.histogram(dv/zerr,ratios)
+    ratiodens = ratiodens/len(ratiodens)
+    
+    BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:29]+target+'-maxdv'+str(max_dv)+'-jacknife-zerr.dat')
+    hists =hists/len(ratiodens)
+    histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
+    histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
+    
+    popt2, pcov2 = curve_fit(gaussian,ratio,ratiodens,sigma=histstd)
+    res2 = gaussian(ratio,*popt2)-ratiodens
+         
+    plt.figure(figsize=(8,6))
+    plt.scatter(ratio,ratiodens)
+    plt.errorbar(ratio,ratiodens,histstd,color='k', marker='o',ecolor='k',ls="none")
+    plt.plot(ratio, gaussian(ratio,*popt2), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(popt2[1],np.sqrt(np.diag(pcov2))[1],np.sqrt(np.diag(pcov2))[1],res2.dot(histcovR.dot(res2)),len(res2)))
+    plt.xlabel(r'$\Delta v$ (km/s)')
+    plt.ylabel('normalised counts')
+    plt.legend(loc=1)
+    if title:
+        plt.title(title+' repetitive samples: $\Delta$ v v.s. zerr')
+        #plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}, fitting by curve_fit'.format(dv[w].size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
+    plt.tight_layout()
+    if save:
+        plt.savefig(save[:-4]+'-zerr.png', bbox_inches='tight')
+    plt.close()
     
 def lnprior(par):
     a, fwhm,maxpos = par
-    if 0 <= a <= 5 and 0 <= fwhm <= 160 and -5 <= maxpos <= 5:
+    if 0 <= a <= 20 and 0 <= fwhm <= 160 and -10 <= maxpos <= 10:
         return 0.0
     return -np.inf  
 
-
-def plot_deltav_hist_emcee(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0):
+def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0):
     #-- select inside redshift range, reject outliers
     dc = info['delta_chi2']
     dv = info['delta_v']
     z = info['z']
+    zerr = info['zerr']
     w = (dc > min_deltachi2)&(abs(dv)<max_dv)
     dvsel = dv[w]
     
@@ -318,7 +360,7 @@ def plot_deltav_hist_emcee(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,
     dens = dens/norm
     
     # histogram jacknife
-    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:40]+save[-23:-14]+'-maxdv'+str(max_dv)+'-jacknife.dat')
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:29]+target+'-maxdv'+str(max_dv)+'-jacknife.dat')
     hists =hists/norm
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
@@ -327,20 +369,20 @@ def plot_deltav_hist_emcee(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,
         lp = lnprior(par)
         if not np.isfinite(lp):
             return -np.inf
-        res = gaussian(BIN,*par)-dens
-        return lp - 0.5 * res.dot(histcovR.dot(res))
+        resG = gaussian(BIN,*par)-dens
+        return lp - 0.5 * resG.dot(histcovR.dot(resG))
 
     def lnprob_lorentzian(par):
         lp = lnprior(par)
         if not np.isfinite(lp):
             return -np.inf
-        res = lorentzian(BIN,*par)-dens
-        return lp - 0.5 * res.dot(histcovR.dot(res))
+        resL = lorentzian(BIN,*par)-dens
+        return lp - 0.5 * resL.dot(histcovR.dot(resL))
 
     # emcee fitting
     import emcee
     ndim, nwalkers = 3, 100
-    ini = np.array([0.1, 50., 0.])
+    ini = np.array([1, 50., 0.])
     ini = [ini + 1e-4 * np.random.randn(ndim) \
             for i in range(nwalkers)]
     sampler = emcee.EnsembleSampler(nwalkers, ndim, \
@@ -388,8 +430,8 @@ def plot_deltav_hist_emcee(info,max_dv=500., min_deltachi2=9, nsubvolume = 1000,
     plt.legend(loc=1)
     #plt.yscale('log')
     plt.ylim(0,max(dens)*1.3)
-    #if title:
-    #    plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}'.format(dv[w].size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
+    if title:
+        plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}, fitting by emcee'.format(dvsel.size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
     plt.tight_layout()
     if save:
         plt.savefig(save[:-4]+'_emcee.png', bbox_inches='tight')
@@ -411,13 +453,15 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
         zsource='redmonster'
         info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redmonster=1)
 
-    plot_deltav_hist(info,min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
-    plot_deltav_hist_emcee(info,min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}-histogram.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
+    plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
+    plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
         
 
 # eBOSS LRG:
 #write_spall_redrock_join('spAll-v5_13_0.fits', 'spAll_trimmed_pREDROCK.fits','spAll-zbest-v5_13_0.fits')
 #write_spall_repeats('spAll-zbest-v5_13_0.fits', 'spAll-zbest-v5_13_0-repeats-2x_redrock.fits')
+
+#plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin=0.2,zmax=0.43,target='LOWZ',dchi2=9,spec1d=1,maxdv=140)
 
 zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
 zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
