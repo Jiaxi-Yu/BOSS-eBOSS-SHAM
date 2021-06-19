@@ -28,7 +28,7 @@ def write_spall_redrock_join(spallname, zbestname, output):
 
     print('Reading spAll')
     spall = fitsio.read(spallname,
-                columns=['PLATzE', 'MJD', 'FIBERID', 'THING_ID',
+                columns=['PLATE', 'MJD', 'FIBERID', 'THING_ID',
                          'BOSS_TARGET1', 'EBOSS_TARGET0', 'EBOSS_TARGET1', 
                          'SN_MEDIAN', 
                          'SPEC1_G', 'SPEC1_R', 'SPEC1_I', 
@@ -282,7 +282,8 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
 
     mod = PseudoVoigtModel()
     pars = mod.guess(dens, x=BIN)
-    out = mod.fit(dens, pars, x=BIN)
+    out = mod.fit(dens, pars, x=BIN,weights=1/histstd**2)
+    res2 = out.best_fit - dens
     
     # directly calculate the std
     STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
@@ -298,7 +299,7 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
     plt.scatter(max_dv,outlierp/norm,c='r')
     plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$/dof = {3:.1f}/{4:}'.format(popt[1],np.sqrt(np.diag(pcov))[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
     plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$,$\chi^2$ /dof = {3:.1f}/{4:}'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
-    plt.plot(BIN, out.best_fit,c='green',label=r'PseudoVoigt fit $\sigma$ = {0:.1f}, {1:.1f}% Lorentzian, $\chi^2$/dof = {2:.1f}/{3:.1f}'.format(out.best_values['sigma'],out.best_values['fraction']),(dens-out.best_fit)**2,len(res))# $p_0 = {:.1f} \pm {:.1f}$, '.format(popt1[2],np.sqrt(np.diag(pcov1))[2])+r'w/(2$\sqrt{2ln2})$'+' = ${:.1f} \pm {:.1f}$'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2))))
+    plt.plot(BIN, out.best_fit,c='green',label=r'PseudoVoigt fit $\sigma$ = {0:.1f}, {1:.1f}% Lorentzian, $\chi^2$/dof = {2:.1f}/{3:}'.format(out.best_values['sigma'],out.best_values['fraction'],res2.dot(histcovR.dot(res2)),len(res)))
     plt.xlabel(r'$\Delta v$ (km/s)')
     plt.ylabel('counts')
     plt.legend(loc=1)
@@ -335,7 +336,6 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
     plt.legend(loc=1)
     if title:
         plt.title(title+' repetitive samples: $\Delta$ v v.s. zerr')
-        #plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}, fitting by curve_fit'.format(dv[w].size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
     plt.tight_layout()
     if save:
         plt.savefig(save[:-4]+'-zerr.png', bbox_inches='tight')
