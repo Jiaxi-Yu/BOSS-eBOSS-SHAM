@@ -5,15 +5,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 import pylab as plt
 import os
-"""
-from lmfit.models import VoigtModel
-mod = VoigtModel()
-from lmfit.models import LorentzianModel
-mod = LorentzianModel()
-pars = mod.guess(dens, x=BIN)
-out = mod.fit(dens, pars, x=BIN)
-print(out.fit_report(min_correl=0.25))
-"""
+from lmfit.models import PseudoVoigtModel
 
 c_kms = 299792.
 home = '/global/homes/j/jiaxi/'
@@ -154,7 +146,9 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
 
         spall = spall[w]
 
-        info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'zerr':[], 'z':[], 'sn_i': [], 'sn_z': []}
+        info = {'thids': [], 'delta_v':[], 'delta_chi2':[], \
+                'z':[], 'zerr':[],'zerr0':[],'zerr1':[],\
+                'sn_i': [], 'sn_z': []}
 
         uthid, index, inverse, counts = np.unique(spall['THING_ID'], return_index=True, return_inverse=True, return_counts=True)
 
@@ -190,13 +184,18 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
             dc_min = np.min([dc1, dc2])
             sn_i = np.min([spall['SN_MEDIAN'][j1, 3], spall['SN_MEDIAN'][j2, 3]])
             sn_z = np.min([spall['SN_MEDIAN'][j1, 4], spall['SN_MEDIAN'][j2, 4]])
-            info['zerr'].append(np.sqrt(spall[zerr_field][j1]**2+spall[zerr_field][j2]**2)*c_kms/(1+z_clustering))
             info['thids'].append(thid) 
             info['delta_v'].append(dv)
             info['delta_chi2'].append(dc_min)
             info['z'].append(z_clustering)
             info['sn_i'].append(sn_i)
             info['sn_z'].append(sn_z)
+            # save sqrt(sum(zerr)), zerr[flag], zerr[no flag]
+            info['zerr'].append(np.sqrt(spall[zerr_field][j1]**2+spall[zerr_field][j2]**2)*c_kms/(1+z_clustering))
+            info['zerr1'].append(spall["SPECPRIMARY"][j2]*spall[zerr_field][j2]+spall["SPECPRIMARY"][j1]*spall[zerr_field][j1])
+            flaginv2 = 1-spall["SPECPRIMARY"][j2];flaginv1 = 1-spall["SPECPRIMARY"][j1]
+            info['zerr0'].append(flaginv2*spall[zerr_field][j2]+flaginv1*spall[zerr_field][j1])
+
         zflag = (np.array(info['z'])>zmin)&(np.array(info['z'])<zmax)
         print('{}<z<{} has {} duplicates'.format(zmin,zmax,len(np.array(info['z'])[zflag])))
         
@@ -274,25 +273,32 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
     
-    #-- fit a Gaussian: delta_v
+    #-- fit delta_v with Gaussian, Lorentzian and Voigt line shape
     popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histstd)
     res = gaussian(BIN,*popt)-dens
+
     popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histstd)
     res1 = lorentzian(BIN,*popt1)-dens
+
+    mod = PseudoVoigtModel()
+    pars = mod.guess(dens, x=BIN)
+    out = mod.fit(dens, pars, x=BIN)
     
     # directly calculate the std
     STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
     print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[abs(dv)<1000])-STD*np.sqrt(nsubvolume),np.std(dv[abs(dv)<1000])+STD*np.sqrt(nsubvolume)))
     print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))    
     print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(popt1[1]-np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2)),(popt1[1]+np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2))))    
+    print('Voigt fit in [-{},{}]: Vsmear = {:.1f}, {:.1f}% Lorentzian '.format(max_dv,max_dv,out.best_values['sigma'],out.best_values['fraction']))
         
     # plot the gaussian: delta_v
     plt.figure(figsize=(8,6))
     plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
     plt.scatter(-max_dv,outliern/norm,c='r')
     plt.scatter(max_dv,outlierp/norm,c='r')
-    plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(popt[1],np.sqrt(np.diag(pcov))[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
+    plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$/dof = {3:.1f}/{4:}'.format(popt[1],np.sqrt(np.diag(pcov))[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
     plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$,$\chi^2$ /dof = {3:.1f}/{4:}'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
+    plt.plot(BIN, out.best_fit,c='green',label=r'PseudoVoigt fit $\sigma$ = {0:.1f}, {1:.1f}% Lorentzian, $\chi^2$/dof = {2:.1f}/{3:.1f}'.format(out.best_values['sigma'],out.best_values['fraction']),(dens-out.best_fit)**2,len(res))# $p_0 = {:.1f} \pm {:.1f}$, '.format(popt1[2],np.sqrt(np.diag(pcov1))[2])+r'w/(2$\sqrt{2ln2})$'+' = ${:.1f} \pm {:.1f}$'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2))))
     plt.xlabel(r'$\Delta v$ (km/s)')
     plt.ylabel('counts')
     plt.legend(loc=1)
