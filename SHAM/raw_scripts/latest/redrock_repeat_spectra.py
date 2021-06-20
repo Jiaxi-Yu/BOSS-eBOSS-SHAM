@@ -108,25 +108,19 @@ def get_targets(spall, target='LRG'):
 
     return spall[w]
 
-def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redrock=0, redmonster=0):
+def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redrock=0, spec1ddr16=0):
     # zwarning, chi2difference
     if spec1d:
         zwar_field = 'ZWARNING_NOQSO'
         chi2diff_field = 'RCHI2DIFF_NOQSO'
         z_field = 'Z_NOQSO'
-        dof_field = 'DOF'
-        
+        dof_field = 'DOF'        
     elif redrock:
         zwar_field = 'ZWARN_REDROCK'
         chi2diff_field = 'DELTACHI2_REDROCK'
-        z_field = 'Z_REDROCK'
-        zerr_field = 'ZERR_REDROCK'
-    elif redmonster:
-        zwar_field = 'ZWARNING_REDMONSTER'
-        chi2diff_field = 'RCHI2DIFF_REDMONSTER'
-        z_field = 'Z_REDMONSTER'
-        dof_field = 'DOF_REDMONSTER'
+        z_field = 'Z_REDROCK'    
     zerr_field = 'ZERR_REDROCK'
+
     # select repeats
     if os.path.exists('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax)):
         info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'z':[],'zerr':[], 'sn_i': [], 'sn_z': []}
@@ -444,7 +438,7 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     plt.close()
     
 
-def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=500,spec1d=0, redrock=0, redmonster=0):
+def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=500,spec1d=0, redrock=0 ):
 
     spall = Table.read(spall)
     sp = get_targets(spall, target=target)
@@ -455,9 +449,6 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
     elif redrock:
         zsource = 'redrock'
         info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redrock=1)
-    elif redmonster:
-        zsource='redmonster'
-        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redmonster=1)
 
     plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
     plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
@@ -466,14 +457,13 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
 # eBOSS LRG:
 #write_spall_redrock_join('spAll-v5_13_0.fits', 'spAll_trimmed_pREDROCK.fits','spAll-zbest-v5_13_0.fits')
 #write_spall_repeats('spAll-zbest-v5_13_0.fits', 'spAll-zbest-v5_13_0-repeats-2x_redrock.fits')
-
+#write_spall_repeats('specObj-dr16.fits', 'spAll-zbest-dr16-repeats-2x_LOWZ.fits')
 #plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin=0.2,zmax=0.43,target='LOWZ',dchi2=9,spec1d=1,maxdv=140)
 
 zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
 zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
 maxdvs = [235,275,275,300,255,360]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    #plot_all_deltav_deltachi2('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1)
     plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv)
 
 #write_spall_repeats('spAll-v5_4_45.fits', 'spAll-zbest-v5_4_45-repeats-2x.fits')
@@ -482,17 +472,18 @@ zmins = [0.43,0.51,0.57,0.43]
 zmaxs = [0.51,0.57,0.7,0.7]
 maxdvs = [205,200,235,270]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    #plot_all_deltav_deltachi2('spAll-zbest-v5_4_45-repeats-2x.fits','BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1)
     plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1,maxdv=maxdv)
 
 zmins = [0.2, 0.33,0.2]
 zmaxs = [0.33,0.43,0.43]
 maxdvs = [105,140,140]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    #plot_all_deltav_deltachi2('spAll-zbest-v5_4_45-repeats-2x.fits','BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1)
     plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1,maxdv=maxdv)
+    #plot_all_deltav_histograms('spAll-zbest-dr16-repeats-2x_LOWZ.fits','BOSS',zmin,zmax,target='LOWZdr16',dchi2=9,spec1d=1,maxdv=maxdv)
+
 
 ##############################################################################################
+#plot_all_deltav_deltachi2('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1)
 def plot_deltav_deltachi2(info,dchi2=9, title=None, save=0):
     
     dc = info['delta_chi2']
