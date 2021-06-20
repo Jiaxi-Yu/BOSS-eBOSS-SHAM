@@ -8,7 +8,7 @@ import os
 
 c_kms = 299792.
 min_dchi2 = 9
-fc_limit = (62/3600)**2
+fc_limit = (62/3600)**2 # fibre collision limit
 
 # load the total catalogue and the repetitive samples
 scratch = '/global/cscratch1/sd/jiaxi/SHAM/catalog/'
@@ -20,31 +20,48 @@ if gal == 'LRG':
     zmaxs = [1.0]#[0.7,0.8,0.8, 0.9,1.0,1.0]
     maxdvs = [360]#[235,275,275,300,255,360]
     #zmin = 0.6; zmax = 1.0
-    clusteringN,clusteringS = scratch+'eBOSS_clustering_fits/eBOSS_LRG_clustering_NGC_v7_2.dat.fits',scratch+'eBOSS_clustering_fits/eBOSS_LRG_clustering_SGC_v7_2.dat.fits'
+    clusteringN = scratch+'eBOSS_clustering_fits/eBOSS_LRG_clustering_NGC_v7_2.dat.fits'
+    clusteringS = scratch+'eBOSS_clustering_fits/eBOSS_LRG_clustering_SGC_v7_2.dat.fits'
+    completefile = '/global/cscratch1/sd/jiaxi/SHAM/catalog/spAll-zbest-v5_13_0.fits'
+    z_field = 'Z_REDROCK'
+    zerr_field = 'ZERR_REDROCK'
+    ra_field = 'RA_REDROCK'
+    dec_field = 'DEC_REDROCK'
 elif gal == 'CMASS':
     proj='BOSS'
     zmins = [0.43]#[0.43,0.51,0.57,0.43]
     zmaxs = [0.7]#[0.51,0.57,0.7,0.7]
     maxdvs = [270]#[205,200,235,270]
     #zmin = 0.43; zmax = 0.7
-    clusteringN,clusteringS = scratch+'BOSS_data/galaxy_DR12v5_CMASS_North.fits.gz',scratch+'BOSS_data/galaxy_DR12v5_CMASS_South.fits.gz'
+    clusteringN = scratch+'BOSS_data/galaxy_DR12v5_CMASS_North.fits.gz'
+    clusteringS = scratch+'BOSS_data/galaxy_DR12v5_CMASS_South.fits.gz'
+    completefile = '/global/cscratch1/sd/jiaxi/SHAM/catalog/spAll-zbest-v5_13_0.fits'
+    z_field = 'Z_NOQSO'
+    zerr_field = 'ZERR_REDROCK'
+    ra_field = 'RA_REDROCK'
+    dec_field = 'DEC_REDROCK'
 elif gal == 'LOWZ':
     proj='BOSS'
     zmins = [0.2]#[0.2, 0.33,0.2]
     zmaxs = [0.43]#[0.33,0.43,0.43]
     maxdvs = [140]#[105,140,140]
     #zmin = 0.2; zmax = 0.43
-    clusteringN,clusteringS = scratch+'BOSS_data/galaxy_DR12v5_LOWZ_North.fits.gz',scratch+'BOSS_data/galaxy_DR12v5_LOWZ_South.fits.gz'
+    clusteringN = scratch+'BOSS_data/galaxy_DR12v5_LOWZ_North.fits.gz'
+    clusteringS = scratch+'BOSS_data/galaxy_DR12v5_LOWZ_South.fits.gz'
+    completefile = '/global/cscratch1/sd/jiaxi/SHAM/catalog/specObj-dr16.fits'
+    z_field = 'Z_NOQSO'
+    zerr_field = 'Z_ERR_NOQSO'
+    ra_field = 'PLUG_RA'
+    dec_field = 'PLUG_DEC'
 else:
     print("Wrong input")   
 
-
-hdu = fits.open('/global/cscratch1/sd/jiaxi/SHAM/catalog/spAll-zbest-v5_13_0.fits')
+hdu = fits.open(completefile)
 complete = hdu[1].data
 hdu.close()
 targetid_tot = complete['PLATE']*1e9+complete['MJD']*1e4+complete['FIBERID']
 print('the complete sample reading finished.')
-    
+
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
     repeatfile = home+'{}-{}_deltav_z{}z{}.fits.gz'.format(proj,gal,zmin,zmax)
     hdu = fits.open(repeatfile)
@@ -63,48 +80,54 @@ for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
         else:
             TARGETID = clustering[index*partlen:(index+1)*partlen,:]
 
-
         # select the clustering galaxies in the complete catalogue and the repeat catalogue
         repz,zerr = [],[]
         for j,target in enumerate(TARGETID):
             # select the clustering galaxies with targetid from complete
             if gal == 'LRG':
-                poszerr = np.where(complete['RA_REDROCK']==target[0])[0]
-                distance = (complete['RA_REDROCK']-target[0])**2+(complete['DEC_REDROCK']-target[1])**2
+                poszerr = np.where(complete[ra_field]==target[0])[0]
+                distance = (complete[ra_field]-target[0])**2+(complete[dec_field]-target[1])**2
             else:
                 poszerr = np.where(targetid_tot==target[0])[0]
-                distance = (complete['RA_REDROCK']-target[1])**2+(complete['DEC_REDROCK']-target[2])**2
+                distance = (complete[ra_field]-target[1])**2+(complete[dec_field]-target[2])**2
 
             # according to THING_ID from complete==clustering, select the repetitive measurements
             if len(complete['THING_ID'][poszerr])==0:
-                poszerr0 = np.where(distance<fc_limit)[0] # fibre collision limit
+                print('warning! no matching TARGETID, go to position')
+                f = open('{}2.out'.format(gal),'a')
+                f.write('{} {} \n'.format(index*partlen+j,target[0]))
+                f.close()
+                zerr.append(np.nan)
+                repz.append(np.nan)  
+                """
+                position = (distance<fc_limit)&((complete[z_field][poszerr]-target[3])/(1+target[3])*c_kms<1000)
+                poszerr0 = np.where(position)[0] 
                 print('warning! no matching TARGETID, go to position')
                 if len(poszerr0)==0:
                     print('bad! no matching TARGETID and position')
-                    f = open('{}1.out'.format(gal),'a')
+                    f = open('{}2.out'.format(gal),'a')
                     f.write('{} {} \n'.format(index*partlen+j,target[0]))
                     f.close()
                     zerr.append(np.nan)
                     repz.append(np.nan)                  
+                elif len(poszerr0)==1:
+                    pos = np.where(reobs['thids']==np.unique(complete['THING_ID'][poszerr0]))[0]
+                    # if the clustering galaxy has two measurements: zerr = zerr from repeat
+                    zerr.append(reobs['zerr'][pos][0])
+                    repz.append(reobs['delta_v'][pos][0])
+                    print('good! a unique matching by position is found')
+                elif len(poszerr0)>1:
+                    print('two matched position, clustering index:'.format())
+                    pos = np.where(reobs['thids']==np.unique(complete['THING_ID'][poszerr0[0]]))[0]
+                    # if the clustering galaxy has two measurements: zerr = zerr from repeat
+                    zerr.append(reobs['zerr'][pos][0])
+                    repz.append(reobs['delta_v'][pos][0])                        
                 else:
-                    poszerr1 = np.where((complete['Z_REDROCK'][poszerr]-target[3])/(1+target[3])*c_kms<1000)[0] # z catastrophic limit
-                    if len(poszerr1)==1:
-                        pos = np.where(reobs['thids']==np.unique(complete['THING_ID'][poszerr1]))[0]
-                        # if the clustering galaxy has two measurements: zerr = zerr from repeat
-                        zerr.append(reobs['zerr'][pos][0])
-                        repz.append(reobs['delta_v'][pos][0])
-                        print('good! a unique matching by position is found')
-                    elif len(poszerr1)>1:
-                        print('two matched position, clustering index:'.format())
-                        pos = np.where(reobs['thids']==np.unique(complete['THING_ID'][poszerr1[0]]))[0]
-                        # if the clustering galaxy has two measurements: zerr = zerr from repeat
-                        zerr.append(reobs['zerr'][pos][0])
-                        repz.append(reobs['delta_v'][pos][0])                        
-                    else:
-                        # otherwise, they should be the first 
-                        zerr.append((complete['ZERR_REDROCK'][poszerr1]*c_kms/(1+complete['Z_REDROCK'][poszerr1]))[0])
-                        repz.append(np.nan)
-                        print('bad! no matching is found')
+                    # otherwise, they should be the first 
+                    zerr.append((complete[zerr_field][poszerr0]*c_kms/(1+complete[z_field][poszerr0]))[0])
+                    repz.append(np.nan)
+                    print('bad! no matching is found')
+                """
             else:
                 pos = np.where(reobs['thids']==np.unique(complete['THING_ID'][poszerr]))[0]
                 if len(pos)==1:
@@ -113,10 +136,9 @@ for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
                     repz.append(reobs['delta_v'][pos][0])
                 else:
                     # otherwise, they should be the first 
-                    zerr.append((complete['ZERR_REDROCK'][poszerr]*c_kms/(1+complete['Z_REDROCK'][poszerr]))[0])
+                    zerr.append((complete[zerr_field][poszerr]*c_kms/(1+complete[z_field][poszerr]))[0])
                     repz.append(np.nan)
-        print('thread {} finished'.format(index))
-        return np.array([TARGETID,repz,zerr]).T
+        return np.array([TARGETID[:,0],TARGETID[:,1],repz,zerr]).T
 
     def clusteringSEL(fileN,fileS,zmin,zmax,maxdv):
         if os.path.exists(home+'clustering_zerr/{}_targetid_deltav_zerr_z{}z{}.fits.gz'.format(gal,zmin,zmax)):
@@ -160,14 +182,15 @@ for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
                 inputS.append(dataS['Z'])                
                 inputN = np.array(inputN).T
                 inputS = np.array(inputS).T
-            datan = [inputN[:10000]]*nthreads
-            datas = [inputS]*nthreads
+            datan = [inputN[6000:10000]]*nthreads
+    """
+            datas = [inputS[:150]]*nthreads
             
             #import pdb;pdb.set_trace()
             with Pool(processes = nthreads) as p:
                 LRG.append(p.starmap(matching,list(zip(ind,datan))))
             print('NGC matching finished.')
-    """
+
             with Pool(processes = nthreads) as p:
                 LRG.append(p.starmap(matching,list(zip(ind,datas))))
             print('SGC matching finished.')
@@ -181,8 +204,8 @@ for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
             #import pdb;pdb.set_trace()
 
             cols = []
-            formats=['K','D','D','I']
-            for k,colname in enumerate([ID,'delta_v','zerr','flag']):
+            formats=['K','D','D']
+            for k,colname in enumerate([ID,'delta_v','zerr']):
                 cols.append(fits.Column(name=colname,format=formats[k],array=LRGtot[:,k]))
             hdulist = fits.BinTableHDU.from_columns(cols)
             hdulist.writeto(home+'clustering_zerr/{}_targetid_deltav_zerr_z{}z{}.fits.gz'.format(gal,zmin,zmax),overwrite=True)
