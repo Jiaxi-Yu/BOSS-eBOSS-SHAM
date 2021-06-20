@@ -314,9 +314,8 @@ if finish:
         halofile = home+'catalog/UNIT_hlist_'+a_t+'.hdf5'        
         read = time.time()
         f=h5py.File(halofile,"r")
-        sel = f["halo"]['Vpeak'][:]>0
-        if len(f["halo"]['Vpeak'][:][sel])%2 ==1:
-            datac = np.zeros((len(f["halo"]['Vpeak'][:][sel])-1,5))
+        if len(f["halo"]['Vpeak'][:])%2 ==1:
+            datac = np.zeros((len(f["halo"]['Vpeak'][:])-1,5))
             for i,key in enumerate(f["halo"].keys()):
                 datac[:,i] = (f["halo"][key][:][sel])[:-1]
         else:
@@ -353,6 +352,7 @@ if finish:
             # binnning Vpeak of the selected halos
             n,BINS = np.histogram(LRGscat[:,1],range =(0,1500),bins=100)
             
+            np.savetxt(LRGscat[:,1:],'eBOSS-LRG_z{}z{}_seed0.dat'.format(zmin,zmax))
             # transfer to the redshift space
             scathalf = int(len(LRGscat)/2)
             z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
@@ -595,4 +595,3 @@ if finish:
 
     plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax),bbox_tight=True)
     plt.close()
-    
