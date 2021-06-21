@@ -66,8 +66,8 @@ elif sys.argv[1] == 'CMASSLOWZ':
     
 elif sys.argv[1] == 'eBOSS':
     fileroot = '/media/jiaxi/disk/Master/obs/nbar_eBOSS_LRG_{}GC_v7_2.dat'
-    zmins = [0.6,0.6,0.65,0.7,0.8]
-    zmaxs = [0.7,0.8,0.8, 0.9,1.0]
+    zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
+    zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
     z, nz,nzN,nzS = combineNS(fileroot)
 else:
     print("input should be \'eBOSS\', \'LOWZ\', \'CMASS\' or \'CMASSLOWZ\'")
