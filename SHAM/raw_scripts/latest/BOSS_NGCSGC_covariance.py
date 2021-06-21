@@ -37,9 +37,12 @@ if gal=='CMASS':
 elif gal == 'LOWZ':
     Zrange =  np.array([0.2, 0.33,0.2,\
                         0.33,0.43,0.43])
-elif gal == 'CMASSLOWZ':
-    Zrange = np.array([0.2,0.75])
+elif gal == 'CMASSLOWZTOT':
+    Zrange = np.array([0.2,0.4,\
+                       0.5,0.6])
     ver = 'DR12v5'
+    nbins = 120
+
 znum = int(len(Zrange)/2)
 
 #######################
@@ -70,7 +73,7 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
             if n==0:
                 print('mock reading&2PCF calculation start')
             elif (n+1)%(np.ceil(nfile/10))==0:
-                print('{} {} bin PATCHY mocks at {}<z<{} has finished {}%'.format(gal,rscale,Zrange[k],Zrange[k+znum],(n+1)//(np.ceil(nfile/100))))
+                print('{} {} bin PATCHY mocks at {}<z<{} has finished {}%'.format(gal,rscale,Zrange[k],Zrange[k+znum],(n+1)//(nfile/100)))
         pool.close() 
         pool.join()
         print('finished')
@@ -102,7 +105,6 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
             cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC[j]))
             cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC[j]))
             print(name,' saved')
-
             hdulist = fits.BinTableHDU.from_columns(cols)
             hdulist.header.update(sbins=nbins,nmu=nmu)
             hdulist.writeto(mockfits+name+'.fits.gz',overwrite=True)
