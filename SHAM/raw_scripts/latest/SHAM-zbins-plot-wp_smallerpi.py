@@ -70,12 +70,12 @@ a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
 if (rscale=='linear')&(function=='mps'):
     if gal == 'LRG':
         SHAMnum   = int(6.26e4)
-        z = 0.7018
-        a_t = '0.58760'
+        z = 0.7781
+        a_t = '0.56220'
         ver = 'v7_2'
     elif gal=='ELG':
         SHAMnum   = int(2.93e5)
-        z = 0.8594
+        z = 0.87364
         a_t = '0.53780'
         ver = 'v7'
         cols = ['col3','col4']
