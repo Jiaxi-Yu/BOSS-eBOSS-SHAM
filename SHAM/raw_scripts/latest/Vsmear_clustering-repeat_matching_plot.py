@@ -20,6 +20,7 @@ if gal == 'LRG':
     zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
     zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
     maxdvs = [235,275,275,300,255,360]
+    ylim = 100;xlim = 200
     #zmin = 0.6; zmax = 1.0
     clusteringN,clusteringS = scratch+'eBOSS_clustering_fits/eBOSS_LRG_clustering_NGC_v7_2.dat.fits',scratch+'eBOSS_clustering_fits/eBOSS_LRG_clustering_SGC_v7_2.dat.fits'
 elif gal == 'CMASS':
@@ -27,6 +28,7 @@ elif gal == 'CMASS':
     zmins = [0.43,0.51,0.57,0.43]
     zmaxs = [0.51,0.57,0.7,0.7]
     maxdvs = [205,200,235,270]
+    ylim = 50;xlim = 100
     #zmin = 0.43; zmax = 0.7
     clusteringN,clusteringS = scratch+'BOSS_data/galaxy_DR12v5_CMASS_North.fits.gz',scratch+'BOSS_data/galaxy_DR12v5_CMASS_South.fits.gz'
 elif gal == 'LOWZ':
@@ -34,6 +36,7 @@ elif gal == 'LOWZ':
     zmins = [0.2, 0.33,0.2]
     zmaxs = [0.33,0.43,0.43]
     maxdvs = [105,140,140]
+    ylim = 40;xlim = 100
     #zmin = 0.2; zmax = 0.43
     clusteringN,clusteringS = scratch+'BOSS_data/galaxy_DR12v5_LOWZ_North.fits.gz',scratch+'BOSS_data/galaxy_DR12v5_LOWZ_South.fits.gz'
 else:
@@ -98,20 +101,24 @@ for k,zmin,zmax,maxdv in zip(range(len(zmins)),zmins,zmaxs,maxdvs):
             ax[j,k].plot(binmid1,dens3,c='r',label='clustering all')
             plt.title('histogram: {}<z<{} clustering repeat ZERR v.s. clustering all ZERR'.format(zmin,zmax))
             ax[j,k].set_ylabel('normalised counts')
-            ax[j,k].set_xlabel('$\Delta$v (km/s)')
+            ax[j,k].set_xlabel('ZERR (km/s)')
         else:
-            #ax[j,k].scatter(reobs['delta_v'],reobs['zerr'],c='b',label='ZERRavg',alpha=0.5)
-            ax[j,k].scatter(reobs['delta_v'],reobs['zerr0'],c='m',label='ZERR0',alpha=0.5)
-            ax[j,k].scatter(reobs['delta_v'],reobs['zerr1'],c='green',label='ZERR1',alpha=0.5)
+            hb = ax[j,k].hexbin(reobs['delta_v'],reobs['zerr'],cmap='Blues')#,c='b',label='ZERRavg',alpha=0.5)
+            #ax[j,k].scatter(reobs['delta_v'],reobs['zerr0'],c='m',label='ZERR0',alpha=0.5)
+            #ax[j,k].scatter(reobs['delta_v'],reobs['zerr1'],c='green',label='ZERR1',alpha=0.5)
             # if no difference, can use ax[j,k].hexbin
-            ax[j,k].set_ylabel('zerr')
+            ax[j,k].set_ylabel('ZERR')
             ax[j,k].set_xlabel('$\Delta$v (km/s)')
+            ax[j,k].set_ylim(0,ylim)
+            ax[j,k].set_xlim(-xlim,xlim)
             plt.title('scatter: {}<z<{} repeat $\Delta$v v.s. repeat ZERR'.format(zmin,zmax))
-        
+            cb = fig.colorbar(hb, ax=ax[j,k])
+
         plt.legend(loc=1)
 plt.savefig(home+'clustering_zerr/{}_dv-representative.png'.format(gal))
 plt.close()
 
+"""
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
     # clustering matched deltav and zerr
     LRG = []
@@ -136,3 +143,4 @@ for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
     plt.title('{} clustering galaxy |$\Delta$ v| (if exists) v.s. ZERR'.format(gal))
     plt.savefig(home+'clustering_zerr/{}_clustering_deltav_vs_zerr_z{}z{}.png'.format(gal,zmin,zmax))
     plt.close()
+"""
