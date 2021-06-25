@@ -102,7 +102,7 @@ for yi in range(npar):
         ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "sg") 
 plt.savefig('{}{}_posterior_check_{}_{}.png'.format(fileroot[:-10],date,gal,GC))
 plt.close()
-print('the best-fit parameters: sigma {:.4},Vsmear {:.6} km/s, Vceil {:.6} km/s'.format(a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2]))
+print('the best-fit parameters: sigma {},Vsmear {} km/s, Vceil {} km/s'.format(a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2]))
 print('its chi2: {:.6}'.format(-2*a.get_best_fit()['log_likelihood']))
 
 if finish: 
@@ -317,11 +317,11 @@ if finish:
         if len(f["halo"]['Vpeak'][:])%2 ==1:
             datac = np.zeros((len(f["halo"]['Vpeak'][:])-1,5))
             for i,key in enumerate(f["halo"].keys()):
-                datac[:,i] = (f["halo"][key][:][sel])[:-1]
+                datac[:,i] = (f["halo"][key][:])[:-1]
         else:
-            datac = np.zeros((len(f["halo"]['Vpeak'][:][sel]),5))
+            datac = np.zeros((len(f["halo"]['Vpeak'][:]),5))
             for i,key in enumerate(f["halo"].keys()):
-                datac[:,i] = f["halo"][key][:][sel]
+                datac[:,i] = f["halo"][key][:]
         f.close()        
         half = int32(len(datac)/2)
         print(len(datac))
