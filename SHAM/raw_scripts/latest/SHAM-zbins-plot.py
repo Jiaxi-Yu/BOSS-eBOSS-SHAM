@@ -352,7 +352,6 @@ if finish:
             # binnning Vpeak of the selected halos
             n,BINS = np.histogram(LRGscat[:,1],range =(0,1500),bins=100)
             
-            np.savetxt(LRGscat[:,1:],'eBOSS-LRG_z{}z{}_seed0.dat'.format(zmin,zmax))
             # transfer to the redshift space
             scathalf = int(len(LRGscat)/2)
             z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
