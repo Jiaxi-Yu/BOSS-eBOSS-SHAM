@@ -425,7 +425,7 @@ else:
 
     ax[0,0] = fig.add_subplot(spec[0,0])
     popt, pcov = curve_fit(linear,np.array(zeff),np.array(best0),sigma=np.mean(abs(np.array(bounds0).T),axis=0))
-    plt.title(r'SHAM $\sigma$ slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
+    plt.title(r'The SHAM best-fit $\sigma$ slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
     plt.errorbar(np.array(zeff),np.array(best0),np.array(bounds0).T,color='k', marker='o',ecolor='k',ls="none")
     plt.plot(np.array(zeff),linear(np.array(zeff),*popt),'',label='best-fit')
     plt.axvline(0.43, color= "k",linestyle='--')
@@ -441,7 +441,7 @@ else:
 
     ax[0,1] = fig.add_subplot(spec[0,1])
     popt, pcov = curve_fit(linear,np.array(zeff)[2:],np.array(best2)[2:],sigma=np.mean(abs(np.array(bounds2).T[:,2:]),axis=0))
-    plt.title(r'SHAM Vceil slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
+    plt.title(r'The SHAM best-fit Vceil slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
     plt.errorbar(np.array(zeff),np.array(best2),np.array(bounds2).T,color='k', marker='o',ecolor='k',ls="none")
     plt.plot(np.array(zeff)[2:],linear(np.array(zeff)[2:],*popt),label='best-fit')
     plt.axvline(0.43, color= "k",linestyle='--')
@@ -457,7 +457,7 @@ else:
 
     ax[0,2] = fig.add_subplot(spec[0,2])
     popt, pcov = curve_fit(linear,np.array(zeff)[2:],np.array(best1)[2:],sigma=np.mean(abs(np.array(bounds1).T[:,2:]),axis=0))
-    plt.title(r'SHAM Vsmear slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
+    plt.title(r'The SHAM best-fit Vsmear slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
     plt.errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none")
     plt.plot(np.array(zeff)[2:],linear(np.array(zeff)[2:],*popt),label='best-fit')
     plt.axvline(0.43, color= "k",linestyle='--')
