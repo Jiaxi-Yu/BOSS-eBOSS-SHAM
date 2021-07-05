@@ -220,11 +220,8 @@ if finish:
 
         if gal == 'LRG':
             ver = 'v7_2'
-            extra = np.ones_like(s)
-            #extra = binfile['col3'][(binfile['col3']<rmax)&(binfile['col3']>=rmin)]**2
         else:
             ver = 'v7'
-            extra = np.ones_like(s)
         # filenames
         covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
         obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
@@ -237,11 +234,12 @@ if finish:
         obscf = Table.read(obs2pcf,format='ascii.no_header')
         obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
         # prepare OBS, covariance and errobar for chi2
-        Ns = int(mocks.shape[0]/2)
-        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
+        Nstot = int(mocks.shape[0]/2)
+        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Nstot:binmax+Nstot,:]))
         covcut  = cov(mocks).astype('float32')
-        OBS   = append(obscf['col4']/extra,obscf['col5']/extra).astype('float32')# LRG columns are s**2*xi
+        OBS   = append(obscf['col4'],obscf['col5']).astype('float32')# LRG columns are s**2*xi
         covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
+        print('the covariance matrix and the observation 2pcf vector are ready.')
 
         # zbins, z_eff ans ngal
         if (zmin=='0.6')&(zmax=='0.8'):
