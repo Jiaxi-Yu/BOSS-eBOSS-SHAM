@@ -245,6 +245,8 @@ else:
     #zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0','0.43','0.7', '1.0']
     zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8']
     zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0']
+    #zmins = ['0.6','0.6','0.65','0.7','0.8']
+    #zmaxs = ['0.7','0.8','0.8' ,'0.9','1.0']
 
     SHAMbias   = []
     SHAMbiaserr= []
@@ -252,6 +254,8 @@ else:
     bounds0 = [];best0=[]
     bounds1 = [];best1=[]
     bounds2 = [];best2=[]
+    bounds3 = [];best3=[]
+    bounds4 = [];best4=[]
 
     home     = '/home/astro/jiayu/Desktop/SHAM/'
     
@@ -270,79 +274,104 @@ else:
             a_t = '0.58760'
             ver = 'v7_2'
             rscale = 'linear'
+            dvstd  = [54.2,55.2]
+            dvnorm = [48.0,49.0]
         elif (zmin=='0.43')&(zmax=='0.51'): 
             gal = 'CMASS'
             SHAMnum = 342000
             z = 0.4686
             a_t = '0.68620'
             rscale = 'linear'
+            dvstd  = [46.5,48.2]
+            dvnorm = [42.5,43.4]
         elif zmin=='0.51':
             gal = 'CMASS'
             SHAMnum = 363000
             z = 0.5417 
             a_t = '0.64210'
             rscale = 'linear'
+            dvstd  = [52.4,54.0]
+            dvnorm = [47.3,48.4]
         elif zmin=='0.57':
             gal = 'CMASS'
             SHAMnum = 160000
             z = 0.6399
             a_t =  '0.61420'
             rscale = 'linear'
+            dvstd  = [60.4,62.2]
+            dvnorm = [52.8,54.0]
         elif (zmin=='0.43')&(zmax=='0.7'):  
             gal = 'CMASS'
             SHAMnum = 264000
             z = 0.5897
             a_t = '0.62800'
             rscale = 'linear'
+            dvstd  = [54.2,55.2]
+            dvnorm = [48.0,49.0]
         elif (zmin=='0.2')&(zmax=='0.33'):   
             gal = 'LOWZ'
             SHAMnum = 337000
             z = 0.2754
             a_t = '0.78370' 
             rscale = 'linear'
+            dvstd  = [25.8,27.2]
+            dvnorm = [24.1,25.3]
         elif zmin=='0.33':
             gal = 'LOWZ'
             SHAMnum = 258000
             z = 0.3865
             a_t = '0.71730'
             rscale = 'linear'
+            dvstd  = [32.9,34.2]
+            dvnorm = [30.6,31.6]
         elif (zmin=='0.2')&(zmax=='0.43'): 
             gal = 'LOWZ'
             SHAMnum = 295000
             z = 0.3441
             a_t = '0.74980'
             rscale = 'linear'
+            dvstd  = [30.0,30.9]
+            dvnorm = [27.2,28.2]
         elif (zmin=='0.6')&(zmax=='0.8'):
             gal='LRG'
             SHAMnum = int(8.86e4)
             z = 0.7051
             a_t = '0.58760'
             rscale = 'log'
+            dvstd  = [108.2,112.2]
+            dvnorm = [89.8,92.3]
         elif (zmin=='0.6')&(zmax=='0.7'): 
             gal='LRG'           
             SHAMnum = int(9.39e4)
             z = 0.6518
             a_t = '0.60080'
             rscale = 'log'
+            dvstd  = [104.9,110.0]
+            dvnorm = [87.6,90.2]
         elif zmin=='0.65':
             gal='LRG'
             SHAMnum = int(8.80e4)
             z = 0.7273
             a_t = '0.57470'
             rscale = 'log'
+            dvstd  = [109.7,114.2]
+            dvnorm = [90.2,92.9]
         elif zmin=='0.7':
             gal='LRG'
             SHAMnum = int(6.47e4)
             z=0.7968
             a_t = '0.54980'
             rscale = 'log'
+            dvstd  = [117.7,123.0]
+            dvnorm = [94.5,97.3]
         else:
             gal = 'LRG'
             SHAMnum = int(3.01e4)
             z= 0.8777
             a_t = '0.52600'
             rscale = 'log'
-
+            dvstd  = [136.5,144.5]
+            dvnorm = [95.4,100.4]
         zeff.append(z)
 
         if function == 'mps':
@@ -369,7 +398,7 @@ else:
 
         SHAMbias.append(np.mean(biasmean))
         SHAMbiaserr.append(np.std(biasmean))
-        # read the posterior file and get the lower abnd upper limit
+        # best-fits and their constraints
         fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
         parameters = ["sigma","Vsmear","Vceil"]
         npar = len(parameters)
@@ -390,6 +419,33 @@ else:
         best = a.get_best_fit()['parameters'][ind]
         bounds2.append(abs(param-best))
         best2.append(best)
+        # dv meaurements
+        bounds3.append((dvstd[1]-dvstd[0])/2)
+        best3.append(np.mean(dvstd))
+        bounds4.append((dvnorm[1]-dvnorm[0])/2)
+        best4.append(np.mean(dvnorm))
+
+    # plot together
+    fig,ax = plt.subplots()
+    plt.title(r'the BOSS/eBOSS redshift uncertainty v.s. the SHAM Vsmear best-fit ')
+    plt.errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label='SHAM best')
+    plt.plot(np.array(zeff),np.array(best3),color='r', label='obs. std$_{\Delta v}$')
+    plt.plot(np.array(zeff),np.array(best4),color='b', label='obs. $\sigma_{\Delta v}$')
+    plt.fill_between(np.array(zeff),np.array(best3)-np.array(bounds3),np.array(best3)+np.array(bounds3),color='r',alpha=0.4)
+    plt.fill_between(np.array(zeff),np.array(best4)-np.array(bounds4),np.array(best4)+np.array(bounds4),color='b',alpha=0.4)
+    ax.axvline(0.43, color= "k",linestyle='--')
+    ax.axvline(0.645, color = "k",linestyle='--')
+    pos = 150
+    ax.text(0.3, pos, 'LOWZ')
+    ax.text(0.5, pos, 'CMASS')
+    ax.text(0.7, pos, 'eBOSS LRG')
+    plt.ylabel('$\Delta v$ (km/s)')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
+    plt.xlabel('$z_{eff}$')
+    plt.legend(loc=0)
+    plt.ylim(0,pos*1.1)
+    plt.xlim(float(zmins[0]),float(zmaxs[-1]))
+    plt.savefig('Vsmear_vs_dv.png')
+    plt.close()
 
     # plot together
     fig,ax = plt.subplots()
@@ -472,7 +528,6 @@ else:
     plt.legend(loc=0)
     plt.savefig('parameter_evolution.png')
     plt.close()
-
 
 
 """
