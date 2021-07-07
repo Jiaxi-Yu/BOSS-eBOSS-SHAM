@@ -49,7 +49,7 @@ nmu      = 120
 autocorr = 1
 smin=5; smax=30
 home     = '/home/astro/jiayu/Desktop/SHAM/'
-fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,sys.argv[7],function,rscale,gal,GC,zmin,zmax)
+fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
 cols = ['col4','col5']
 
 # read the posterior file
@@ -210,7 +210,8 @@ if finish:
         
     elif (rscale=='log'):
         # read s bins
-        binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header');ver1='v7_2'
+        binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header');
+        ver1='v7_2'
         sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
         bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
         s = binfile['col3'][sel]
@@ -278,17 +279,17 @@ if finish:
                 SHAMnum = int(3.01e4)
                 z= 0.8777
             a_t = '0.52600'
+        obstool = ''
+
     else:
         print('wrong 2pcf function input')
 
 
-    # wp plot
+    # wp: log binning
     binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
     selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
     binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
     swp = binfilewp['col3'][selwp]
-    #binminwp = np.where(binfilewp['col3']>=smin)[0][0]
-    #binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
     nbinswp = len(binswp)-1
 
     # analytical RR
@@ -537,22 +538,18 @@ if finish:
     # plot wp with errorbars
     if (gal == 'LRG')|(gal=='ELG'):
         if rscale == 'linear':
-            covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
+            covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,'wp',gal,ver,gal,zmin,zmax) 
             obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
         elif rscale == 'log':
-            covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
-            obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
-        obstool = 'PIP'
+            covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,gal,gal,zmin,zmax) 
+            obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/wp_log_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,gal,GC,ver1,zmin,zmax)
         colwp   = 'col3'
     else:
         obs2pcfwp = '{}catalog/BOSS_zbins_wp/OBS_{}_NGC+SGC_DR12v5_z{}z{}.wp'.format(home,gal,zmin,zmax)
         covfitswp = '{}catalog/BOSS_zbins_wp/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,gal,zmin,zmax)
-        obstool = ''
         colwp   = 'col1'
-        pythonsel = (wp[:,0]>smin)&(wp[:,0]<smax)
-        wp = wp[tuple(pythonsel),:]
-
-
+    pythonsel = (wp[:,0]>smin)&(wp[:,0]<smax)
+    wp = wp[tuple(pythonsel),:]
     # observation
     obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
     selwp = (obscfwp[colwp]<smax)&(obscfwp[colwp]>=smin)
@@ -563,7 +560,6 @@ if finish:
     Nmockwp = mockswp.shape[1] 
     errbarwp = np.std(mockswp,axis=1)
     hdu.close()  
-    #import pdb;pdb.set_trace()
 
     # plot the wp
     errbarwp = np.std(mockswp,axis=1)
@@ -578,7 +574,6 @@ if finish:
             ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
             ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='obs 1$\sigma$ $\pi$80')
             ax[j,k].plot(swp,(wp[:,1]-values[j])/err[j],color='b',label='SHAM $\pi$80')
-            #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",,label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):        

@@ -20,11 +20,13 @@ import h5py
 
 # variables
 gal      = sys.argv[1]
-pre      = sys.argv[2]
 GC       = 'NGC+SGC'
-rscale   = sys.argv[3]#'log'
+if gal == 'LRG':
+    rscale   = 'log'
+else:
+    rscale = 'linear'
 function = 'mps' 
-nseed    = 15
+nseed    = 30
 date     = '0218'
 npoints  = 100 
 multipole= 'quad' # 'mono','quad','hexa'
@@ -41,7 +43,7 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-smin=5; smax=35
+smin=5; smax=30
 home     = '/home/astro/jiayu/Desktop/SHAM/'
 if gal == 'LRG':
     zmins = [0.6,0.6,0.65,0.7,0.8]
@@ -69,13 +71,14 @@ obscfs= [x for x in range(zbinnum)]
 errbars= [x for x in range(zbinnum)]
 OBSwps= [x for x in range(zbinnum)]
 wps= [x for x in range(zbinnum)]
+errbarwps= [x for x in range(zbinnum)]
 pdfs= [x for x in range(zbinnum)]
 
 ########################################################
 for zbin in range(zbinnum):
     zmin,zmax = zmins[zbin],zmaxs[zbin]
     # getdist results
-    fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,pre,function,rscale,gal,GC,zmin,zmax)
+    fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
     parameters = ["sigma","Vsmear","Vceil"]
     npar = len(parameters)
     a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
@@ -110,6 +113,8 @@ for zbin in range(zbinnum):
     mocks = hdu[1].data[GC+'mocks']
     Nmock = mocks.shape[1]
     hdu.close()
+    errbar = np.std(mocks,axis=1)
+
     # observations
     obscf = Table.read(obs2pcf,format='ascii.no_header')
     if rscale == 'linear':
@@ -123,41 +128,41 @@ for zbin in range(zbinnum):
     OBS   = append(obscf['col4'],obscf['col5']).astype('float32')# LRG columns are s**2*xi
     covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
 
-    """
-    # wp plot
-    covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
-    obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
-
-    binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
-    selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
-    binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
-    swp = binfilewp['col3'][selwp]
-    binminwp = np.where(binfilewp['col3']>=smin)[0][0]
-    binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
-    nbinswp = len(binswp)-1
+    # plot wp with errorbars
+    wp = np.loadtxt('{}best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
+    if (gal == 'LRG')|(gal=='ELG'):
+        if rscale == 'linear':
+            covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,'wp',gal,ver,gal,zmin,zmax) 
+            obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
+        elif rscale == 'log':
+            covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,gal,gal,zmin,zmax) 
+            obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/wp_log_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,gal,GC,ver1,zmin,zmax)
+        colwp   = 'col3'
+    else:
+        obs2pcfwp = '{}catalog/BOSS_zbins_wp/OBS_{}_NGC+SGC_DR12v5_z{}z{}.wp'.format(home,gal,zmin,zmax)
+        covfitswp = '{}catalog/BOSS_zbins_wp/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,gal,zmin,zmax)
+        colwp   = 'col1'
+    pythonsel = (wp[:,0]>smin)&(wp[:,0]<smax)
+    wp = wp[tuple(pythonsel),:]
     # observation
     obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
-    obscfwp = obscfwp[(obscfwp['col3']<smax)&(obscfwp['col3']>=smin)]
-    OBSwp   = obscfwp['col4']
-    
+    selwp = (obscfwp[colwp]<smax)&(obscfwp[colwp]>=smin)
+    OBSwp   = obscfwp['col4'][selwp]
     # Read the covariance matrices
     hdu = fits.open(covfitswp) 
-    mockswp = hdu[1].data[GC+'mocks'][binminwp:binmaxwp,:]
+    mockswp = hdu[1].data[GC+'mocks']#[binminwp:binmaxwp,:]
     Nmockwp = mockswp.shape[1] 
     errbarwp = np.std(mockswp,axis=1)
-    hdu.close()
-    """
+    hdu.close()  
 
     # SHAM halo catalogue
     if rscale=='linear':
         xi = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
     else:
         xi = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
-    #wp = np.loadtxt('{}/best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
     bbins,UNITv,SHAMv = np.loadtxt('{}/best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
     pdf = SHAMv[:-1]/UNITv[:-1]
-    # plot the results
-    errbar = np.std(mocks,axis=1)
+    
     #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
     
     # data summary
@@ -165,8 +170,9 @@ for zbin in range(zbinnum):
     Ccodes[zbin] = xi
     obscfs[zbin] = obscf
     errbars[zbin] = errbar
-    #OBSwps[zbin] = OBSwp
-    #wps[zbin]     = wp    
+    OBSwps[zbin] = OBSwp
+    wps[zbin]     = wp    
+    errbarwps[zbin] = errbarwp
     pdfs[zbin]  = pdf
     bestfits[zbin] = a.get_best_fit()
 
@@ -227,28 +233,34 @@ for zbin in range(zbinnum):
 
 plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,multipole,gal,GC,rmin,rmax),bbox_tight=True)
 plt.close()
-"""
+
+
+# wp binning
+smin=5; smax=30
+binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
+selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
+binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
+swp = binfilewp['col3'][selwp]
 # plot the wp
-fig = plt.figure(figsize=(6,7))
+fig = plt.figure(figsize=(7,8))
 spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
 ax = np.empty((2,1), dtype=type(plt.axes))
 for zbin in range(zbinnum):
     for k in range(1):
         values=[np.zeros_like(OBSwps[zbin]),OBSwps[zbin]]
-        err   = [np.ones_like(OBSwps[zbin]),wps[zbin][:,2]]
+        err   = [np.ones_like(OBSwps[zbin]),errbarwps[zbin]]
 
         for j in range(2):
-            ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-            ax[j,k].errorbar(swp,(wps[zbin][:,1]-values[j])/err[j],wps[zbin][:,2]/err[j],color=colors[zbin], marker='^',ecolor=colors[zbin],ls="none",label='z{}z{}_pi80'.format(zmins[zbin],zmaxs[zbin]))
-            ax[j,k].plot(swp,(OBSwps[zbin]-values[j])/err[j],color=colors[zbin],label='_hidden')
-            #ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+            ax[j,k] = fig.add_subplot(spec[j,k])
+            ax[j,k].errorbar(swp,(OBSwps[zbin]-values[j])/err[j],errbarwps[zbin]/err[j],color=colors[zbin], marker='^',ecolor=colors[zbin],ls="none",label='z{}z{}_pi80'.format(zmins[zbin],zmaxs[zbin]))
+            ax[j,k].plot(swp,(wps[zbin][:,1]-values[j])/err[j],color=colors[zbin],label='_hidden')
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):        
                 plt.yscale('log')
                 ax[j,k].set_ylabel('wp')
                 plt.legend(loc=0)
-                plt.title('projected 2pcf: {} in {}, SHAM with errorbar'.format(gal,GC))
+                plt.title('projected 2pcf: {} in {}'.format(gal,GC))
             if (j==1):
                 ax[j,k].set_ylabel('$\Delta$ wp/err')
                 plt.ylim(-3,3)
@@ -257,51 +269,65 @@ plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(home,gal,GC,smin,sm
 plt.close()
 
 # plot
-smin=5;smax=35
 pimaxs = [25,30,35]
-for pimax in pimaxs:
-    fig = plt.figure(figsize=(6,7))
+
+for h,pimax in enumerate(pimaxs):
+    fig = plt.figure(figsize=(7,8))
     spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
     ax = np.empty((2,1), dtype=type(plt.axes))
+    
     for zbin in range(zbinnum): 
         zmin,zmax = zmins[zbin],zmaxs[zbin]
         fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
-        obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/wp_rp_pip_eBOSS_{}_{}_{}_{}-{}_pi{}.dat'.format(home,gal,gal,GC,ver,zmin,zmax,pimax)
-        binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
-        selwp = (binfilewp['col3']<smax)&(binfilewp['col3']>=smin)
-        binswp  = np.unique(np.append(binfilewp['col1'][selwp],binfilewp['col2'][selwp]))
-        swp = binfilewp['col3'][selwp]
-        binminwp = np.where(binfilewp['col3']>=smin)[0][0]
-        binmaxwp = np.where(binfilewp['col3']<smax)[0][-1]+1
-        nbinswp = len(binswp)-1
-        # observation
+        wp = np.loadtxt('{}best-fit-wp_{}_{}-python_pi{}.dat'.format(fileroot[:-10],gal,GC,pimax))
+
+        # pimax files
+        pythonsel = (wp[:,0]>smin)&(wp[:,0]<smax)
+        wp = wp[pythonsel,:]
+        # observations
+        if (gal == 'LRG')|(gal=='ELG'):
+            if rscale == 'linear':
+                covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_log_z{}z{}_mocks_wp_pi{}.fits.gz'.format(home,'wp',gal,ver,gal,zmin,zmax,pimax) 
+                obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}_pi{}.dat'.format(home,gal,ver,gal,GC,ver,pimax)
+            elif rscale == 'log':
+                covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_log_z{}z{}_mocks_wp_pi{}.fits.gz'.format(home,gal,gal,zmin,zmax,pimax) 
+                obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/wp_rp_pip_eBOSS_{}_{}_{}_{}-{}_pi{}.dat'.format(home,gal,gal,GC,ver1,zmin,zmax,pimax)
+            colwp   = 'col3'
+        else:
+            obs2pcfwp = '{}catalog/BOSS_zbins_wp/OBS_{}_NGC+SGC_DR12v5_z{}z{}_pi{}.wp'.format(home,gal,zmin,zmax,pimax)
+            covfitswp = '{}catalog/BOSS_zbins_wp/{}_log_z{}z{}_mocks_wp_pi{}.fits.gz'.format(home,gal,zmin,zmax,pimax)
+            colwp   = 'col1'
+        # observation rp selection
         obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
-        obscfwp = obscfwp[(obscfwp['col3']<smax)&(obscfwp['col3']>=smin)]
-        OBSwp   = obscfwp['col4']
-        
-        wp = np.loadtxt('{}/best-fit-wp_{}_{}-python_pi{}.dat'.format(fileroot[:-10],gal,GC,pimax))
+        selwp = (obscfwp[colwp]<smax)&(obscfwp[colwp]>=smin)
+        OBSwp   = obscfwp['col4'][selwp]
+        # Read the covariance matrices
+        hdu = fits.open(covfitswp) 
+        mockswp = hdu[1].data[GC+'mocks']
+        Nmockwp = mockswp.shape[1] 
+        errbarwp = np.std(mockswp,axis=1)
+        hdu.close()  
 
-        #OBSwps[zbin] = OBSwp
-        #wps[zbin]     = wp  
+        # 
+        OBSwps[zbin] = OBSwp
+        wps[zbin]     = wp
+        errbarwps[zbin] = errbarwp
 
-
-        #import pdb;pdb.set_trace()
         for k in range(1):
             values=[np.zeros_like(OBSwp),OBSwp]
-            err   = [np.ones_like(OBSwp),wp[:,2]]
+            err   = [np.ones_like(OBSwp),errbarwp]
 
             for j in range(2):
                 ax[j,k] = fig.add_subplot(spec[j,k]);#import pdb;pdb.set_trace()
-                ax[j,k].errorbar(swp,(wp[:,1]-values[j])/err[j],wp[:,2]/err[j],color=colors[zbin], marker='^',ecolor=colors[zbin],ls="none",label='z{}z{}_pi{}'.format(zmins[zbin],zmaxs[zbin],pimax))
-                ax[j,k].plot(swp,(OBSwp-values[j])/err[j],color=colors[zbin],label='_hidden')
-                #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='PIP obs 1$\sigma$')
+                ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color=colors[zbin],marker='^',ecolor=colors[zbin],ls="none",label='z{}z{}_pi{}'.format(zmins[zbin],zmaxs[zbin],pimax))
+                ax[j,k].plot(swp,(wp[:,1]-values[j])/err[j],color=colors[zbin],label='_hidden')
                 plt.xlabel('rp (Mpc $h^{-1}$)')
                 plt.xscale('log')
                 if (j==0):        
                     plt.yscale('log')
                     ax[j,k].set_ylabel('wp')
                     plt.legend(loc=0)
-                    plt.title('projected 2pcf: {} in {}, errorbar from SHAM'.format(gal,GC))
+                    plt.title('projected 2pcf: {} in {}'.format(gal,GC))
                 if (j==1):
                     ax[j,k].set_ylabel('$\Delta$ wp/err')
                     plt.ylim(-3,3)
@@ -332,3 +358,4 @@ plt.ylabel('prob of having a galaxy')
 plt.xlabel('Vpeak (km/s)')
 plt.savefig(home+'best_SHAM_PDF_hist_{}_{}.png'.format(gal,GC))
 plt.close()
+"""
