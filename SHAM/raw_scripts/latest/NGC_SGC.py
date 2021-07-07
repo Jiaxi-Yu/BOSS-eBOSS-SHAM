@@ -64,7 +64,7 @@ def read_xi(ifmt, rfmt=None, ds=1, ns=200, nmu=120):
     return s, xi0, xi2, xi4
  
 # FCFC paircounts
-def FCFCcomb(ifmt,rfmt, ns=100, nmu=120, upperint = None,islog=False,isobs=False,ismps=True):
+def FCFCcomb(ifmt,rfmt=None, ns=100, nmu=120, upperint = None,islog=False,isobs=False,ismps=True):
     if os.path.exists(ifmt.format('NGC+SGC','xi')):
         xi0 = [None] * 3
         xi2 = [None] * 3
@@ -103,10 +103,12 @@ def FCFCcomb(ifmt,rfmt, ns=100, nmu=120, upperint = None,islog=False,isobs=False
                         columns.append(info)
             num[i]  = np.float64(columns[1][-2])
             norm[i] = np.float64(columns[2][-1]) 
-            # dr,rr
+            # dr
             ifile = ifmt.format(cap,'dr')
             Smin,Smax,MUmin,MUmax,dr[i] = np.loadtxt(ifile,unpack=True)        
-            ifile = rfmt.format(cap)
+            # rr
+            if rfmt == None: ifile = ifmt.format(cap,'rr')
+            else: ifile = rfmt.format(cap)
             Smin,Smax,MUmin,MUmax,rr[i] = np.loadtxt(ifile,unpack=True)
         mu = (MUmin+MUmax)/2
         # NGC+SGC
