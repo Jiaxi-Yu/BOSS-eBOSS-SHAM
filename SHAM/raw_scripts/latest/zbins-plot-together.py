@@ -113,7 +113,10 @@ for zbin in range(zbinnum):
     mocks = hdu[1].data[GC+'mocks']
     Nmock = mocks.shape[1]
     hdu.close()
-    errbar = np.std(mocks,axis=1)
+    if gal == 'LRG':
+        Nstot = int(mocks.shape[0]/2)
+    else: 
+        Nstot = 100
 
     # observations
     obscf = Table.read(obs2pcf,format='ascii.no_header')
@@ -127,6 +130,7 @@ for zbin in range(zbinnum):
     covcut  = cov(mocks).astype('float32')
     OBS   = append(obscf['col4'],obscf['col5']).astype('float32')# LRG columns are s**2*xi
     covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
+    errbar = np.std(mocks,axis=1)
 
     # plot wp with errorbars
     wp = np.loadtxt('{}best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
@@ -201,7 +205,7 @@ fig = plt.figure(figsize=(14,8))
 spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
 ax = np.empty((2,2), dtype=type(plt.axes))
 for zbin in range(zbinnum):
-    for col,covbin,name,k in zip(cols,[int(0),int(200)],['monopole','quadrupole'],range(2)):
+    for col,covbin,name,k in zip(cols,[int(0),int(Nstot)],['monopole','quadrupole'],range(2)):
         values=[np.zeros(nbins),obscfs[zbin][col]]    
         err   = [np.ones(nbins),s**2*errbars[zbin][k*nbins:(k+1)*nbins]]
 
