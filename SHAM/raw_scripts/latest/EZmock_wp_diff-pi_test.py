@@ -39,14 +39,14 @@ elif function == 'wp':
     nmu    = 80
     func   = 'wp'
     pimaxs  = [20,40,60,70,80]
-    pimin = 5 #0
+    pimin = 0 #0
     swp = np.loadtxt(home+'binfile_log.dat',usecols=2)
     s = swp[(swp>binmin)&(swp<binmax+1)]
 
 
 #######################
 # plot mocks
-for mocktype in ['sys','nosys']:
+for mocktype in ['nosys','sys']:
     for mockweight in ['_FKP','_FKPCP','_FKPSYSTOT','_FKPNOZ']:#['_FKP','_FKPCP','_FKPNOZ','_FKPSYSTOT']:
         if mocktype == 'nosys':
             mockweight = '_FKP'
@@ -232,6 +232,10 @@ if os.path.exists(flagwp):
         spec = gridspec.GridSpec(nrows=2,ncols=len(pimaxs), height_ratios=[4, 1], hspace=0.3,wspace=0.2)
         ax = np.empty((2,len(pimaxs)), dtype=type(plt.axes))
         for k,pimax in enumerate(pimaxs):
+            if pimin == 0:
+                wptailpi = 'wp_pi{}.fits.gz'.format(pimax)
+            else:
+                wptailpi = 'wp_pi{}-{}.fits.gz'.format(pimin,pimax)
             hdu = fits.open('{}nosys_FKP/EZmocks_{}_{}_{}_z{}z{}_{}'.format(datapath,'nosys',function,rscale,Zrange[0],Zrange[1],wptailpi)) #
             mocks = hdu[1].data['NGC+SGCmocks']
             Nmock = mocks.shape[1] 
@@ -246,6 +250,7 @@ if os.path.exists(flagwp):
                 ax[j,k] = fig.add_subplot(spec[j,k])
                 ax[j,k].plot(s,(meannosys-values[j])/err[j],color='k', label='nosys_FKP')
                 ax[j,k].fill_between(s,((meannosys-errbarnosys)-values[j])/err[j],((meannosys+errbarnosys)-values[j])/err[j],color='k',alpha=0.2)
+
                 hdu = fits.open('{}sys{}/EZmocks_{}_{}_{}_z{}z{}_{}'.format(datapath,mockweight,'sys',function,rscale,Zrange[0],Zrange[1],wptailpi)) 
                 mocks = hdu[1].data['NGC+SGCmocks']
                 Nmock = mocks.shape[1] 
@@ -262,10 +267,7 @@ if os.path.exists(flagwp):
                     ax[j,k].set_ylabel('wp')#('\\xi_{}$'.format(k*2))#
                     plt.legend(loc=1)
                     plt.title('wp $\pi$ in [{},{}]'.format(pimin,pimax)+' Mpc$h^{-1}$,'+' weights: {}'.format(mockweight[1:]))
-                    if pimax == 0:
-                        plt.ylim(5,45)
-                    elif pimax == 5:
-                        plt.ylim(3,30)
+                    plt.ylim(5,45)
                     plt.yscale('log')
                 if (j==1):
                     ax[j,k].set_ylabel('$\Delta$ wp/err')
