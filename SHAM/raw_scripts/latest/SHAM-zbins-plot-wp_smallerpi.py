@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import matplotlib 
 matplotlib.use('agg')
 import time
@@ -29,7 +28,8 @@ rscale   = sys.argv[3] #'linear' # 'log'
 zmin     = sys.argv[4]
 zmax     = sys.argv[5]
 function = 'mps' # 'wp'
-date     = '0218' 
+pre      = sys.argv[6]
+date     = sys.argv[7]
 nseed    = 15
 pimaxs = [25,30,35]
 npoints  = 100 
@@ -38,16 +38,35 @@ var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
 rmin     = 5
-if rscale =='linear':
-    rmax = 25
+if date == '0729':
+    parameters = ["sigma","Vsmear"]
+    if pre[:7] == 'mocks10':
+        rmin = 15
+        rmax = 35
+    elif rscale == 'linear':
+        rmin = 5
+        rmax = 25
+    else:
+        rmin = 5
+        rmax = 30
 else:
-    rmax = 30
-nthread  = 10
+    parameters = ["sigma","Vsmear","Vceil"]
+    if date == '0726':
+        rmin = 12
+        rmax = 40
+    else:
+        rmin     = 5
+        if rscale =='linear':
+            rmax = 25
+        else:
+            rmax = 30
+
+nthread  = 1
 autocorr = 1
 mu_max   = 1
 autocorr = 1
 home     = '/home/astro/jiayu/Desktop/SHAM/'
-fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
+fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,pre,function,rscale,gal,GC,zmin,zmax)
 cols = ['col4','col5']
 
 # wp binning:
@@ -163,7 +182,7 @@ if os.path.exists('{}best-fit-wp_{}_{}-python_pi35.dat'.format(fileroot[:-10],ga
     wp = [np.loadtxt('{}best-fit-wp_{}_{}-python_pi{}.dat'.format(fileroot[:-10],gal,GC,i)) for i in pimaxs]
 else:
     print('reading the UNIT simulation snapshot with a(t)={}'.format(a_t))  
-    halofile = home+'catalog/UNIT_hlist_'+a_t+'.hdf5'        
+    halofile = home+'catalog/UNIT_hdf5/UNIT_hlist_'+a_t+'.hdf5'        
     read = time.time()
     f=h5py.File(halofile,"r")
     if len(f["halo"]['Vpeak'][:])%2 ==1:
@@ -185,12 +204,22 @@ else:
     uniform_randoms1 = [np.random.RandomState(seed=1050*x+1).rand(len(datac)).astype('float32') for x in range(nseed)] 
 
     # SHAM application
-    def sham_tpcf(uni,uni1,sigM,sigV,Mtrun):
-        wp00,wp01,wp02= sham_cal(uni,sigM,sigV,Mtrun)
-        wp10,wp11,wp12= sham_cal(uni1,sigM,sigV,Mtrun)
-        return [append(wp00,wp10),append(wp01,wp11),append(wp02,wp12)]
+    def sham_tpcf(*par):
+        if date == '0729':
+            x00,x20,wp0= sham_cal(par[0],par[2],par[3])
+            x01,x21,wp1= sham_cal(par[1],par[2],par[3])
+        else:
+            x00,x20,wp0= sham_cal(par[0],par[2],par[3],par[4])
+            x01,x21,wp1= sham_cal(par[1],par[2],par[3],par[4])
+        return [append(x00,x01),append(x20,x21),append(wp0,wp1)]
 
-    def sham_cal(uniform,sigma_high,sigma,v_high):
+    def sham_cal(*PAR):
+        # scatter Vpeak
+        if date == '0729':
+            uniform,sigma_high,sigma = PAR
+            v_high = 0
+        else:
+            uniform,sigma_high,sigma,v_high = PAR
         # scatter Vpeak
         scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
         scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
@@ -216,9 +245,12 @@ else:
         # calculate the 2pcf and the multipoles
         return [wp_dat0['wp'],wp_dat1['wp'],wp_dat2['wp']]
 
-    # calculate the SHAM 2PCF
-    with Pool(processes = nseed) as p:
-        xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(a.get_best_fit()['parameters'][0])),repeat(np.float32(a.get_best_fit()['parameters'][1])),repeat(np.float32(a.get_best_fit()['parameters'][2]))))) 
+    if date == '0729':
+        with Pool(processes = nseed) as p:
+            xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(a.get_best_fit()['parameters'][0])),repeat(np.float32(a.get_best_fit()['parameters'][1])))))
+    else:
+        with Pool(processes = nseed) as p:
+            xi1_ELG = p.starmap(sham_tpcf,list(zip(uniform_randoms,uniform_randoms1,repeat(np.float32(a.get_best_fit()['parameters'][0])),repeat(np.float32(a.get_best_fit()['parameters'][1])),repeat(np.float32(a.get_best_fit()['parameters'][2]))))) 
 
     # wp pimaxs calculations for SHAM, observation and mocks
     wp = [0,1,2]
@@ -231,9 +263,14 @@ else:
         
         # observations
         if (gal == 'LRG')|(gal=='ELG'):
-            pairfile = '{}catalog/nersc_zbins_wp_mps_{}/pairs_rp-pi_log_eBOSS_{}_{}_{}_pip_zs_{:.2f}-{}0.dat'.format(home,gal,gal,GC,verwp,float(zmin),zmax)
+            if rscale == 'log':
+                pairfile = '{}catalog/nersc_zbins_wp_mps_{}/pairs_rp-pi_log_eBOSS_{}_{}_{}_pip_zs_{:.2f}-{}0.dat'.format(home,gal,gal,GC,'v7_2',float(zmin),zmax)
+                
+            else:
+                pairfile = home+'catalog/nersc_wp_LRG_v7_2/pair_counts_rp-pi_pip_eBOSS_LRG_NGC+SGC_v7_2.dat'
             minbin,maxbin,dds,drs,rrs = np.loadtxt(pairfile,unpack=True) 
             sel = maxbin<pimax
+            #import pdb;pdb.set_trace()
             OBSwp1 = np.sum(((((dds-2*drs+rrs)/rrs)[sel]).reshape(33,pimax)),axis=1)*2 
             mins,maxs,mids = np.loadtxt('{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver),unpack=True,usecols=(0,1,2)) 
             arr = np.array([mins,maxs,mids,OBSwp1]).reshape(4,33).T 
@@ -302,7 +339,7 @@ for h,pimax in enumerate(pimaxs):
             if (j==1):
                 ax[j,k].set_ylabel('$\Delta$ wp/err')
                 plt.ylim(-3,3)
-    plt.savefig('{}wp_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_pi{}.png'.format(fileroot[:-10],gal,GC,zmin,zmax,smin,smax,pimax),bbox_tight=True)
+    plt.savefig('{}wp_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_pi{}.png'.format(fileroot[:-10],gal,GC,zmin,zmax,smin,smax,pimax))
     plt.close()
 
 """
@@ -364,6 +401,6 @@ for k in range(1):
             ax[j,k].set_ylabel('$\Delta$ wp/err')
             plt.ylim(-3,3)
 
-plt.savefig('{}wp_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,zmin,zmax,smin,smax),bbox_tight=True)
+plt.savefig('{}wp_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,zmin,zmax,smin,smax))
 plt.close()
 """

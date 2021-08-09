@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import matplotlib 
 matplotlib.use('agg')
 import time
@@ -20,6 +19,8 @@ import h5py
 
 # variables
 gal      = sys.argv[1]
+date     = sys.argv[2]
+pre      = sys.argv[3]
 GC       = 'NGC+SGC'
 if gal == 'LRG':
     rscale   = 'log'
@@ -27,18 +28,39 @@ else:
     rscale = 'linear'
 function = 'mps' 
 nseed    = 30
-date     = '0218'
 npoints  = 100 
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
 Om       = 0.31
 boxsize  = 1000
-rmin     = 5
-if rscale =='linear':
-    rmax = 25
+cols = ['col4','col5']
+# read the posterior file
+if date == '0729':
+    parameters = ["sigma","Vsmear"]
+    if pre[:7] == 'mocks10':
+        rmin = 15
+        rmax = 35
+    elif rscale == 'linear':
+        rmin = 5
+        rmax = 25
+    else:
+        rmin = 5
+        rmax = 30
+        cols = ['col4','col5']
 else:
-    rmax = 30
-nthread  = 32
+    parameters = ["sigma","Vsmear","Vceil"]
+    if date == '0726':
+        rmin = 12
+        rmax = 40
+    else:
+        rmin     = 5
+        if rscale =='linear':
+            rmax = 25
+        else:
+            rmax = 30
+            cols = ['col4','col5']
+            
+nthread  = 1
 autocorr = 1
 mu_max   = 1
 nmu      = 120
@@ -61,7 +83,7 @@ elif gal == 'LOWZ':
     zmaxs = [0.33,0.43]
 zbinnum = len(zmins)
 colors = ['m','b','orange','r','c']
-cols = ['col4','col5']
+#cols = ['col4','col5']
 ver1 = 'v7_2'
 
 samples = [x for x in range(zbinnum)]
@@ -78,24 +100,31 @@ pdfs= [x for x in range(zbinnum)]
 for zbin in range(zbinnum):
     zmin,zmax = zmins[zbin],zmaxs[zbin]
     # getdist results
-    fileroot = '{}MCMCout/zbins_{}/{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,function,rscale,gal,GC,zmin,zmax)
-    parameters = ["sigma","Vsmear","Vceil"]
+    fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,pre,function,rscale,gal,GC,zmin,zmax)
+    if (date == '0729') & ((gal == 'LOWZ')|(gal=='CMASS')):
+        parameters = ["sigma","Vsmear"]
+    else:
+        parameters = ["sigma","Vsmear","Vceil"]
     npar = len(parameters)
     a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
     sample = loadMCSamples(fileroot)
-
+    
     # read s bins
     if (gal == 'LRG')|(gal=='ELG'):
-        binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
+        if pre[:4]=='mock':
+            binfile = Table.read(home+'binfile_fine.dat',format='ascii.no_header')
+            covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
+            obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
+        else:
+            binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
+            covfits = home+'catalog/wp_diff-pi/nosys_FKP/EZmocks_nosys_2PCF_{}_z{}z{}_quad.fits.gz'.format(rscale,zmin,zmax)
+            obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.12-40.mocks'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
         sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
         bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
         s = binfile['col3'][sel]
         nbins = len(bins)-1
         binmin = np.where(binfile['col3']>=rmin)[0][0]
         binmax = np.where(binfile['col3']<rmax)[0][-1]+1
-        # filenames
-        covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
-        obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
     else:
         # generate s bins
         bins  = np.arange(rmin,rmax+1,1)
@@ -104,33 +133,42 @@ for zbin in range(zbinnum):
         binmax = rmax
         s = (bins[:-1]+bins[1:])/2
         # filenames
-        obs2pcf = '{}catalog/BOSS_zbins_mps/OBS_{}_NGC+SGC_DR12v5_z{}z{}.mps'.format(home,gal,zmin,zmax)
+        if pre[:4]=='mock':
+            obs2pcf = '{}catalog/BOSS_zbins_mps/OBS_{}_NGC+SGC_DR12v5_z{}z{}.15-35.mocks'.format(home,gal,zmin,zmax)
+        else:
+            obs2pcf = '{}catalog/BOSS_zbins_mps/OBS_{}_NGC+SGC_DR12v5_z{}z{}.mps'.format(home,gal,zmin,zmax)
         covfits  = '{}catalog/BOSS_zbins_mps/{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,rscale,zmin,zmax,multipole)
         obstool = ''
         
     # Read the covariance matrices 
     hdu = fits.open(covfits) # cov([mono,quadru])
-    mocks = hdu[1].data[GC+'mocks']
-    Nmock = mocks.shape[1]
+    mock = hdu[1].data[GC+'mocks']
+    Nmock = mock.shape[1]
     hdu.close()
-    if gal == 'LRG':
-        Nstot = int(mocks.shape[0]/2)
-    else: 
-        Nstot = 100
+    Nstot = int(mock.shape[0]/2)
 
     # observations
-    obscf = Table.read(obs2pcf,format='ascii.no_header')
-    if rscale == 'linear':
-        obscf= obscf[(obscf['col1']<rmax)&(obscf['col1']>=rmin)]
-    else:
-        obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
+    if pre[:4]=='mock':
+        if gal == 'LRG':
+            obscf = Table.read(obs2pcf,format='ascii.no_header')[1:]
+        else:
+            obscf = Table.read(obs2pcf,format='ascii.no_header')[binmin:binmax]
+    else:  
+        obscf = Table.read(obs2pcf,format='ascii.no_header')
+        if rscale == 'linear':
+            obscf= obscf[(obscf['col1']<rmax)&(obscf['col1']>=rmin)]
+        else:
+            obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
+
     # prepare OBS, covariance and errobar for chi2
-    Ns = int(mocks.shape[0]/2)
-    mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Ns:binmax+Ns,:]))
+    mocks = vstack((mock[binmin:binmax,:],mock[binmin+Nstot:binmax+Nstot,:]))
     covcut  = cov(mocks).astype('float32')
-    OBS   = append(obscf['col4'],obscf['col5']).astype('float32')# LRG columns are s**2*xi
+    OBS   = append(obscf[cols[0]],obscf[cols[1]]).astype('float32')# LRG columns are s**2*xi
     covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
-    errbar = np.std(mocks,axis=1)
+    if pre[:5]=='mocks':
+        errbar = np.std(mocks,axis=1)/np.sqrt(float(pre[5:7]))
+    else:
+        errbar = np.std(mocks,axis=1)        
 
     # plot wp with errorbars
     wp = np.loadtxt('{}best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
@@ -164,11 +202,11 @@ for zbin in range(zbinnum):
         xi = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
     else:
         xi = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
-    bbins,UNITv,SHAMv = np.loadtxt('{}/best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
-    pdf = SHAMv[:-1]/UNITv[:-1]
+    #bbins,UNITv,SHAMv = np.loadtxt('{}/best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
+    #pdf = SHAMv[:-1]/UNITv[:-1]
     
     #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
-    
+
     # data summary
     samples[zbin] = sample
     Ccodes[zbin] = xi
@@ -177,9 +215,11 @@ for zbin in range(zbinnum):
     OBSwps[zbin] = OBSwp
     wps[zbin]     = wp    
     errbarwps[zbin] = errbarwp
-    pdfs[zbin]  = pdf
+    #pdfs[zbin]  = pdf
     bestfits[zbin] = a.get_best_fit()
-
+    #print(obscf)
+    #print(xi)
+#import pdb;pdb.set_trace()
 # plot posteriors
 plt.rcParams['text.usetex'] = False
 g = plots.getSinglePlotter()
@@ -219,23 +259,21 @@ for zbin in range(zbinnum):
             else:
                 ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbars[zbin][k*nbins:(k+1)*nbins]/err[j],\
                     color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",\
-                    label='z{}z{}, $\chi^2/dof={:.4}$/{}'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood'],int(2*len(s)-3)))
+                    label='z{}z{}, $\chi^2/dof={:.4}$/{}'.format(zmins[zbin],zmaxs[zbin],-2*bestfits[zbin]['log_likelihood'],int(2*len(s)-npar)))
 
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
                 plt.xscale('log')
             if (j==0):
                 ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
-                if k==0:
-                    plt.legend(loc=2)
-                else:
+                if k==1:
                     plt.legend(loc=1)
                 plt.title('correlation function {}: {} in {}, PIP with errorbar'.format(name,gal,GC))
             if (j==1):
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
                 plt.ylim(-3,3)
 
-plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,multipole,gal,GC,rmin,rmax),bbox_tight=True)
+plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,multipole,gal,GC,rmin,rmax))
 plt.close()
 
 
@@ -269,7 +307,7 @@ for zbin in range(zbinnum):
                 ax[j,k].set_ylabel('$\Delta$ wp/err')
                 plt.ylim(-3,3)
 
-plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(home,gal,GC,smin,smax),bbox_tight=True)
+plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(home,gal,GC,smin,smax))
 plt.close()
 
 # plot
@@ -336,8 +374,9 @@ for h,pimax in enumerate(pimaxs):
                     ax[j,k].set_ylabel('$\Delta$ wp/err')
                     plt.ylim(-3,3)
 
-    plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi{}.png'.format(home,gal,GC,smin,smax,pimax),bbox_tight=True)
+    plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi{}.png'.format(home,gal,GC,smin,smax,pimax))
     plt.close()
+
 """
 # plot the PDF
 fig,ax = plt.subplots()
