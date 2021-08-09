@@ -118,7 +118,7 @@ for zbin in range(zbinnum):
         else:
             binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
             covfits = home+'catalog/wp_diff-pi/nosys_FKP/EZmocks_nosys_2PCF_{}_z{}z{}_quad.fits.gz'.format(rscale,zmin,zmax)
-            obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.12-40.mocks'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
+            obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.mocks'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
         sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
         bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
         s = binfile['col3'][sel]
