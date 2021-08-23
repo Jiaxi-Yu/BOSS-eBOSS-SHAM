@@ -334,7 +334,7 @@ if finish:
         bbins,UNITv,SHAMv = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
     else:
         print('reading the UNIT simulation snapshot with a(t)={}'.format(a_t))  
-        halofile = home+'catalog/UNIT_hdf5/UNIT_hlist_'+a_t+'.hdf5'        
+        halofile = home+'catalog/UNIT_hlist_'+a_t+'.hdf5'        
         read = time.time()
         f=h5py.File(halofile,"r")
         if len(f["halo"]['Vpeak'][:])%2 ==1:
@@ -451,6 +451,7 @@ if finish:
 
     # plot the 2pcf results
     errbar = np.std(mocks,axis=1)
+    errbarsham = np.loadtxt('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),usecols=(2,3))
     #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
     if rscale=='linear':
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
@@ -458,15 +459,17 @@ if finish:
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
     # plot the 2PCF multipoles   
     fig = plt.figure(figsize=(14,8))
-    spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+    spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], wspace=0.4,hspace=0)
     ax = np.empty((2,2), dtype=type(plt.axes))
-    for col,covbin,name,k in zip(cols,[int(0),int(Nstot)],['monopole','quadrupole'],range(2)):
+    for col,name,k in zip(cols,['monopole','quadrupole'],range(2)):
         values=[np.zeros(nbins),obscf[col]]        
         err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
             ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
+            #ax[j,k].errorbar(s+0.1,s**2*(Ccode[:,k+2]-values[j])/err[j],s**2*errbarsham[:,k]/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
+            ax[j,k].fill_between(s+0.1,s**2*(Ccode[:,k+2]-values[j])/err[j]-s**2*errbarsham[:,k]/err[j],s**2*(Ccode[:,k+2]-values[j])/err[j]+s**2*errbarsham[:,k]/err[j],color='m',alpha=0.4,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
             ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
@@ -482,9 +485,9 @@ if finish:
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
                 plt.ylim(-3,3)
 
-    plt.savefig('{}cf_{}_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1.png'.format(fileroot[:-10],multipole,gal,GC,zmin,zmax,rmin,rmax))
+    plt.savefig('{}cf_{}_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_1.png'.format(fileroot[:-10],multipole,gal,GC,zmin,zmax,rmin,rmax))
     plt.close()
-
+"""
     # plot the 2PCF multipoles 2-25Mpc/h
     if rscale == 'linear':
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[2:binmax]
@@ -508,7 +511,7 @@ if finish:
         fig = plt.figure(figsize=(14,8))
         spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
         ax = np.empty((2,2), dtype=type(plt.axes))
-        for col,covbin,name,k in zip(cols,[int(0),int(Nstot)],['monopole','quadrupole'],range(2)):
+        for col,name,k in zip(cols,['monopole','quadrupole'],range(2)):
             values=[np.zeros(nbins),obscf[col]]        
             err   = [np.ones(nbins),s**2*errbar[k*nbins:(k+1)*nbins]]
             for j in range(2):
@@ -624,3 +627,4 @@ if finish:
 
     plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax))
     plt.close()
+"""

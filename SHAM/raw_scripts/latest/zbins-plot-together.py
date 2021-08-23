@@ -76,8 +76,8 @@ elif gal == 'ELG':
     zmaxs = [0.8,0.9,1.0,1.1]
     ver = 'v7'
 elif gal == 'CMASS':
-    zmins = [0.43,0.51,0.57]
-    zmaxs = [0.51,0.57,0.7]
+    zmins = [0.43,0.51,0.57]#,0.43,]
+    zmaxs = [0.51,0.57,0.7]#,0.7,]
 elif gal == 'LOWZ':
     zmins = [0.2, 0.33]
     zmaxs = [0.33,0.43]
@@ -89,6 +89,7 @@ ver1 = 'v7_2'
 samples = [x for x in range(zbinnum)]
 bestfits = [x for x in range(zbinnum)]
 Ccodes = [x for x in range(zbinnum)]
+errbarshams = [x for x in range(zbinnum)]
 obscfs= [x for x in range(zbinnum)]
 errbars= [x for x in range(zbinnum)]
 OBSwps= [x for x in range(zbinnum)]
@@ -100,8 +101,12 @@ pdfs= [x for x in range(zbinnum)]
 for zbin in range(zbinnum):
     zmin,zmax = zmins[zbin],zmaxs[zbin]
     # getdist results
+    if (gal == 'CMASS')&(zmax == 0.7)&(date =='0729'):
+        pre = '0218_'
+    else:
+        pre = '/'
     fileroot = '{}MCMCout/zbins_{}/{}{}_{}_{}_{}_z{}z{}/multinest_'.format(home,date,pre,function,rscale,gal,GC,zmin,zmax)
-    if (date == '0729') & ((gal == 'LOWZ')|(gal=='CMASS')):
+    if (date == '0729'):
         parameters = ["sigma","Vsmear"]
     else:
         parameters = ["sigma","Vsmear","Vceil"]
@@ -113,12 +118,13 @@ for zbin in range(zbinnum):
     if (gal == 'LRG')|(gal=='ELG'):
         if pre[:4]=='mock':
             binfile = Table.read(home+'binfile_fine.dat',format='ascii.no_header')
-            covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
-            obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
-        else:
-            binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
             covfits = home+'catalog/wp_diff-pi/nosys_FKP/EZmocks_nosys_2PCF_{}_z{}z{}_quad.fits.gz'.format(rscale,zmin,zmax)
             obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.mocks'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
+
+        else:
+            binfile = Table.read(home+'binfile_log.dat',format='ascii.no_header')
+            covfits = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,function,rscale,gal,zmin,zmax,multipole) 
+            obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
         sel = (binfile['col3']<rmax)&(binfile['col3']>=rmin)
         bins  = np.unique(np.append(binfile['col1'][sel],binfile['col2'][sel]))
         s = binfile['col3'][sel]
@@ -202,8 +208,10 @@ for zbin in range(zbinnum):
         xi = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
     else:
         xi = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
-    #bbins,UNITv,SHAMv = np.loadtxt('{}/best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
-    #pdf = SHAMv[:-1]/UNITv[:-1]
+    errbarsham = np.loadtxt('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),usecols=(2,3))
+    
+    bbins,UNITv,SHAMv = np.loadtxt('{}/best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
+    pdf = SHAMv[:-1]/UNITv[:-1]
     
     #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
 
@@ -212,14 +220,13 @@ for zbin in range(zbinnum):
     Ccodes[zbin] = xi
     obscfs[zbin] = obscf
     errbars[zbin] = errbar
+    errbarshams[zbin] = errbarsham
     OBSwps[zbin] = OBSwp
     wps[zbin]     = wp    
     errbarwps[zbin] = errbarwp
-    #pdfs[zbin]  = pdf
+    pdfs[zbin]  = pdf
     bestfits[zbin] = a.get_best_fit()
-    #print(obscf)
-    #print(xi)
-#import pdb;pdb.set_trace()
+
 # plot posteriors
 plt.rcParams['text.usetex'] = False
 g = plots.getSinglePlotter()
@@ -252,6 +259,8 @@ for zbin in range(zbinnum):
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             ax[j,k].plot(s,s**2*(Ccodes[zbin][:,k+2]-values[j])/err[j],c=colors[zbin],alpha=0.6,label='_hidden')
+            ax[j,k].fill_between(s,s**2*(Ccodes[zbin][:,k+2]-values[j])/err[j]-s**2*errbarshams[zbin][:,k]/err[j],s**2*(Ccodes[zbin][:,k+2]-values[j])/err[j]+s**2*errbarshams[zbin][:,k]/err[j],color=colors[zbin],alpha=0.3,label='_hidden')
+
             if k==0:
                 ax[j,k].errorbar(s,s**2*(obscfs[zbin][col]-values[j])/err[j],s**2*errbars[zbin][k*nbins:(k+1)*nbins]/err[j],\
                     color=colors[zbin], marker='o',ecolor=colors[zbin],ls="none",\
@@ -273,10 +282,10 @@ for zbin in range(zbinnum):
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
                 plt.ylim(-3,3)
 
-plt.savefig('{}cf_{}_bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,multipole,gal,GC,rmin,rmax))
+plt.savefig('{}cf_{}_{}bestfit_{}_{}_{}-{}Mpch-1.png'.format(home,multipole,date,gal,GC,rmin,rmax))
 plt.close()
 
-
+"""
 # wp binning
 smin=5; smax=30
 binfilewp = Table.read(home+'binfile_CUTE.dat',format='ascii.no_header')
@@ -376,7 +385,7 @@ for h,pimax in enumerate(pimaxs):
 
     plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi{}.png'.format(home,gal,GC,smin,smax,pimax))
     plt.close()
-
+"""
 """
 # plot the PDF
 fig,ax = plt.subplots()
