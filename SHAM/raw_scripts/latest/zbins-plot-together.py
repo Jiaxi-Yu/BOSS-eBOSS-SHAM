@@ -249,7 +249,7 @@ plt.close()
 
 # plot the 2PCF multipoles   
 fig = plt.figure(figsize=(14,8))
-spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0.3,wspace=0.4)
+spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], hspace=0,wspace=0.2)
 ax = np.empty((2,2), dtype=type(plt.axes))
 for zbin in range(zbinnum):
     for col,covbin,name,k in zip(cols,[int(0),int(Nstot)],['monopole','quadrupole'],range(2)):
@@ -277,7 +277,8 @@ for zbin in range(zbinnum):
                 ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
                 if k==1:
                     plt.legend(loc=1)
-                plt.title('correlation function {}: {} in {}, PIP with errorbar'.format(name,gal,GC))
+                plt.title('correlation function {}: {} in {}'.format(name,gal,GC))
+                plt.xticks([])
             if (j==1):
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
                 plt.ylim(-3,3)

@@ -29,7 +29,8 @@ zmin     = sys.argv[4]
 zmax     = sys.argv[5]
 finish   = int(sys.argv[6])
 pre = sys.argv[7]
-date     = sys.argv[8]#'0218'
+date     = sys.argv[8]
+#'0218': 3-param, '0726':mock-SHAM 3-param, '0729': 2-param
 function = 'mps' # 'wp'
 nseed    = 15
 npoints  = 100 
@@ -459,7 +460,7 @@ if finish:
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
     # plot the 2PCF multipoles   
     fig = plt.figure(figsize=(14,8))
-    spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], wspace=0.4,hspace=0)
+    spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], wspace=0.2,hspace=0)
     ax = np.empty((2,2), dtype=type(plt.axes))
     for col,name,k in zip(cols,['monopole','quadrupole'],range(2)):
         values=[np.zeros(nbins),obscf[col]]        
@@ -467,9 +468,9 @@ if finish:
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-            ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
+            ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='_hidden')#'SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
             #ax[j,k].errorbar(s+0.1,s**2*(Ccode[:,k+2]-values[j])/err[j],s**2*errbarsham[:,k]/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
-            ax[j,k].fill_between(s+0.1,s**2*(Ccode[:,k+2]-values[j])/err[j]-s**2*errbarsham[:,k]/err[j],s**2*(Ccode[:,k+2]-values[j])/err[j]+s**2*errbarsham[:,k]/err[j],color='m',alpha=0.4,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
+            ax[j,k].fill_between(s,s**2*(Ccode[:,k+2]-values[j])/err[j]-s**2*errbarsham[:,k]/err[j],s**2*(Ccode[:,k+2]-values[j])/err[j]+s**2*errbarsham[:,k]/err[j],color='m',alpha=0.4,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
             ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='{} obs 1$\sigma$'.format(obstool))
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
@@ -485,7 +486,7 @@ if finish:
                 ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
                 plt.ylim(-3,3)
 
-    plt.savefig('{}cf_{}_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_1.png'.format(fileroot[:-10],multipole,gal,GC,zmin,zmax,rmin,rmax))
+    plt.savefig('{}cf_{}_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_{}.png'.format(fileroot[:-10],multipole,gal,GC,zmin,zmax,rmin,rmax,date))
     plt.close()
 """
     # plot the 2PCF multipoles 2-25Mpc/h
