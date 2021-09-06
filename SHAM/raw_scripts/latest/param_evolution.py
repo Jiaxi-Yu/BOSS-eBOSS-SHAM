@@ -3,7 +3,8 @@ import matplotlib
 matplotlib.use('agg')
 
 import os
-if not os.path.exists('bias_test/real_space/SHAM_amplitude_z0.8z1.0.dat'):
+if not os.path.exists('param_evolution/real_space/SHAM_amplitude_z0.8z1.0.dat'):
+    print('generate 2pcf')
     import time
     init = time.time()
     import numpy as np
@@ -150,7 +151,7 @@ if not os.path.exists('bias_test/real_space/SHAM_amplitude_z0.8z1.0.dat'):
     bins  = np.arange(5,55,1)
     nbins = len(bins)-1
     s = (bins[:-1]+bins[1:])/2
-    filename = 'bias_test/SHAM_amplitude_z{}z{}.dat'.format(zmin,zmax)
+    filename = 'param_evolution/SHAM_amplitude_z{}z{}.dat'.format(zmin,zmax)
     seqs = [i for i in range(nseed)]
 
     # SHAM halo catalogue
@@ -193,7 +194,7 @@ if not os.path.exists('bias_test/real_space/SHAM_amplitude_z0.8z1.0.dat'):
         datav = datav[argpartition(-datav,SHAMnum+percentcut)[:(SHAMnum+percentcut)]]
         LRGscat = LRGscat[argpartition(-datav,percentcut)[percentcut:]]
 
-        np.savetxt('bias_test/catalogues/SHAM-z{}z{}-seed{}.dat'.format(zmin,zmax,seq),LRGscat[:,-3:])
+        np.savetxt('param_evolution/catalogues/SHAM-z{}z{}-seed{}.dat'.format(zmin,zmax,seq),LRGscat[:,-3:])
         
         # Corrfunc 2pcf and wp
         if function == 'mps':
@@ -243,10 +244,14 @@ else:
     # bias evolution:
     #zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8','0.2', '0.43','0.6']
     #zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0','0.43','0.7', '1.0']
-    zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8']
-    zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0']
+    
+    #zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8']
+    #zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0']
+    
     #zmins = ['0.6','0.6','0.65','0.7','0.8']
     #zmaxs = ['0.7','0.8','0.8' ,'0.9','1.0']
+    zmins = ['0.2', '0.2', '0.33','0.43','0.51']
+    zmaxs = ['0.33','0.43','0.43','0.51','0.57']
 
     SHAMbias   = []
     SHAMbiaserr= []
@@ -373,9 +378,9 @@ else:
             dvstd  = [136.5,144.5]
             dvnorm = [95.4,100.4]
         zeff.append(z)
-
+        """
         if function == 'mps':
-            filename = 'bias_test/real_space/SHAM_amplitude_z{}z{}.dat'.format(zmin,zmax)
+            filename = 'param_evolution/real_space/SHAM_amplitude_z{}z{}.dat'.format(zmin,zmax)
             columns = []
             with open(filename, 'r') as td:
                 for line in td:
@@ -389,19 +394,31 @@ else:
             biasmean = np.sqrt(np.mean(biasz[sbinmin-(5-ind0):sbinmax-(5-ind0)],axis=1)/D(1/(1+z))**2)
 
         elif function =='Pk':
-            UNIT = np.loadtxt('bias_test/UNIT_linear-interp.pk')
+            UNIT = np.loadtxt('param_evolution/UNIT_linear-interp.pk')
             pkseed = []
             for seed in range(25):
-                filename = 'bias_test/catalogues_pk/z{}z{}-seed{}.pk'.format(zmin,zmax,seed)
+                filename = 'param_evolution/catalogues_pk/z{}z{}-seed{}.pk'.format(zmin,zmax,seed)
                 pkseed.append(np.loadtxt(filename,usecols=5))
             biasmean = np.sqrt(np.mean(pkseed/UNIT[:,-1]/D(1/(1+z))**2,axis=1))
 
         SHAMbias.append(np.mean(biasmean))
         SHAMbiaserr.append(np.std(biasmean))
+        """
+
         # best-fits and their constraints
-        fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
-        parameters = ["sigma","Vsmear","Vceil"]
-        npar = len(parameters)
+        #fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+        #parameters = ["sigma","Vsmear","Vceil"]
+        if (gal == 'LRG')|((gal=='CMASS')&(zmin=='0.57')):
+            fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+            parameters = ["sigma","Vsmear","Vceil"]
+            npar = len(parameters)
+        #elif (gal == 'CMASS')&(zmin=='0.57'):
+        #    fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+        #    parameters = ["sigma","Vsmear","Vceil"]
+        else:        
+            fileroot = '{}MCMCout/zbins_0729/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+            parameters = ["sigma","Vsmear"]
+            npar = len(parameters)
         a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
         stats = a.get_stats()
         ind = 0
@@ -414,17 +431,39 @@ else:
         best = a.get_best_fit()['parameters'][ind]
         bounds1.append(abs(param-best))
         best1.append(best)
-        ind = 2
-        param = stats['marginals'][ind]['1sigma']
-        best = a.get_best_fit()['parameters'][ind]
-        bounds2.append(abs(param-best))
-        best2.append(best)
+        if npar == 3:
+            ind = 2
+            param = stats['marginals'][ind]['1sigma']
+            best = a.get_best_fit()['parameters'][ind]
+            bounds2.append(abs(param-best))
+            best2.append(best)
         # dv meaurements
         bounds3.append((dvstd[1]-dvstd[0])/2)
         best3.append(np.mean(dvstd))
         bounds4.append((dvnorm[1]-dvnorm[0])/2)
         best4.append(np.mean(dvnorm))
 
+    from scipy.optimize import curve_fit
+    def linear(x,a,b):
+        return a*x+b
+    popt, pcov = curve_fit(linear,1/(1+np.array(zeff)),np.array(best0),sigma=np.mean(abs(np.array(bounds0).T),axis=0))
+    plt.title(r'The 2-param SHAM best-fit $\sigma$ slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
+    plt.errorbar(1/(1+np.array(zeff)),np.array(best0),np.array(bounds0).T,color='k', marker='o',ecolor='k',ls="none")
+    plt.plot(1/(1+np.array(zeff)),linear(1/(1+np.array(zeff)),*popt),'',label='best-fit')
+    #plt.axvline(0.43, color= "k",linestyle='--')
+    #plt.axvline(0.645, color = "k",linestyle='--')
+    plt.axvline(0.7, color= "k",linestyle='--')
+    plt.text(0.75, 0.1, 'LOWZ')
+    plt.text(0.65, 0.1, 'CMASS')
+    plt.ylabel('$\sigma$')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
+    #plt.xlabel('$z_{eff}$')
+    plt.xlabel('$a(z_{eff}$)')
+    plt.legend(loc=0)
+    plt.ylim(0,0.6)
+    plt.xlim(0.625,0.8)
+    plt.savefig('sigma_evolution.png')
+    plt.close()
+"""
     # plot together
     fig,ax = plt.subplots()
     plt.title(r'the BOSS/eBOSS redshift uncertainty v.s. the SHAM Vsmear best-fit ')
@@ -441,12 +480,14 @@ else:
     ax.text(0.7, pos, 'eBOSS LRG')
     plt.ylabel('$\Delta v$ (km/s)')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
     plt.xlabel('$z_{eff}$')
-    plt.legend(loc=0)
+    plt.legend(loc=4)
     plt.ylim(0,pos*1.1)
-    plt.xlim(float(zmins[0]),float(zmaxs[-1]))
-    plt.savefig('Vsmear_vs_dv.png')
+    plt.xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
+    plt.savefig('Vsmear_vs_dv_2param.png')
     plt.close()
+"""
 
+"""
     # plot together
     fig,ax = plt.subplots()
     if function =='mps':
@@ -463,8 +504,8 @@ else:
     ax.text(0.7, pos, 'eBOSS LRG')
     plt.ylabel('bias')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
     plt.xlabel('$z_{eff}$')
-    plt.savefig('bias_test/bias_evolution-{}_1.png'.format(function))
-    np.savetxt('bias_test/SHAM-bias.txt',np.array([zeff,SHAMbias,SHAMbiaserr]).T,header='zeff bias biaserr')
+    plt.savefig('param_evolution/bias_evolution-{}_1.png'.format(function))
+    np.savetxt('param_evolution/SHAM-bias.txt',np.array([zeff,SHAMbias,SHAMbiaserr]).T,header='zeff bias biaserr')
     plt.close()
 
     # parameter evolution fitting
@@ -529,7 +570,7 @@ else:
     plt.savefig('parameter_evolution.png')
     plt.close()
 
-
+"""
 """
 # save the multinest chain, which doesn't mean anything
 # calculate the SHAM 2PCF
@@ -566,17 +607,17 @@ def biasbar(biasarr,sbinmin,sbinmax):
     return np.array([biasarr[:,0],biasarr[:,2],np.mean(biasarr[:,sbinmin-(5-ind0):sbinmax-(5-ind0)],axis=1)]).T
 
 if function == 'mps':
-    sham_2pcf(np.where(A[:,-1]==a.get_best_fit()['log_likelihood'])[0][0],'bias_test/chain-amplitude_{}_z{}z{}.dat'.format(gal,zmin,zmax))
+    sham_2pcf(np.where(A[:,-1]==a.get_best_fit()['log_likelihood'])[0][0],'param_evolution/chain-amplitude_{}_z{}z{}.dat'.format(gal,zmin,zmax))
 
     for ind in range(nbias):
-        sham_2pcf(-1-chunk*ind,'bias_test/chain-amplitude_{}_z{}z{}.dat'.format(gal,zmin,zmax))
+        sham_2pcf(-1-chunk*ind,'param_evolution/chain-amplitude_{}_z{}z{}.dat'.format(gal,zmin,zmax))
         if (ind+1)%(nbias/10)==0:
             print('{}% completed'.format(ind+1))
 
     # plot chains
-    Uxi00 = np.loadtxt('bias_test/UNIT_'+a_t+'.mps',usecols=3)
+    Uxi00 = np.loadtxt('param_evolution/UNIT_'+a_t+'.mps',usecols=3)
     print('the UNIT 5-65Mpc/h monopoles are ready.')
-    bias = np.loadtxt('bias_test/chain-amplitude_{}_z{}z{}.dat'.format(gal,zmin,zmax))
+    bias = np.loadtxt('param_evolution/chain-amplitude_{}_z{}z{}.dat'.format(gal,zmin,zmax))
     ind0 = 4
     bias[:,ind0:]/=Uxi00
     # choose linear range
@@ -584,7 +625,7 @@ if function == 'mps':
     plt.title('bias_z{}z{}'.format(zmin,zmax))
     for i in range(5):
         ax.plot(s,bias[i,ind0:])
-    plt.savefig('bias_test/bias_z{}z{}.png'.format(zmin,zmax))
+    plt.savefig('param_evolution/bias_z{}z{}.png'.format(zmin,zmax))
     plt.close()
     # contour: sigma-Vceil vs bias
     labels = ["sigma","Vceil"]#,"bias"]
@@ -597,13 +638,13 @@ if function == 'mps':
     g.settings.alpha_filled_add=0.4
     g = plots.getSubplotPlotter()
     g.triangle_plot([samples1,samples2],labels, filled=True)
-    g.export('bias_test/bias-contour_{}_z{}z{}.png'.format(gal,zmin,zmax))
+    g.export('param_evolution/bias-contour_{}_z{}z{}.png'.format(gal,zmin,zmax))
     plt.close()
 elif function == 'Pk':
-    sham_2pcf(np.where(A[:,-1]==a.get_best_fit()['log_likelihood'])[0][0],'bias_test/Pk_z{}z{}.dat'.format(zmin,zmax))
-    Uxi00 = np.loadtxt('bias_test/Pklin_z{}z{}.dat'.format(zmin,zmax))
+    sham_2pcf(np.where(A[:,-1]==a.get_best_fit()['log_likelihood'])[0][0],'param_evolution/Pk_z{}z{}.dat'.format(zmin,zmax))
+    Uxi00 = np.loadtxt('param_evolution/Pklin_z{}z{}.dat'.format(zmin,zmax))
     print('the UNIT P(k) are ready.')
-    bias = np.loadtxt('bias_test/Pk_z{}z{}.dat'.format(zmin,zmax))
+    bias = np.loadtxt('param_evolution/Pk_z{}z{}.dat'.format(zmin,zmax))
     ind0 = 4
     bias[ind0:]/=Uxi00
     # choose linear range
