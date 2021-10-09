@@ -9,6 +9,7 @@ from lmfit.models import PseudoVoigtModel
 
 c_kms = 299792.
 home = '/global/homes/j/jiaxi/Vsmear-photo'
+cutind = 35
 
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
@@ -280,39 +281,43 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
     norm = np.sum(dens)
     dens = dens/norm
     
+    # directly calculate the std
+    STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
+    print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[abs(dv)<1000])-STD*np.sqrt(nsubvolume),np.std(dv[abs(dv)<1000])+STD*np.sqrt(nsubvolume)))
+    
+    #-- fit delta_v with Gaussian, Lorentzian and Voigt line shape    
     # histogram jacknife
-    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:29]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-{}.dat'.format(GC))
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:cutind]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-{}.dat'.format(GC))
     hists =hists/norm
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
-    
-    #-- fit delta_v with Gaussian, Lorentzian and Voigt line shape
+    # Gaussian
     popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histcovR)
     res = gaussian(BIN,*popt)-dens
+    print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))      
 
+    # fittins other than Gaussian
+    """
+    import pdb;pdb.set_trace()
     popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histcovR)
     res1 = lorentzian(BIN,*popt1)-dens
+    print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(popt1[1]-np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2)),(popt1[1]+np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2))))  
 
     mod = PseudoVoigtModel()
     pars = mod.guess(dens, x=BIN)
     out = mod.fit(dens, pars, x=BIN,weights=1/histstd**2)
     res2 = out.best_fit - dens
-    
-    # directly calculate the std
-    STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
-    print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[abs(dv)<1000])-STD*np.sqrt(nsubvolume),np.std(dv[abs(dv)<1000])+STD*np.sqrt(nsubvolume)))
-    print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))    
-    print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(popt1[1]-np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2)),(popt1[1]+np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2))))    
     print('Voigt fit in [-{},{}]: Vsmear = {:.1f}, {:.1f}% Lorentzian '.format(max_dv,max_dv,out.best_values['sigma'],out.best_values['fraction']))
-        
+    """
+
     # plot the gaussian: delta_v
     plt.figure(figsize=(8,6))
     plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
     plt.scatter(-max_dv,outliern/norm,c='r')
     plt.scatter(max_dv,outlierp/norm,c='r')
     plt.plot(BIN, gaussian(BIN,*popt), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$/dof = {3:.1f}/{4:}'.format(popt[1],np.sqrt(np.diag(pcov))[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
-    plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$,$\chi^2$ /dof = {3:.1f}/{4:}'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
-    plt.plot(BIN, out.best_fit,c='green',label=r'PseudoVoigt fit $\sigma$ = {0:.1f}, {1:.1f}% Lorentzian, $\chi^2$/dof = {2:.1f}/{3:}'.format(out.best_values['sigma'],out.best_values['fraction'],res2.dot(histcovR.dot(res2)),len(res)))
+    #plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$,$\chi^2$ /dof = {3:.1f}/{4:}'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
+    #plt.plot(BIN, out.best_fit,c='green',label=r'PseudoVoigt fit $\sigma$ = {0:.1f}, {1:.1f}% Lorentzian, $\chi^2$/dof = {2:.1f}/{3:}'.format(out.best_values['sigma'],out.best_values['fraction'],res2.dot(histcovR.dot(res2)),len(res)))
     plt.xlabel(r'$\Delta v$ (km/s)')
     plt.ylabel('counts')
     plt.legend(loc=1)
@@ -332,7 +337,7 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
     ratiodens,ratiobin = np.histogram(dv/zerr,ratios)
     ratiodens = ratiodens/len(ratiodens)
     
-    BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:29]+target+'-maxdv'+str(max_dv)+'-jacknife-zerr-{}.dat'.format(GC))
+    BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:cutind]+target+'-maxdv'+str(max_dv)+'-jacknife-zerr-{}.dat'.format(GC))
     hists =hists/len(ratiodens)
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
@@ -379,7 +384,7 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     dens = dens/norm
     
     # histogram jacknife
-    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:29]+target+'-maxdv'+str(max_dv)+'-jacknife-{}.dat'.format(GC))
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:cutind]+target+'-maxdv'+str(max_dv)+'-jacknife-{}.dat'.format(GC))
     hists =hists/norm
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
@@ -411,6 +416,8 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     a,sigma,mu = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), \
                     zip(*np.percentile(samples, [16, 50, 84], axis=0)))
     res = gaussian(BIN,a[0],sigma[0],mu[0])-dens
+    print('Gaussian emcee fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,sigma[0]-sigma[1],sigma[0]+sigma[2]))    
+    """
     # lorentzian
     ini = np.array([0.1, 50., 0.])
     ini = [ini + 1e-4 * np.random.randn(ndim) \
@@ -422,13 +429,9 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     a1,w,p = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), \
                     zip(*np.percentile(samples1, [16, 50, 84], axis=0)))
     res1 = lorentzian(BIN,a1[0],w[0],p[0])-dens
-
-    # directly calculate the std
-    STD = jacknife_hist(dv[abs(dv)<1000],bins,nsub = nsubvolume,gaussian=False)
-    print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[abs(dv)<1000])-STD*np.sqrt(nsubvolume),np.std(dv[abs(dv)<1000])+STD*np.sqrt(nsubvolume)))
-    print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,sigma[0]-sigma[1],sigma[0]+sigma[2]))
+    
     print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(w[0]-w[1])/2/np.sqrt(2*np.log(2)),(w[0]+w[2])/2/np.sqrt(2*np.log(2))))
-
+    """
     # plot the posterior
     import corner
     fig = corner.corner(samples, labels=[r'a', r'$\sigma$', r'$\mu$'])
@@ -482,6 +485,7 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
 
 GC = 'NGC+SGC'
 repeatname = 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits'
+
 zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
 zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
 maxdvs = [235,275,275,300,255,360]
