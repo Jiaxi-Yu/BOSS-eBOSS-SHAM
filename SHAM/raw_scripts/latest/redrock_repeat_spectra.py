@@ -8,7 +8,7 @@ import os
 from lmfit.models import PseudoVoigtModel
 
 c_kms = 299792.
-home = '/global/homes/j/jiaxi/'
+home = '/global/homes/j/jiaxi/Vsmear-photo'
 
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
@@ -31,8 +31,8 @@ def write_spall_redrock_join(spallname, zbestname, output):
                 columns=['PLATE', 'MJD', 'FIBERID', 'THING_ID',
                          'BOSS_TARGET1', 'EBOSS_TARGET0', 'EBOSS_TARGET1', 
                          'SN_MEDIAN', 
-                         'SPEC1_G', 'SPEC1_R', 'SPEC1_I', 
-                         'SPEC2_G', 'SPEC2_R', 'SPEC2_I',
+                         #'RUN', 'RERUN', 'CAMCOL',
+                         'OBJID',
                          'CHUNK','THING_ID_TARGETING',
                          'ZWARNING', 'ZWARNING_NOQSO', 'Z', 'Z_NOQSO', 'DOF', 
                          'RCHI2DIFF', 'RCHI2DIFF_NOQSO', 'SPECPRIMARY'])
@@ -43,7 +43,7 @@ def write_spall_redrock_join(spallname, zbestname, output):
     print('Making tables')
     ta = Table(spall)
     tc = Table(redrock)
-
+    redrock=[];spall=[]
     tc['PLATE'], tc['MJD'], tc['FIBERID'] = \
         targetid2platemjdfiber(tc['TARGETID'])
     
@@ -57,8 +57,19 @@ def write_spall_redrock_join(spallname, zbestname, output):
                 tc[name].name = name+'_REDROCK'
 
     print('Joining tables')
-    tac = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
-               join_type='left')
+    if output.find('photo')==-1:
+        tac = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
+                   join_type='left')
+    else:
+        tac_tmp = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
+                   join_type='left')
+        ta = [];tc=[];
+        print('reading photo-info file')
+        photo_tmp =  fitsio.read('photoPosPlate_dr16.fits',\
+                        columns=['OBJID','CMODELFLUX'])
+        photo = Table(photo_tmp)
+        photo_tmp = []
+        tac = join(tac_tmp,photo,keys=['OBJID'],join_type='left')
 
     print('Writing joined table')
     tac.write(output, format='fits', overwrite=True)
@@ -109,6 +120,14 @@ def get_targets(spall, target='LRG'):
     return spall[w]
 
 def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redrock=0, spec1ddr16=0):
+    filename = '{}/{}-{}_deltav_z{}z{}-{}.fits.gz'.format(home,proj,target,zmin,zmax,GC)
+    if GC == 'NGC':
+        spallsel = (spall['RA_REDROCK']>120)&(spall['RA_REDROCK']<240)
+        spall = spall[spallsel]
+    elif GC=='SGC':
+        spallsel = (spall['RA_REDROCK']<120)|(spall['RA_REDROCK']>240)
+        spall = spall[spallsel]
+
     # zwarning, chi2difference
     if spec1d:
         zwar_field = 'ZWARNING_NOQSO'
@@ -122,9 +141,9 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
     zerr_field = 'ZERR_REDROCK'
 
     # select repeats
-    if os.path.exists('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax)):
+    if os.path.exists(filename):
         info = {'thids': [], 'delta_v':[], 'delta_chi2':[], 'z':[],'zerr':[], 'sn_i': [], 'sn_z': []}
-        hdu = fits.open('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax))
+        hdu = fits.open(filename)
         data = hdu[1].data
         hdu.close()
         for k in info.keys():
@@ -199,7 +218,7 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
             info[k] = np.array(info[k])[zflag]
             cols.append(fits.Column(name=k,format='D',array=info[k]))
         hdulist = fits.BinTableHDU.from_columns(cols)
-        hdulist.writeto('{}Vsmear/{}-{}_deltav_z{}z{}.fits.gz'.format(home,proj,target,zmin,zmax),overwrite=True)
+        hdulist.writeto(filename,overwrite=True)
         print('after:',np.array(info['z']).shape)
 
     return info
@@ -262,16 +281,16 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
     dens = dens/norm
     
     # histogram jacknife
-    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:29]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife.dat')
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:29]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-{}.dat'.format(GC))
     hists =hists/norm
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
     
     #-- fit delta_v with Gaussian, Lorentzian and Voigt line shape
-    popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histstd)
+    popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histcovR)
     res = gaussian(BIN,*popt)-dens
 
-    popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histstd)
+    popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histcovR)
     res1 = lorentzian(BIN,*popt1)-dens
 
     mod = PseudoVoigtModel()
@@ -308,12 +327,12 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
     plt.close()
         
     #-- fit a Gaussian: zerr
-    ratios = np.linspace(-5,5,101)
+    ratios = np.linspace(-4,4,81)
     ratio = (ratios[1:]+ratios[:-1])/2
     ratiodens,ratiobin = np.histogram(dv/zerr,ratios)
     ratiodens = ratiodens/len(ratiodens)
     
-    BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:29]+target+'-maxdv'+str(max_dv)+'-jacknife-zerr.dat')
+    BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:29]+target+'-maxdv'+str(max_dv)+'-jacknife-zerr-{}.dat'.format(GC))
     hists =hists/len(ratiodens)
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
@@ -332,7 +351,7 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
         plt.title(title+' repetitive samples: $\Delta$ v v.s. zerr')
     plt.tight_layout()
     if save:
-        plt.savefig(save[:-4]+'-zerr.png', bbox_inches='tight')
+        plt.savefig(save[:-4]+'-zerr-{}.png'.format(GC), bbox_inches='tight')
     plt.close()
     
 def lnprior(par):
@@ -360,7 +379,7 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     dens = dens/norm
     
     # histogram jacknife
-    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:29]+target+'-maxdv'+str(max_dv)+'-jacknife.dat')
+    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:29]+target+'-maxdv'+str(max_dv)+'-jacknife-{}.dat'.format(GC))
     hists =hists/norm
     histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
     histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
@@ -413,10 +432,10 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     # plot the posterior
     import corner
     fig = corner.corner(samples, labels=[r'a', r'$\sigma$', r'$\mu$'])
-    plt.savefig(save[:-4]+'_posteriorG.png')
+    plt.savefig(save[:-4]+'_posteriorG-{}.png'.format(GC))
     plt.close()
     fig = corner.corner(samples1, labels=[r'a', r'w', r'$p_0$'])
-    plt.savefig(save[:-4]+'_posteriorL.png')
+    plt.savefig(save[:-4]+'_posteriorL.-{}.png'.format(GC))
     plt.close()
     # plot the Delta v vs models
     plt.figure(figsize=(8,6))
@@ -434,11 +453,11 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
         plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}, fitting by emcee'.format(dvsel.size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
     plt.tight_layout()
     if save:
-        plt.savefig(save[:-4]+'_emcee.png', bbox_inches='tight')
+        plt.savefig(save[:-4]+'_emcee-{}.png'.format(GC), bbox_inches='tight')
     plt.close()
     
 
-def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=500,spec1d=0, redrock=0 ):
+def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=500,spec1d=0, redrock=0,GC='NGC+SGC'):
 
     spall = Table.read(spall)
     sp = get_targets(spall, target=target)
@@ -450,39 +469,49 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
         zsource = 'redrock'
         info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redrock=1)
 
-    plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
-    plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax))
+    #plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
+    #plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
         
+##=================================================================================
 
-# eBOSS LRG:
-#write_spall_redrock_join('spAll-v5_13_0.fits', 'spAll_trimmed_pREDROCK.fits','spAll-zbest-v5_13_0.fits')
-#write_spall_repeats('spAll-zbest-v5_13_0.fits', 'spAll-zbest-v5_13_0-repeats-2x_redrock.fits')
-#write_spall_repeats('specObj-dr16.fits', 'spAll-zbest-dr16-repeats-2x_LOWZ.fits')
+#write_spall_redrock_join('spAll-v5_13_0.fits', 'spAll_trimmed_pREDROCK.fits','spAll-zbest-v5_13_0-photo.fits') # with photo info
+#write_spall_repeats('spAll-zbest-v5_13_0-photo.fits', 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits') # with photo-info
+#write_spall_repeats('specObj-dr16.fits', 'spAll-zbest-dr16-repeats-2x_LOWZ.fits') # two populations of LOWZ: before MJD (zerr=0) and after
+#write_spall_repeats('spAll-v5_4_45.fits', 'spAll-zbest-v5_4_45-repeats-2x.fits') # an older version
 #plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin=0.2,zmax=0.43,target='LOWZ',dchi2=9,spec1d=1,maxdv=140)
 
+GC = 'NGC+SGC'
+repeatname = 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits'
 zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
 zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
 maxdvs = [235,275,275,300,255,360]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv)
+    plot_all_deltav_histograms(repeatname,'eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv)
 
-#write_spall_repeats('spAll-v5_4_45.fits', 'spAll-zbest-v5_4_45-repeats-2x.fits')
 
 zmins = [0.43,0.51,0.57,0.43]
 zmaxs = [0.51,0.57,0.7,0.7]
 maxdvs = [205,200,235,270]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1,maxdv=maxdv)
+    plot_all_deltav_histograms(repeatname,'BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1,maxdv=maxdv)
 
+    
 zmins = [0.2, 0.33,0.2]
 zmaxs = [0.33,0.43,0.43]
-maxdvs = [105,140,140]
+if GC == 'NGC':
+    maxdvs = [85,120,130] #NGC
+elif GC == 'SGC':
+    maxdvs = [105,135,135] #SGC
+else:
+    maxdvs = [105,140,140] # NGC+SGC
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1,maxdv=maxdv)
+    plot_all_deltav_histograms(repeatname,'BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1,maxdv=maxdv,GC=GC)
     #plot_all_deltav_histograms('spAll-zbest-dr16-repeats-2x_LOWZ.fits','BOSS',zmin,zmax,target='LOWZdr16',dchi2=9,spec1d=1,maxdv=maxdv)
 
-
+    
+    
 ##############################################################################################
+"""
 #plot_all_deltav_deltachi2('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1)
 def plot_deltav_deltachi2(info,dchi2=9, title=None, save=0):
     
@@ -549,6 +578,6 @@ def plot_all_deltav_deltachi2(spall,proj,zmin,zmax,target='LRG',dchi2=9,spec1d=0
         info1 = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redmonster=1)
         
     plot_deltav_deltachi2(info1,dchi2,title='eBOSS {} repeats - redrock'.format(target), 
-               save='{}Vsmear/{}-{}-repeats-{}-dchi2_{}-z{}z{}.pdf'.format(home,proj,target,zsource,dchi2,zmin,zmax))
-
+               save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}.pdf'.format(home,proj,target,zsource,dchi2,zmin,zmax))
+"""
 #########################################################################################    
