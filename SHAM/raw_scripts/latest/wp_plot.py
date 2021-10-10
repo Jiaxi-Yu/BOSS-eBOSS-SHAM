@@ -6,6 +6,7 @@ from astropy.table import Table
 import matplotlib.gridspec as gridspec
 from Corrfunc.theory.wp import wp
 import sys
+import re
 
 home = '/global/homes/j/jiaxi/'
 rpmin=0.01
@@ -152,7 +153,7 @@ elif sys.argv[1]=='box':
         plt.savefig('{}/codes/FCFC/wp_test/wp-UNIT_{}.wo0.png'.format(home,a))
         plt.close()
     
-else:
+elif sys.argv[1]=='boxlogpi':
     dire = '/global/cscratch1/sd/jiaxi/SHAM/catalog/UNIT_hlist_{}.hdf5'
     for a in ['0.50320','0.52600','0.53780','0.54980']:   
         # plot  
@@ -186,4 +187,44 @@ else:
 
 
         plt.savefig('{}/codes/FCFC/wp_test/wp-UNIT_{}.png'.format(home,a))
-        plt.close()    
+        plt.close()   
+        
+elif sys.argv[1]=='2D':
+    for GC in ['NGC','SGC']:
+        for gal,ver in zip(['LRG','ELG'],['v7_2','v7']):
+            CUTE = Table.read('{}codes/CUTE/CUTE/wp_test/wp_CUTE_{}_{}_rp80.dat'.format(home,gal,GC),format='ascii.no_header')
+            X, Y = np.meshgrid(np.unique(CUTE['col2']),np.unique(CUTE['col1']))
+            fig = plt.figure(figsize=(21,7))
+            spec = gridspec.GridSpec(nrows=1,ncols=3)#, height_ratios=[4, 1])#, hspace=0.3)
+            ax = np.empty((1,3), dtype=type(plt.axes))
+            j=0
+            for ic,pn in enumerate(['dd','dr','rr']):
+                filename = '{}codes/FCFC/wp_test/full/log_{}_{}_rp80.{}'.format(home,gal,GC,pn)
+                A = Table.read(filename,format='ascii.no_header')['col5'] # full/cut
+                columns = []
+                with open(filename, 'r') as td:
+                    for line in td:
+                        if line[0] == '#':
+                            info = re.split(' +', line)
+                            columns.append(info)
+                norm = float(columns[2][-1][:-1])
+                ax[j,ic] = fig.add_subplot(spec[j,ic])
+                plt.xlabel('rp (Mpc $h^{-1}$)')    
+                if ic != 2:
+                    cute = CUTE['col{}'.format(4+ic)].reshape(33,80).T.flatten()
+                    c=ax[j,ic].pcolormesh(X,Y,((A*norm-cute)/cute).reshape(80,33)*100,cmap='RdBu', vmin=-1, vmax=1)
+                else:
+                    cute = CUTE['col{}'.format(5+ic)].reshape(33,80).T.flatten()
+                    c = ax[j,ic].pcolormesh(X,Y,((A*norm-cute)/cute).reshape(80,33)*100,cmap='RdBu', vmin=-1, vmax=1)
+                ax[j,ic].set_ylabel('$\pi$')
+                cbar = fig.colorbar(c,ax=ax[j,ic])
+                cbar.ax.set_ylabel('(FCFC/CUTE-1)*100', rotation=270)
+                #plt.legend(loc=0)
+                plt.ylim(0,80)
+                #plt.yscale('log')
+                plt.xlim(0.07,200)
+                plt.xscale('log')
+                plt.title('projected 2PCF {} counts: {} in {}'.format(pn,gal,GC))
+
+            plt.savefig('{}/codes/FCFC/wp_test/full/pairs-{}_{}_rp80.png'.format(home,gal,GC))
+            plt.close()
