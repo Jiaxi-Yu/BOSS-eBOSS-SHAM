@@ -194,7 +194,7 @@ elif sys.argv[1]=='2D':
         for gal,ver in zip(['LRG','ELG'],['v7_2','v7']):
             CUTE = Table.read('{}codes/CUTE/CUTE/wp_test/wp_CUTE_{}_{}_rp80.dat'.format(home,gal,GC),format='ascii.no_header')
             X, Y = np.meshgrid(np.unique(CUTE['col2']),np.unique(CUTE['col1']))
-            fig = plt.figure(figsize=(21,7))
+            fig = plt.figure(figsize=(21,5))
             spec = gridspec.GridSpec(nrows=1,ncols=3)#, height_ratios=[4, 1])#, hspace=0.3)
             ax = np.empty((1,3), dtype=type(plt.axes))
             j=0
