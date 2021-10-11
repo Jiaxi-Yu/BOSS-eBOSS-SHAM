@@ -6,10 +6,14 @@ from scipy.optimize import curve_fit
 import pylab as plt
 import os
 from lmfit.models import PseudoVoigtModel
+import kcorrect
 
 c_kms = 299792.
 home = '/global/homes/j/jiaxi/Vsmear-photo'
 cutind = 35
+
+kcorrect.load_templates()
+kcorrect.load_filters()
 
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
@@ -66,8 +70,8 @@ def write_spall_redrock_join(spallname, zbestname, output):
                    join_type='left')
         ta = [];tc=[];
         print('reading photo-info file')
-        photo_tmp =  fitsio.read('photoPosPlate_dr16.fits',\
-                        columns=['OBJID','CMODELFLUX'])
+        photo_tmp =  fitsio.read('photoPosPlate_dr16.fits.gz',\
+                        columns=['OBJID','CMODELFLUX','CMODELFLUX_IVAR'])
         photo = Table(photo_tmp)
         photo_tmp = []
         tac = join(tac_tmp,photo,keys=['OBJID'],join_type='left')
@@ -120,7 +124,7 @@ def get_targets(spall, target='LRG'):
 
     return spall[w]
 
-def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redrock=0, spec1ddr16=0):
+def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redrock=0, spec1ddr16=0,GC='NGC+SGC'):
     filename = '{}/{}-{}_deltav_z{}z{}-{}.fits.gz'.format(home,proj,target,zmin,zmax,GC)
     if GC == 'NGC':
         spallsel = (spall['RA_REDROCK']>120)&(spall['RA_REDROCK']<240)
@@ -162,7 +166,7 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
 
         info = {'thids': [], 'delta_v':[], 'delta_chi2':[], \
                 'z':[], 'zerr':[],'zerr0':[],'zerr1':[],\
-                'sn_i': [], 'sn_z': []}
+                'sn_i': [], 'sn_z': [], 'flux':[], 'fluxivar':[], 'flux055':[]}
 
         uthid, index, inverse, counts = np.unique(spall['THING_ID'], return_index=True, return_inverse=True, return_counts=True)
 
@@ -209,7 +213,19 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
             info['zerr1'].append((spall["SPECPRIMARY"][j2]*spall[zerr_field][j2]+spall["SPECPRIMARY"][j1]*spall[zerr_field][j1])*c_kms/(1+z_clustering))
             flaginv2 = 1-spall["SPECPRIMARY"][j2];flaginv1 = 1-spall["SPECPRIMARY"][j1]
             info['zerr0'].append((flaginv2*spall[zerr_field][j2]+flaginv1*spall[zerr_field][j1])*c_kms/(1+z_clustering))
+            # photometric info:
+            if spall["SPECPRIMARY"][j1]==1:
+                info['flux'] = spall[j1]['CMODELFLUX']
+                info['fluxivar'] = spall[j1]['CMODELFLUX_IVAR']
+            else:
+                info['flux'] = spall[j2]['CMODELFLUX']
+                info['fluxivar'] = spall[j2]['CMODELFLUX_IVAR']
+            import pdb;pdb.set_trace()
+            coeffs = kcorrect.fit_nonneg(z_clustering,info['flux']*1e-9,info['fluxivar']*1e18)
+            rm = kcorrect.reconstruct_maggies(coeffs)
+            info['flux055'] = kcorrect.reconstruct_maggies(coeffs, redshift=0.55)[1:]*1e9
 
+        # print information in this sample
         zflag = (np.array(info['z'])>zmin)&(np.array(info['z'])<zmax)
         print('{}<z<{} has {} duplicates'.format(zmin,zmax,len(np.array(info['z'])[zflag])))
         
@@ -217,7 +233,10 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
         print('before:',np.array(info['z']).shape)
         for k in info.keys():
             info[k] = np.array(info[k])[zflag]
-            cols.append(fits.Column(name=k,format='D',array=info[k]))
+            if k.find('flux')==-1:
+                cols.append(fits.Column(name=k,format='D',array=info[k]))
+            else:
+                cols.append(fits.Column(name=k,format='5E',array=info[k]))                
         hdulist = fits.BinTableHDU.from_columns(cols)
         hdulist.writeto(filename,overwrite=True)
         print('after:',np.array(info['z']).shape)
@@ -416,7 +435,12 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     a,sigma,mu = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), \
                     zip(*np.percentile(samples, [16, 50, 84], axis=0)))
     res = gaussian(BIN,a[0],sigma[0],mu[0])-dens
-    print('Gaussian emcee fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,sigma[0]-sigma[1],sigma[0]+sigma[2]))    
+    print('Gaussian emcee fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,sigma[0]-sigma[1],sigma[0]+sigma[2]))  
+    # plot the posterior
+    import corner
+    fig = corner.corner(samples, labels=[r'a', r'$\sigma$', r'$\mu$'])
+    plt.savefig(save[:-4]+'_posteriorG-{}.png'.format(GC))
+    plt.close()
     """
     # lorentzian
     ini = np.array([0.1, 50., 0.])
@@ -431,29 +455,25 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     res1 = lorentzian(BIN,a1[0],w[0],p[0])-dens
     
     print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(w[0]-w[1])/2/np.sqrt(2*np.log(2)),(w[0]+w[2])/2/np.sqrt(2*np.log(2))))
-    """
     # plot the posterior
-    import corner
-    fig = corner.corner(samples, labels=[r'a', r'$\sigma$', r'$\mu$'])
-    plt.savefig(save[:-4]+'_posteriorG-{}.png'.format(GC))
-    plt.close()
     fig = corner.corner(samples1, labels=[r'a', r'w', r'$p_0$'])
     plt.savefig(save[:-4]+'_posteriorL.-{}.png'.format(GC))
     plt.close()
+    """
     # plot the Delta v vs models
     plt.figure(figsize=(8,6))
     plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
     plt.scatter(-max_dv,outliern/norm,c='r')
     plt.scatter(max_dv,outlierp/norm,c='r')
     plt.plot(BIN, gaussian(BIN,a[0],sigma[0],mu[0]), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(sigma[0],sigma[1],sigma[2],res.dot(histcovR.dot(res)),len(res)))
-    plt.plot(BIN, lorentzian(BIN,a1[0],w[0],p[0]),label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(w[0]/2/np.sqrt(2*np.log(2)),w[1]/2/np.sqrt(2*np.log(2)),w[2]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
+    #plt.plot(BIN, lorentzian(BIN,a1[0],w[0],p[0]),label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(w[0]/2/np.sqrt(2*np.log(2)),w[1]/2/np.sqrt(2*np.log(2)),w[2]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
     plt.xlabel(r'$\Delta v$ (km/s)')
     plt.ylabel('normalised counts')
     plt.legend(loc=1)
     #plt.yscale('log')
     plt.ylim(0,max(dens)*1.3)
     if title:
-        plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}, fitting by emcee'.format(dvsel.size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
+        plt.title(title+' with {} pair, fitting by emcee'.format(dvsel.size))
     plt.tight_layout()
     if save:
         plt.savefig(save[:-4]+'_emcee-{}.png'.format(GC), bbox_inches='tight')
@@ -467,13 +487,13 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
     
     if spec1d:
         zsource = 'spec1d'
-        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,spec1d=1)
+        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,spec1d=1,GC=GC)
     elif redrock:
         zsource = 'redrock'
-        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redrock=1)
+        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redrock=1,GC=GC)
 
-    #plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
-    #plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
+    plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
+    plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
         
 ##=================================================================================
 
@@ -486,13 +506,13 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
 GC = 'NGC+SGC'
 repeatname = 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits'
 
-zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
-zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
-maxdvs = [235,275,275,300,255,360]
+zmins = [0.6]#,0.6,0.65,0.7,0.8,0.6]
+zmaxs = [0.7]#,0.8,0.8, 0.9,1.0,1.0]
+maxdvs = [235]#,275,275,300,255,360]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
     plot_all_deltav_histograms(repeatname,'eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv)
 
-
+"""
 zmins = [0.43,0.51,0.57,0.43]
 zmaxs = [0.51,0.57,0.7,0.7]
 maxdvs = [205,200,235,270]
@@ -511,7 +531,7 @@ else:
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
     plot_all_deltav_histograms(repeatname,'BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1,maxdv=maxdv,GC=GC)
     #plot_all_deltav_histograms('spAll-zbest-dr16-repeats-2x_LOWZ.fits','BOSS',zmin,zmax,target='LOWZdr16',dchi2=9,spec1d=1,maxdv=maxdv)
-
+"""
     
     
 ##############################################################################################
