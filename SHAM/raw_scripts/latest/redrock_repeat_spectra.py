@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from astropy.io import fits
 from astropy.table import Table, join
 import fitsio
@@ -6,14 +7,12 @@ from scipy.optimize import curve_fit
 import pylab as plt
 import os
 from lmfit.models import PseudoVoigtModel
-import kcorrect
+from kcorrection import kcorr
 
 c_kms = 299792.
 home = '/global/homes/j/jiaxi/Vsmear-photo'
 cutind = 35
 
-kcorrect.load_templates()
-kcorrect.load_filters()
 
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
@@ -63,8 +62,7 @@ def write_spall_redrock_join(spallname, zbestname, output):
 
     print('Joining tables')
     if output.find('photo')==-1:
-        tac = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
-                   join_type='left')
+hd
     else:
         tac_tmp = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
                    join_type='left')
@@ -214,16 +212,15 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
             flaginv2 = 1-spall["SPECPRIMARY"][j2];flaginv1 = 1-spall["SPECPRIMARY"][j1]
             info['zerr0'].append((flaginv2*spall[zerr_field][j2]+flaginv1*spall[zerr_field][j1])*c_kms/(1+z_clustering))
             # photometric info:
-            if spall["SPECPRIMARY"][j1]==1:
-                info['flux'] = spall[j1]['CMODELFLUX']
-                info['fluxivar'] = spall[j1]['CMODELFLUX_IVAR']
-            else:
-                info['flux'] = spall[j2]['CMODELFLUX']
-                info['fluxivar'] = spall[j2]['CMODELFLUX_IVAR']
             import pdb;pdb.set_trace()
-            coeffs = kcorrect.fit_nonneg(z_clustering,info['flux']*1e-9,info['fluxivar']*1e18)
-            rm = kcorrect.reconstruct_maggies(coeffs)
-            info['flux055'] = kcorrect.reconstruct_maggies(coeffs, redshift=0.55)[1:]*1e9
+            if spall["SPECPRIMARY"][j1]==1:
+                info['flux'].append(spall[j1]['CMODELFLUX'])
+                info['fluxivar'].append(spall[j1]['CMODELFLUX_IVAR'])
+                info['flux055'].append(kcorr(z_clustering,spall[j1]['CMODELFLUX'],spall[j1]['CMODELFLUX_IVAR']))
+            else:
+                info['flux'].append(spall[j2]['CMODELFLUX'])
+                info['fluxivar'].append(spall[j2]['CMODELFLUX_IVAR'])
+                info['flux055'].append(kcorr(z_clustering,spall[j2]['CMODELFLUX'],spall[j2]['CMODELFLUX_IVAR']))
 
         # print information in this sample
         zflag = (np.array(info['z'])>zmin)&(np.array(info['z'])<zmax)
