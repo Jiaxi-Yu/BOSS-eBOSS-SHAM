@@ -35,7 +35,7 @@ def hubble(a):
 
 int4dist = lambda x : 1 / (x**2 * efunc(x))
 def com_dist(a):
-    return quad(int4dist, a, 1)[0] * c / (100 * h)
+    return quad(int4dist, a, 1)[0] * c / (100 )#*h)
 
 def ang_dia_dist(a):
     return a * com_dist(a)
