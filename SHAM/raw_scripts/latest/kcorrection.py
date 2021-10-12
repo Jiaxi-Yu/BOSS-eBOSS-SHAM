@@ -7,5 +7,5 @@ def kcorr(z,flux,fluxivar,zrecon=0.55):
     kcorrect.load_filters()
     coeffs = kcorrect.fit_nonneg(z,flux*1e-9,fluxivar*1e18)
     #rm = kcorrect.reconstruct_maggies(coeffs)
-    return kcorrect.reconstruct_maggies(coeffs,redshift=zrecon)[1:]/1e9
+    return kcorrect.reconstruct_maggies(coeffs,redshift=zrecon)[1:]/1e-9
     #return in nanomaggie
