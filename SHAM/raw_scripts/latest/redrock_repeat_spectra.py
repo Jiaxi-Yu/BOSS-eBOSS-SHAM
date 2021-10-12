@@ -62,7 +62,8 @@ def write_spall_redrock_join(spallname, zbestname, output):
 
     print('Joining tables')
     if output.find('photo')==-1:
-hd
+        tac = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
+                   join_type='left')
     else:
         tac_tmp = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
                    join_type='left')
