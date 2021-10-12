@@ -164,7 +164,8 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
 
         info = {'thids': [], 'delta_v':[], 'delta_chi2':[], \
                 'z':[], 'zerr':[],'zerr0':[],'zerr1':[],\
-                'sn_i': [], 'sn_z': [], 'flux':[], 'fluxivar':[], 'flux055':[]}
+                'sn_i': [], 'sn_z': [],\
+                'flux':[], 'fluxivar':[], 'flux055':[],'gi':[]}
 
         uthid, index, inverse, counts = np.unique(spall['THING_ID'], return_index=True, return_inverse=True, return_counts=True)
 
@@ -211,17 +212,20 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
             info['zerr1'].append((spall["SPECPRIMARY"][j2]*spall[zerr_field][j2]+spall["SPECPRIMARY"][j1]*spall[zerr_field][j1])*c_kms/(1+z_clustering))
             flaginv2 = 1-spall["SPECPRIMARY"][j2];flaginv1 = 1-spall["SPECPRIMARY"][j1]
             info['zerr0'].append((flaginv2*spall[zerr_field][j2]+flaginv1*spall[zerr_field][j1])*c_kms/(1+z_clustering))
+            
             # photometric info:
             import pdb;pdb.set_trace()
             if spall["SPECPRIMARY"][j1]==1:
                 info['flux'].append(spall[j1]['CMODELFLUX'])
                 info['fluxivar'].append(spall[j1]['CMODELFLUX_IVAR'])
-                info['flux055'].append(kcorr(z_clustering,spall[j1]['CMODELFLUX'],spall[j1]['CMODELFLUX_IVAR']))
+                flux055 = kcorr(z_clustering,spall[j1]['CMODELFLUX'],spall[j1]['CMODELFLUX_IVAR'])     
+                info['flux055'].append(flux055)
             else:
                 info['flux'].append(spall[j2]['CMODELFLUX'])
                 info['fluxivar'].append(spall[j2]['CMODELFLUX_IVAR'])
-                info['flux055'].append(kcorr(z_clustering,spall[j2]['CMODELFLUX'],spall[j2]['CMODELFLUX_IVAR']))
-
+                flux055 = kcorr(z_clustering,spall[j2]['CMODELFLUX'],spall[j2]['CMODELFLUX_IVAR'])
+                info['flux055'].append(flux055)
+            info['gi'].append(-2.5*np.log10(flux055[1]/flux055[3]))
         # print information in this sample
         zflag = (np.array(info['z'])>zmin)&(np.array(info['z'])<zmax)
         print('{}<z<{} has {} duplicates'.format(zmin,zmax,len(np.array(info['z'])[zflag])))
