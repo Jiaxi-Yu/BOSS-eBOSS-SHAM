@@ -65,21 +65,18 @@ def read_xi(ifmt, rfmt=None, ds=1, ns=200, nmu=120):
  
 # FCFC paircounts
 def FCFCcomb(ifmt,rfmt=None, ns=100, nmu=120,ds=1, upperint = None,lowerint=0,islog=False,isobs=False,ismps=True):
-    if ds ==1:
-        xiname = ifmt.format('NGC+SGC','xi')
+    xiname = ifmt.format('NGC+SGC','xi')
+    if ds == 1:
+        mpsname = ifmt.format(cap,'mps')
     else:
-        xiname = ifmt.format('NGC+SGC','xi{}'.format(ds))
-    if os.path.exists(xiname):
+        mpsname = ifmt.format(cap,'mps{}'.format(ds))
+    if os.path.exists(mpsname):
         xi0 = [None] * 3
         xi2 = [None] * 3
         xi4 = [None] * 3
         caps = ['NGC','SGC','NGC+SGC']   
         if ismps:
             for j,cap in enumerate(caps):
-                if ds == 1:
-                    mpsname = ifmt.format(cap,'mps')
-                else:
-                    mpsname = ifmt.format(cap,'mps{}'.format(ds))
                 smid,smin,smax,xi0[j],xi2[j],xi4[j] = np.loadtxt(mpsname,unpack = True)
             tpcf = [xi0,xi2,xi4]
         else:
