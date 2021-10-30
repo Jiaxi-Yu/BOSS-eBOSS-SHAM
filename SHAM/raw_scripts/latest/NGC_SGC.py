@@ -64,15 +64,23 @@ def read_xi(ifmt, rfmt=None, ds=1, ns=200, nmu=120):
     return s, xi0, xi2, xi4
  
 # FCFC paircounts
-def FCFCcomb(ifmt,rfmt=None, ns=100, nmu=120, upperint = None,lowerint=0,islog=False,isobs=False,ismps=True):
-    if os.path.exists(ifmt.format('NGC+SGC','xi')):
+def FCFCcomb(ifmt,rfmt=None, ns=100, nmu=120,ds=1, upperint = None,lowerint=0,islog=False,isobs=False,ismps=True):
+    if ds ==1:
+        xiname = ifmt.format('NGC+SGC','xi')
+    else:
+        xiname = ifmt.format('NGC+SGC','xi{}'.format(ds))
+    if os.path.exists(xiname):
         xi0 = [None] * 3
         xi2 = [None] * 3
         xi4 = [None] * 3
         caps = ['NGC','SGC','NGC+SGC']   
         if ismps:
             for j,cap in enumerate(caps):
-                smid,smin,smax,xi0[j],xi2[j],xi4[j] = np.loadtxt(ifmt.format(cap,'mps'),unpack = True)
+                if ds == 1:
+                    mpsname = ifmt.format(cap,'mps')
+                else:
+                    mpsname = ifmt.format(cap,'mps{}'.format(ds))
+                smid,smin,smax,xi0[j],xi2[j],xi4[j] = np.loadtxt(mpsname,unpack = True)
             tpcf = [xi0,xi2,xi4]
         else:
             for j,cap in enumerate(caps):
@@ -89,6 +97,7 @@ def FCFCcomb(ifmt,rfmt=None, ns=100, nmu=120, upperint = None,lowerint=0,islog=F
         num = [None] * 2
         norm = [None] * 2
 
+        sbin = int(ns/ds)
         for i,cap in enumerate(caps):
             # dd
             ifile = ifmt.format(cap,'dd')
@@ -123,20 +132,26 @@ def FCFCcomb(ifmt,rfmt=None, ns=100, nmu=120, upperint = None,lowerint=0,islog=F
                 mono[~mask]=(dd[i][~mask]-2*dr[i][~mask]+rr[i][~mask])/rr[i][~mask]
                 quad = mono * 2.5 * (3 * mu**2 - 1)
                 hexa = mono * 1.125 * (35 * mu**4 - 30 * mu**2 + 3)
+                if ds ==1:
+                    xi0[i] = np.sum(mono.reshape(nmu,ns),axis=0)/nmu
+                    xi2[i] = np.sum(quad.reshape(nmu,ns),axis=0)/nmu
+                    xi4[i] = np.sum(hexa.reshape(nmu,ns),axis=0)/nmu
+                else:
+                    xi0[i] = np.sum(np.sum(mono.reshape(nmu,sbin,ds),axis=-1),axis=0)/nmu/ds
+                    xi2[i] = np.sum(np.sum(quad.reshape(nmu,sbin,ds),axis=-1),axis=0)/nmu/ds
+                    xi4[i] = np.sum(np.sum(hexa.reshape(nmu,sbin,ds),axis=-1),axis=0)/nmu/ds
 
-                xi0[i] = np.sum(mono.reshape(nmu,ns),axis=0)/nmu
-                xi2[i] = np.sum(quad.reshape(nmu,ns),axis=0)/nmu
-                xi4[i] = np.sum(hexa.reshape(nmu,ns),axis=0)/nmu
-            smin = np.unique(Smin)
-            smax = np.unique(Smax)
             if islog:
+                smin = np.unique(Smin)
+                smax = np.unique(Smax)
                 smid = 10**((np.log10(smin)+np.log10(smax))/2)
             else:
-                smid = (smin+smax)/2
-                
+                s = np.linspace(Smin[0],Smax[-1],sbin+1)
+                smid = (s[:-1]+s[1:])/2
+            #import pdb;pdb.set_trace()
             if isobs:
-                np.savetxt(ifmt.format('NGC+SGC','xi'),np.array([Smin,Smax,MUmin,MUmax,mono]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
-                np.savetxt(ifmt.format('NGC+SGC','mps'),np.array([smid,smin,smax,xi0[2],xi2[2],xi4[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+                np.savetxt(xiname,np.array([Smin,Smax,MUmin,MUmax,mono]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
+                np.savetxt(mpsname,np.array([smid,smin,smax,xi0[2],xi2[2],xi4[2]]).T,header='weighted galaxy: NGC {}, SGC {} \n normalisation: NGC {}, SGC {}'.format(num[0],num[1],norm[0],norm[1]))
 
             tpcf = [xi0,xi2,xi4]
         else:
