@@ -7,10 +7,6 @@ from scipy.optimize import curve_fit
 import pylab as plt
 import os
 from lmfit.models import PseudoVoigtModel
-from kcorrection import kcorr
-import kcorrect 
-kcorrect.load_templates()
-kcorrect.load_filters()
 
 
 c_kms = 299792.
@@ -39,7 +35,6 @@ def write_spall_redrock_join(spallname, zbestname, output):
                 columns=['PLATE', 'MJD', 'FIBERID', 'THING_ID',
                          'BOSS_TARGET1', 'EBOSS_TARGET0', 'EBOSS_TARGET1', 
                          'SN_MEDIAN', 
-                         #'RUN', 'RERUN', 'CAMCOL',
                          'OBJID',
                          'CHUNK','THING_ID_TARGETING',
                          'ZWARNING', 'ZWARNING_NOQSO', 'Z', 'Z_NOQSO', 'DOF', 
@@ -73,8 +68,8 @@ def write_spall_redrock_join(spallname, zbestname, output):
                    join_type='left')
         ta = [];tc=[];
         print('reading photo-info file')
-        photo_tmp =  fitsio.read('photoPosPlate_dr16.fits.gz',\
-                        columns=['OBJID','CMODELFLUX','CMODELFLUX_IVAR'])
+        photo_tmp =  fitsio.read('Photo_dr16.fits.gz',\
+                        columns=['OBJID','CMODELMAG','MODELMAG','PSFMAG','FIBER2MAG'])
         photo = Table(photo_tmp)
         photo_tmp = []
         tac = join(tac_tmp,photo,keys=['OBJID'],join_type='left')
@@ -173,7 +168,7 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
         info = {'thids': [], 'delta_v':[], 'delta_chi2':[], \
                 'z':[], 'zerr':[],'zerr0':[],'zerr1':[],\
                 'sn_i': [], 'sn_z': [],\
-                'flux':[], 'fluxivar':[], 'flux055':[],'gi':[]}
+                'cmodelmag':[],'modelmag':[],'psfmag':[],'fiber2mag':[], 'gi':[]}
 
         uthid, index, inverse, counts = np.unique(spall['THING_ID'], return_index=True, return_inverse=True, return_counts=True)
 
@@ -222,18 +217,14 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
             info['zerr0'].append((flaginv2*spall[zerr_field][j2]+flaginv1*spall[zerr_field][j1])*c_kms/(1+z_clustering))
             
             # photometric info:
-            #import pdb;pdb.set_trace()
-            if spall["SPECPRIMARY"][j1]==1:
-                info['flux'].append(spall[j1]['CMODELFLUX'])
-                info['fluxivar'].append(spall[j1]['CMODELFLUX_IVAR'])
-                flux055 = kcorr(z_clustering,spall[j1]['CMODELFLUX'],spall[j1]['CMODELFLUX_IVAR'])     
-                info['flux055'].append(flux055)
-            else:
-                info['flux'].append(spall[j2]['CMODELFLUX'])
-                info['fluxivar'].append(spall[j2]['CMODELFLUX_IVAR'])
-                flux055 = kcorr(z_clustering,spall[j2]['CMODELFLUX'],spall[j2]['CMODELFLUX_IVAR'])
-                info['flux055'].append(flux055)
-            info['gi'].append(-2.5*np.log10(flux055[1]/flux055[3]))
+            magnitudes = spall[j1]['CMODELMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['CMODELMAG']*spall["SPECPRIMARY"][j2]
+            info['cmodelmag'].append(magnitudes)
+            info['modelmag'].append(spall[j1]['MODELMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['MODELMAG']*spall["SPECPRIMARY"][j2])
+            info['psfmag'].append(spall[j1]['PSFMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['PSFMAG']*spall["SPECPRIMARY"][j2])
+            info['fiber2mag'].append(spall[j1]['FIBER2MAG']*spall["SPECPRIMARY"][j1]+spall[j2]['FIBER2MAG']*spall["SPECPRIMARY"][j2])
+            info['gi'].append(magnitudes[1]-magnitudes[3])
+
+
         # print information in this sample
         zflag = (np.array(info['z'])>zmin)&(np.array(info['z'])<zmax)
         print('{}<z<{} has {} duplicates'.format(zmin,zmax,len(np.array(info['z'])[zflag])))
@@ -242,7 +233,7 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
         print('before:',np.array(info['z']).shape)
         for k in info.keys():
             info[k] = np.array(info[k])[zflag]
-            if k.find('flux')==-1:
+            if k.find('mag')==-1:
                 cols.append(fits.Column(name=k,format='D',array=info[k]))
             else:
                 cols.append(fits.Column(name=k,format='5E',array=info[k]))                
@@ -297,124 +288,128 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
     dv = info['delta_v']
     z = info['z']
     zerr = info['zerr']
-    w = (dc > min_deltachi2)&(abs(dv)<max_dv)
+    w = (dc > min_deltachi2)&(abs(dv)<1000)
     dvsel = dv[w]
     
     # binning dv[w]
     binwidth = 5
     bins = np.arange(-max_dv, max_dv+1, binwidth)
-    outliern = len(dv[(dv>-1000)&(dv<-max_dv)&(dc > min_deltachi2)])
-    outlierp = len(dv[(dv<1000)&(dv>max_dv)&(dc > min_deltachi2)])
+    outliern = len(dv[w&(dv<-max_dv)])
+    outlierp = len(dv[w&(dv>max_dv)])
     dens,BINS = np.histogram(dvsel,bins=bins)
     norm = np.sum(dens)
     dens = dens/norm
     #import pdb;pdb.set_trace()
 
     # directly calculate the std
-    STD = jacknife_hist(dv[(abs(dv)<1000)&(dc > min_deltachi2)],bins,nsub = nsubvolume,gaussian=False)
-    print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dv[(abs(dv)<1000)&(dc > min_deltachi2)])-STD*np.sqrt(nsubvolume),np.std(dv[(abs(dv)<1000)&(dc > min_deltachi2)])+STD*np.sqrt(nsubvolume)))
-    
-    #-- fit delta_v with Gaussian, Lorentzian and Voigt line shape    
-    # histogram jacknife
-    BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:cutind]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-{}.dat'.format(GC))
-    hists =hists/norm
-    histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
-    histcovR = np.linalg.inv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
-    # Gaussian
-    if zrange =='z0.43z0.7':
-        popt, pcov = curve_fit(gaussian,BIN,dens)#,sigma=histcovR)
-    else:
-        popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histcovR)
-    res = gaussian(BIN,*popt)-dens
-    print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))      
-
-    # fittins other than Gaussian
-    """
-    import pdb;pdb.set_trace()
-    popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histcovR)
-    res1 = lorentzian(BIN,*popt1)-dens
-    print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(popt1[1]-np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2)),(popt1[1]+np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2))))  
-
-    mod = PseudoVoigtModel()
-    pars = mod.guess(dens, x=BIN)
-    out = mod.fit(dens, pars, x=BIN,weights=1/histstd**2)
-    res2 = out.best_fit - dens
-    print('Voigt fit in [-{},{}]: Vsmear = {:.1f}, {:.1f}% Lorentzian '.format(max_dv,max_dv,out.best_values['sigma'],out.best_values['fraction']))
-    """
-
-    # plot the gaussian: delta_v
-    plt.figure(figsize=(8,6))
-    plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
-    plt.scatter(-max_dv,outliern/norm,c='r')
-    plt.scatter(max_dv,outlierp/norm,c='r')
-    plt.plot(BIN, gaussian(BIN,*popt), c='orange',label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$/dof = {3:.1f}/{4:}'.format(popt[1],np.sqrt(np.diag(pcov))[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
-    #plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$,$\chi^2$ /dof = {3:.1f}/{4:}'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
-    #plt.plot(BIN, out.best_fit,c='green',label=r'PseudoVoigt fit $\sigma$ = {0:.1f}, {1:.1f}% Lorentzian, $\chi^2$/dof = {2:.1f}/{3:}'.format(out.best_values['sigma'],out.best_values['fraction'],res2.dot(histcovR.dot(res2)),len(res)))
-    plt.xlabel(r'$\Delta v$ (km/s)')
-    plt.ylabel('counts')
-    #plt.yscale('log')
-    plt.ylim(0,max(dens)*1.3)
-    plt.legend(loc=1)    
-    if title:
-        plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}, fitting by curve_fit'.format(dvsel.size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
-    plt.tight_layout()
-    if save:
-        plt.savefig(save, bbox_inches='tight')
-
-    plt.close()
+    STD = jacknife_hist(dvsel,bins,nsub = nsubvolume,gaussian=False)
+    print('std calculation: Vsmear = [{:.1f},{:.1f}]'.format(np.std(dvsel)-STD*np.sqrt(nsubvolume),np.std(dvsel)+STD*np.sqrt(nsubvolume)))
 
     ## red/blue comparison
     if coloursel:
         plt.figure(figsize=(8,6))
         bins = np.arange(-max_dv, max_dv+1, binwidth*2)
         BIN = (bins[1:]+bins[:-1])/2
-        C = info['gi']>=2.35
+        if target != 'LOWZ':
+            C = info['gi']>=2.2
+        else:
+            C = info['gi']>=info['z']*2.8+1.1
+            
         #import pdb;pdb.set_trace()
-        STD = jacknife_hist(dv[(abs(dv)<1000)&(dc > min_deltachi2)&C],bins,nsub = 100,gaussian=False)
-        print('{} red galaxy std calculation: Vsmear = [{:.1f},{:.1f}]'.format(len(dv[(abs(dv)<1000)&(dc > min_deltachi2)&C]),np.std(dv[(abs(dv)<1000)&(dc > min_deltachi2)&C])-STD*np.sqrt(nsubvolume),np.std(dv[(abs(dv)<1000)&(dc > min_deltachi2)&C])+STD*np.sqrt(nsubvolume)))
+        STD = jacknife_hist(dv[w&C],bins,nsub = 100,gaussian=False)
+        print('{} red galaxy std calculation: Vsmear = [{:.1f},{:.1f}]'.format(len(dv[w&C]),np.std(dv[w&C])-STD*np.sqrt(nsubvolume),np.std(dv[w&C])+STD*np.sqrt(nsubvolume)))
         dens,BINS = np.histogram(dv[w&C],bins=bins)
         norm = np.sum(dens)
         dens = dens/norm
-        plt.plot(BIN,dens,'r--',label='{} red galaxy'.format(len(dv[w&C])))
+        plt.plot(BIN,dens,'r--',label='{:.1f}% red galaxy'.format(100*len(dv[w&C])/len(dv[w])))
         
-        STD = jacknife_hist(dv[(abs(dv)<1000)&(dc > min_deltachi2)&(~C)],bins,nsub = 100,gaussian=False)
-        print('{} blue galaxy std calculation: Vsmear = [{:.1f},{:.1f}]'.format(len(dv[(abs(dv)<1000)&(dc > min_deltachi2)&(~C)]),np.std(dv[(abs(dv)<1000)&(dc > min_deltachi2)&(~C)])-STD*np.sqrt(nsubvolume),np.std(dv[(abs(dv)<1000)&(dc > min_deltachi2)&(~C)])+STD*np.sqrt(nsubvolume)))
+        STD = jacknife_hist(dv[w&(~C)],bins,nsub = 100,gaussian=False)
+        print('{} blue galaxy std calculation: Vsmear = [{:.1f},{:.1f}]'.format(len(dv[w&(~C)]),np.std(dv[w&(~C)])-STD*np.sqrt(nsubvolume),np.std(dv[w&(~C)])+STD*np.sqrt(nsubvolume)))
         dens,BINS = np.histogram(dv[w&(~C)],bins=bins)
         norm = np.sum(dens)
         dens = dens/norm
-        plt.plot(BIN,dens,'b--',label='{} blue galaxy'.format(len(dv[w&(~C)])))
+        plt.plot(BIN,dens,'b--',label='{:.1f}% blue galaxy'.format(100*len(dv[w&(~C)])/len(dv[w])))
         plt.legend(loc=1)
-        plt.title('{} {} red vs blue'.format(target,zrange))
+        plt.title('{} {} red vs blue for {} galaxies'.format(target,zrange,len(dv[w])))
         plt.savefig(save[:-4]+'_red-blue.png', bbox_inches='tight')
         plt.close()    
+    else:
+        #-- fit delta_v with Gaussian, Lorentzian and Voigt line shape    
+        # histogram jacknife
+        BIN,hists = jacknife_hist(dvsel,bins,nsub = nsubvolume,save = save[:cutind]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-{}.dat'.format(GC))
+        hists =hists/norm
+        histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
+        histcovR = np.linalg.inv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
+        # Gaussian
+        if zrange =='z0.43z0.7':
+            popt, pcov = curve_fit(gaussian,BIN,dens)#,sigma=histcovR)
+        else:
+            popt, pcov = curve_fit(gaussian,BIN,dens,sigma=histcovR)
+        res = gaussian(BIN,*popt)-dens
+        print('Gaussian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,popt[1]-np.sqrt(np.diag(pcov))[1],popt[1]+np.sqrt(np.diag(pcov))[1]))      
+
+        # fittins other than Gaussian
+        """
+        import pdb;pdb.set_trace()
+        popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histcovR)
+        res1 = lorentzian(BIN,*popt1)-dens
+        print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(popt1[1]-np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2)),(popt1[1]+np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2))))  
+
+        mod = PseudoVoigtModel()
+        pars = mod.guess(dens, x=BIN)
+        out = mod.fit(dens, pars, x=BIN,weights=1/histstd**2)
+        res2 = out.best_fit - dens
+        print('Voigt fit in [-{},{}]: Vsmear = {:.1f}, {:.1f}% Lorentzian '.format(max_dv,max_dv,out.best_values['sigma'],out.best_values['fraction']))
+        """
+
+        # plot the gaussian: delta_v
+        plt.figure(figsize=(8,6))
+        plt.errorbar(BIN,dens,histstd,color='k', marker='o',ecolor='k',ls="none")
+        plt.scatter(-max_dv,outliern/norm,c='r')
+        plt.scatter(max_dv,outlierp/norm,c='r')
+        plt.plot(BIN, gaussian(BIN,*popt), c='orange',label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$/dof = {3:.1f}/{4:}'.format(popt[1],np.sqrt(np.diag(pcov))[1],np.sqrt(np.diag(pcov))[1],res.dot(histcovR.dot(res)),len(res)))
+        #plt.plot(BIN, lorentzian(BIN,*popt1), label='Lorentzian fit '+r'$\frac{w}{2\sqrt{2ln2}}$'+'$= {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$,$\chi^2$ /dof = {3:.1f}/{4:}'.format(popt1[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov1))[1]/2/np.sqrt(2*np.log(2)),res1.dot(histcovR.dot(res1)),len(res1)))
+        #plt.plot(BIN, out.best_fit,c='green',label=r'PseudoVoigt fit $\sigma$ = {0:.1f}, {1:.1f}% Lorentzian, $\chi^2$/dof = {2:.1f}/{3:}'.format(out.best_values['sigma'],out.best_values['fraction'],res2.dot(histcovR.dot(res2)),len(res)))
+        plt.xlabel(r'$\Delta v$ (km/s)')
+        plt.ylabel('counts')
+        #plt.yscale('log')
+        plt.ylim(0,max(dens)*1.3)
+        plt.legend(loc=1)    
+        if title:
+            plt.title(title+' with {} pairs, std = {:.1f} $\pm$ {:.1f}, fitting by curve_fit'.format(dvsel.size,np.std(dv[abs(dv)<1000]),STD*np.sqrt(nsubvolume)))
+        plt.tight_layout()
+        if save:
+            plt.savefig(save, bbox_inches='tight')
+
+        plt.close()
         
-    #-- fit a Gaussian for zerr/Delta v
-    ratios = np.linspace(-4,4,81)
-    ratio = (ratios[1:]+ratios[:-1])/2
-    ratiodens,ratiobin = np.histogram(dv/zerr,ratios)
-    ratiodens = ratiodens/len(ratiodens)
-    
-    BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:cutind]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-zerr-{}.dat'.format(GC))
-    hists =hists/len(ratiodens)
-    histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
-    histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
-    
-    popt2, pcov2 = curve_fit(gaussian,ratio,ratiodens,sigma=histstd)
-    res2 = gaussian(ratio,*popt2)-ratiodens
-         
-    plt.figure(figsize=(8,6))
-    plt.scatter(ratio,ratiodens)
-    plt.errorbar(ratio,ratiodens,histstd,color='k', marker='o',ecolor='k',ls="none")
-    plt.plot(ratio, gaussian(ratio,*popt2), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(popt2[1],np.sqrt(np.diag(pcov2))[1],np.sqrt(np.diag(pcov2))[1],res2.dot(histcovR.dot(res2)),len(res2)))
-    plt.xlabel(r'$\Delta v$ (km/s)')
-    plt.ylabel('normalised counts')
-    plt.legend(loc=1)
-    if title:
-        plt.title(title+' repetitive samples: $\Delta$ v v.s. zerr')
-    plt.tight_layout()
-    if save:
-        plt.savefig(save[:-4]+'-zerr-{}.png'.format(GC), bbox_inches='tight')
-    plt.close()
+        #-- fit a Gaussian for zerr/Delta v
+        ratios = np.linspace(-4,4,81)
+        ratio = (ratios[1:]+ratios[:-1])/2
+        ratiodens,ratiobin = np.histogram(dv/zerr,ratios)
+        ratiodens = ratiodens/len(ratiodens)
+        
+        BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:cutind]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-zerr-{}.dat'.format(GC))
+        hists =hists/len(ratiodens)
+        histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
+        histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
+        
+        popt2, pcov2 = curve_fit(gaussian,ratio,ratiodens,sigma=histstd)
+        res2 = gaussian(ratio,*popt2)-ratiodens
+            
+        plt.figure(figsize=(8,6))
+        plt.scatter(ratio,ratiodens)
+        plt.errorbar(ratio,ratiodens,histstd,color='k', marker='o',ecolor='k',ls="none")
+        plt.plot(ratio, gaussian(ratio,*popt2), label=r'Gaussian fit $\sigma = {0:.1f}_{{-{1:.2f}}}^{{+{2:.2f}}}$, $\chi^2$ /dof = {3:.1f}/{4:}'.format(popt2[1],np.sqrt(np.diag(pcov2))[1],np.sqrt(np.diag(pcov2))[1],res2.dot(histcovR.dot(res2)),len(res2)))
+        plt.xlabel(r'$\Delta v$ (km/s)')
+        plt.ylabel('normalised counts')
+        plt.legend(loc=1)
+        if title:
+            plt.title(title+' repetitive samples: $\Delta$ v v.s. zerr')
+        plt.tight_layout()
+        if save:
+            plt.savefig(save[:-4]+'-zerr-{}.png'.format(GC), bbox_inches='tight')
+        plt.close()
 
 def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=500,spec1d=0, redrock=0,GC='NGC+SGC',coloursel=False):
 
