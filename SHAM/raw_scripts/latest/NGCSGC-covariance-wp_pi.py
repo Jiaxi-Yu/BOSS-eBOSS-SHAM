@@ -36,10 +36,8 @@ ver = 'DR12'
 
 # z range, version and datapath
 if gal=='CMASS':
-    Zrange =  np.array([0.43,0.51,0.57,0.43,\
-                        0.51,0.57,0.7, 0.7])
-    #Zrange =  np.array([0.43,0.51,\
-    #                    0.51,0.57])
+    Zrange =  np.array([0.43,\
+                        0.7]) #0.43,0.51,0.57, #0.51,0.57,0.7,
 elif gal == 'LOWZ':
     Zrange =  np.array([0.2, 0.33,0.2,\
                         0.33,0.43,0.43])
@@ -88,9 +86,9 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
 
     if function == '2PCF':
         if ds ==1:
-            mockfile = mockfits+'quad.fits.gz'
+            mockfile = mockfits+'hexa.fits.gz'
         else:
-            mockfile = mockfits+'quad_bin{}.fits.gz'
+            mockfile = mockfits+'hexa_bin{}.fits.gz'
 
         if os.path.exists(mockfile):
             pass
@@ -134,17 +132,18 @@ for k,mockdir,mockfits in zip(range(znum),mockDIR,mockFITS):
                 cols.append(fits.Column(name='NGCmocks',format=str(nfile)+'D',array=NGC[j]))
                 cols.append(fits.Column(name='SGCmocks',format=str(nfile)+'D',array=SGC[j]))
                 cols.append(fits.Column(name='NGC+SGCmocks',format=str(nfile)+'D',array=NGCSGC[j]))
-                print(name,' saved')
+                print(name,' saved',NGCSGC[j].shape)
                 hdulist = fits.BinTableHDU.from_columns(cols)
                 hdulist.header.update(sbins=nbins,nmu=nmu)
                 if ds ==1:
                     hdulist.writeto(mockfits+name+'.fits.gz',overwrite=True)
                 else:
                     hdulist.writeto(mockfits+name+'_bin{}.fits.gz'.format(ds),overwrite=True)
+            print(mockfits+name+'_bin{}.fits.gz'.format(ds))
             if ds ==1:
                 # covR calculation for 5-25Mpc/h & quadrupole
                 hdu = fits.open(mockfits+'quad.fits.gz')
-                for GC in ['NGC','SGC','NGC+SGC']:
+                for GC in ['NGC+SGC']:
                     mocks = hdu[1].data[GC+'mocks'] 
                     Nmock = mocks.shape[1] 
                     Ns = int(mocks.shape[0]/2)
