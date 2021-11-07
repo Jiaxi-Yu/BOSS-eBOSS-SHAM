@@ -12,8 +12,6 @@ import os
 
 home = '/global/cscratch1/sd/jiaxi/SHAM/catalog/'
 filename = home+'/{}_{}_mag.fits.gz'
-def zsel(DATA,zmin,zmax):
-    return (DATA['z_spec']>zmin)&(DATA['z_spec']<zmax)
 def colcut(DATA):
     if gal == 'CMASS':
         colsel = DATA['gi_spec']<2.35
@@ -99,38 +97,22 @@ else:
         
         # print the red/blue fraction
         for zmin,zmax in zip(zmins,zmaxs):
+            zsel = (info['z_spec']>zmin)&(info['z_spec']<zmax)
             for types in ['no selection','selected']:
-                lentot = len(info['z_spec'][simplecut])
                 if types =='selected':
-                    lenblue = len(info['z_spec'][sel&colcut(info)])
-                    lenred = len(info['z_spec'][sel&(~colcut(info))])
+                    lentot = len(info['z_spec'][sel&zsel])
+                    lenblue = len(info['z_spec'][sel&zsel&colcut(info)])
+                    lenred = len(info['z_spec'][sel&zsel&(~colcut(info))])
                 else:
-                    lenblue = len(info['z_spec'][colcut(info)])
-                    lenred = len(info['z_spec'][~(colcut(info))])
+                    lentot = len(info['z_spec'][simplecut&zsel])
+                    lenblue = len(info['z_spec'][colcut(info)&zsel])
+                    lenred = len(info['z_spec'][(~colcut(info))&zsel])
                 print('{} {} galaxies in {} at {}<z<{}, red = {} ({:.1f}%), blue = {}({:.1f}%)'.format(lentot,types,gal,zmin,zmax,lenred,lenred/lentot*100,lenblue,lenblue/lentot*100))
-            """
-                if types == 'selected':
-                    selN = sel[:len(dataN)]&(zsel(dataN))
-                    selS = sel[len(dataN):]&(dataS['Z']<zmax)&(dataS['Z']>=zmin) 
-                else:
-                    selN = (dataN['Z']<zmax)&(dataN['Z']>=zmin)
-                    selS = (dataS['Z']<zmax)&(dataS['Z']>=zmin) 
-                lentot = len(dataN[selN])+len(dataS[selS])
-                lenred = len(dataN[selN&(dataN['gi']>=2.35)])+len(dataS[selS&(dataS['gi']>=2.35)])
-                lenblue= len(dataN[selN&(dataN['gi']<2.35)])+len(dataS[selS&(dataS['gi']<2.35)])
-                print('{} {} galaxies in {} at {}<z<{}, red = {} ({:.1f}%), blue = {}({:.1f}%)'.format(lentot,types,gal,zmin,zmax,lenred,lenred/lentot*100,lenblue,lenblue/lentot*100))
-                
-        
-            lentotw = sum(weightN[selN])+sum(weightS[selS])
-            lenredw = sum(weightN[selN&(dataN['gi']>=2.35)])+sum(weightS[selS&(dataS['gi']>=2.35)])
-            lenbluew= sum(weightN[selN&(dataN['gi']<2.35)])+sum(weightS[selS&(dataS['gi']<2.35)])
-            print('{:.1f} weighted galaxies in {} at {}<z<{}, red = {:.1f} ({:.1f}%), blue = {:.1f}({:.1f}%)'.format(lentotw,gal,zmin,zmax,lenredw,lenredw/lentotw*100,lenbluew,lenbluew/lentotw*100))
-            """
+
         # the colour-redshift relation with/without cut
         fig, axs = plt.subplots(ncols=2,sharey=True,figsize=(12, 5))#
         #fig.subplots_adjust(hspace=0.5, left=0.07, right=0.93)
         ax = axs[0]        
-        print(len(info['z_spec'][simplecut]),zmin,zmax)
         hb = ax.hexbin(info['z_spec'][simplecut],info['gi_spec'][simplecut],cmap='inferno',reduce_C_function=np.sum,gridsize=250,vmin=0)#,vmax=120)#info['w_spec'],
         cb = fig.colorbar(hb, ax=ax)
         cb.set_label('counts')
@@ -150,10 +132,6 @@ else:
         #ax.contourf(Xi,Yi,zi,colors='b',levels=2)
         ax.contour(Xi,Yi,zi,colors='b',levels=5)
 
-        """
-        import seaborn as sns
-        sns.jointplot(info['z_spec'][simplecut],info['gi_spec'][simplecut], kind='kde', color="skyblue")
-        """
         ax.set_title('no selection')
         plt.ylim(1.5,3.5)
         plt.xlim(zmin,zmax)
