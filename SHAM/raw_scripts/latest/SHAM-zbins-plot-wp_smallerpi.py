@@ -31,7 +31,8 @@ function = 'mps' # 'wp'
 pre      = sys.argv[6]
 date     = sys.argv[7]
 nseed    = 15
-pimaxs = [25,30,35]
+pimaxs = [25,30]
+wp_dat = [1]*len(pimaxs)
 npoints  = 100 
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
@@ -132,7 +133,7 @@ if (rscale=='linear')&(function=='mps'):
             a_t = '0.74980'
 
 elif (rscale=='log'):
-    ver1='v7_2'
+    ver='v7_2'
     # zbins, z_eff ans ngal
     if (zmin=='0.6')&(zmax=='0.8'):
         if gal=='ELG':
@@ -178,11 +179,11 @@ Ode = 1-Om
 H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
 # SHAM halo catalogue
-if os.path.exists('{}best-fit-wp_{}_{}-python_pi35.dat'.format(fileroot[:-10],gal,GC)):
+if os.path.exists('{}best-fit-wp_{}_{}-python_pi{}.dat'.format(fileroot[:-10],gal,GC,pimaxs[-1])):
     wp = [np.loadtxt('{}best-fit-wp_{}_{}-python_pi{}.dat'.format(fileroot[:-10],gal,GC,i)) for i in pimaxs]
 else:
     print('reading the UNIT simulation snapshot with a(t)={}'.format(a_t))  
-    halofile = home+'catalog/UNIT_hdf5/UNIT_hlist_'+a_t+'.hdf5'        
+    halofile = home+'catalog/UNIT_hlist_'+a_t+'.hdf5'        
     read = time.time()
     f=h5py.File(halofile,"r")
     if len(f["halo"]['Vpeak'][:])%2 ==1:
@@ -206,12 +207,12 @@ else:
     # SHAM application
     def sham_tpcf(*par):
         if date == '0729':
-            x00,x20,wp0= sham_cal(par[0],par[2],par[3])
-            x01,x21,wp1= sham_cal(par[1],par[2],par[3])
+            x00,x20= sham_cal(par[0],par[2],par[3])
+            x01,x21= sham_cal(par[1],par[2],par[3])
         else:
-            x00,x20,wp0= sham_cal(par[0],par[2],par[3],par[4])
-            x01,x21,wp1= sham_cal(par[1],par[2],par[3],par[4])
-        return [append(x00,x01),append(x20,x21),append(wp0,wp1)]
+            x00,x20= sham_cal(par[0],par[2],par[3],par[4])
+            x01,x21= sham_cal(par[1],par[2],par[3],par[4])
+        return [append(x00,x01),append(x20,x21)]#,append(wp0,wp1)]
 
     def sham_cal(*PAR):
         # scatter Vpeak
@@ -238,12 +239,11 @@ else:
         
         # Corrfunc 2pcf and wp
         #wp_dat80 = wp(boxsize,80,nthread,binswp,LRGscat[:,2],LRGscat[:,3],z_redshift)
-        wp_dat0 = wp(boxsize,pimaxs[0],nthread,binswp,LRGscat[:,2],LRGscat[:,3],z_redshift)
-        wp_dat1 = wp(boxsize,pimaxs[1],nthread,binswp,LRGscat[:,2],LRGscat[:,3],z_redshift)
-        wp_dat2 = wp(boxsize,pimaxs[2],nthread,binswp,LRGscat[:,2],LRGscat[:,3],z_redshift)
+        for PI,pimax in enumerate(pimaxs):
+            wp_dat[PI] = wp(boxsize,pimax,nthread,binswp,LRGscat[:,2],LRGscat[:,3],z_redshift)['wp']
 
         # calculate the 2pcf and the multipoles
-        return [wp_dat0['wp'],wp_dat1['wp'],wp_dat2['wp']]
+        return wp_dat
 
     if date == '0729':
         with Pool(processes = nseed) as p:
@@ -258,13 +258,14 @@ else:
         # Corrfunc
         tmp = [xi1_ELG[a][h] for a in range(nseed)]
         true_array = np.hstack((((np.array(tmp)).T)[:nbinswp],((np.array(tmp)).T)[nbinswp:]))
+        #import pdb;pdb.set_trace()
         wp[h]= (np.array([swp,np.mean(true_array,axis=1),np.std(true_array,axis=1)]).reshape(3,nbinswp)).T
         np.savetxt('{}best-fit-wp_{}_{}-python_pi{}.dat'.format(fileroot[:-10],gal,GC,pimax),wp[h],header='s wp wperr')
         
         # observations
         if (gal == 'LRG')|(gal=='ELG'):
             if rscale == 'log':
-                pairfile = '{}catalog/nersc_zbins_wp_mps_{}/pairs_rp-pi_log_eBOSS_{}_{}_{}_pip_zs_{:.2f}-{}0.dat'.format(home,gal,gal,GC,'v7_2',float(zmin),zmax)
+                pairfile = '{}catalog/nersc_zbins_wp_mps_{}/pairs_rp-pi_log_eBOSS_{}_{}_{}_pip_zs_{:.2f}-{}0.dat'.format(home,gal,gal,GC,'v7',float(zmin),zmax)
                 
             else:
                 pairfile = home+'catalog/nersc_wp_LRG_v7_2/pair_counts_rp-pi_pip_eBOSS_LRG_NGC+SGC_v7_2.dat'
@@ -298,7 +299,7 @@ for h,pimax in enumerate(pimaxs):
             obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}_pi{}.dat'.format(home,gal,ver,gal,GC,ver,pimax)
         elif rscale == 'log':
             covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_log_z{}z{}_mocks_wp_pi{}.fits.gz'.format(home,gal,gal,zmin,zmax,pimax) 
-            obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/wp_rp_pip_eBOSS_{}_{}_{}_{}-{}_pi{}.dat'.format(home,gal,gal,GC,ver1,zmin,zmax,pimax)
+            obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/wp_rp_pip_eBOSS_{}_{}_{}_{}-{}_pi{}.dat'.format(home,gal,gal,GC,ver,zmin,zmax,pimax)
         colwp   = 'col3'
     else:
         obs2pcfwp = '{}catalog/BOSS_zbins_wp/OBS_{}_NGC+SGC_DR12v5_z{}z{}_pi{}.wp'.format(home,gal,zmin,zmax,pimax)
@@ -328,6 +329,7 @@ for h,pimax in enumerate(pimaxs):
             ax[j,k] = fig.add_subplot(spec[j,k]);#import pdb;pdb.set_trace()
             ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='obs+mocks $\pi${}'.format(pimax))
             ax[j,k].plot(swp,(wp[h][:,1]-values[j])/err[j],color='b',label='SHAM $\pi${}'.format(pimax))
+            ax[j,k].fill_between(swp,(wp[h][:,1]-values[j]-wp[h][:,2])/err[j],(wp[h][:,1]-values[j]+wp[h][:,2])/err[j],color='b',alpha=0.4,label='_hidden')
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):        
@@ -341,66 +343,3 @@ for h,pimax in enumerate(pimaxs):
                 plt.ylim(-3,3)
     plt.savefig('{}wp_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_pi{}.png'.format(fileroot[:-10],gal,GC,zmin,zmax,smin,smax,pimax))
     plt.close()
-
-"""
-# pi80
-wp80 = np.loadtxt('{}best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
-
-# plot wp with errorbars
-if (gal == 'LRG')|(gal=='ELG'):
-    if rscale == 'linear':
-        covfitswp  = '{}catalog/nersc_{}_{}_{}/{}_{}_mocks.fits.gz'.format(home,'wp',gal,ver,'wp',gal) 
-        obs2pcfwp  = '{}catalog/nersc_wp_{}_{}/wp_rp_pip_eBOSS_{}_{}_{}.dat'.format(home,gal,ver,gal,GC,ver)
-    elif rscale == 'log':
-        covfitswp = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_z{}z{}_mocks_{}.fits.gz'.format(home,gal,'wp',rscale,gal,zmin,zmax,multipole) 
-        obs2pcfwp  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,'wp',rscale,gal,GC,ver1,zmin,zmax)
-    obstool = 'PIP'
-    colwp   = 'col3'
-else:
-    obs2pcfwp = '{}catalog/BOSS_zbins_wp/OBS_{}_NGC+SGC_DR12v5_z{}z{}.wp'.format(home,gal,zmin,zmax)
-    covfitswp = '{}catalog/BOSS_zbins_wp/{}_log_z{}z{}_mocks_wp.fits.gz'.format(home,gal,zmin,zmax)
-    obstool = ''
-    colwp   = 'col1'
-    pythonsel = (wp80[:,0]>smin)&(wp80[:,0]<smax)
-    wp80 = wp80[tuple(pythonsel),:]
-# observation
-obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
-selwp = (obscfwp[colwp]<smax)&(obscfwp[colwp]>=smin)
-OBSwp   = obscfwp['col4'][selwp]
-# Read the covariance matrices
-hdu = fits.open(covfitswp) 
-mockswp = hdu[1].data[GC+'mocks']#[binminwp:binmaxwp,:]
-Nmockwp = mockswp.shape[1] 
-errbarwp = np.std(mockswp,axis=1)
-hdu.close()  
-#import pdb;pdb.set_trace()
-
-# plot the wp
-errbarwp = np.std(mockswp,axis=1)
-fig = plt.figure(figsize=(6,7))
-spec = gridspec.GridSpec(nrows=2,ncols=1, height_ratios=[4, 1], hspace=0.3)
-ax = np.empty((2,1), dtype=type(plt.axes))
-for k in range(1):
-    values=[np.zeros_like(OBSwp),OBSwp]
-    err   = [np.ones_like(OBSwp),errbarwp]
-
-    for j in range(2):
-        ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
-        ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='obs 1$\sigma$ $\pi$80')
-        ax[j,k].plot(swp,(wp80[:,1]-values[j])/err[j],color='b',label='SHAM $\pi$80')
-        #ax[j,k].errorbar(swp,(obscfwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",,label='{} obs 1$\sigma$'.format(obstool))
-        plt.xlabel('rp (Mpc $h^{-1}$)')
-        plt.xscale('log')
-        if (j==0):        
-            plt.yscale('log')
-            ax[j,k].set_ylabel('wp')
-            plt.legend(loc=0)
-            plt.ylim(5,50)
-            plt.title('projected 2pcf: {} in {}'.format(gal,GC))
-        if (j==1):
-            ax[j,k].set_ylabel('$\Delta$ wp/err')
-            plt.ylim(-3,3)
-
-plt.savefig('{}wp_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,zmin,zmax,smin,smax))
-plt.close()
-"""

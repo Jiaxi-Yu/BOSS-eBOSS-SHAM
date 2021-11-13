@@ -129,29 +129,30 @@ print('its chi2: {:.6}'.format(-2*a.get_best_fit()['log_likelihood']))
 if finish: 
 # write the multinest/gedist analysis report
     file = '{}Vzsmear_report_{}_{}.txt'.format(fileroot[:-10],gal,GC)
-    f = open(file,'a')
-    f.write('{} {} multinest: \n'.format(gal,GC))
-    f.write('(-2)* max loglike: {} \n'.format(-2*a.get_best_fit()['log_likelihood']))
-    f.write('max-loglike params: {}\n'.format(a.get_best_fit()['parameters']))
-    f.write('\n----------------------------------------------------------------------\n')
-    if (date=='0729'):
-        f.write('getdist 1-sigma errors: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1]))
-        f.write('another way around: sigma {:.6}+{:.6}{:.6}, sigma_smear {:.6}+{:.6}{:.6}km/s \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1]))    
-    else:
-        f.write('getdist 1-sigma errors: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
-        f.write('another way around: sigma {:.6}+{:.6}{:.6}, sigma_smear {:.6}+{:.6}{:.6}km/s,Vceil {:.6}+{:.6}{:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
-    stats = a.get_stats()    
-    for j in range(npar):
-        lower[j], upper[j] = stats['marginals'][j]['1sigma']
-        print('multinest {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  upper[j], lower[j]))
-    f.write('\n----------------------------------------------------------------------\n')
-    if (date=='0729'):
-        f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s  \n'.format(lower[0],upper[0],lower[1],upper[1]))
-        f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1]))
-    else:
-        f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
-        f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
-    f.close()
+    if not os.path.exists(file):
+        f = open(file,'w')
+        f.write('{} {} multinest: \n'.format(gal,GC))
+        f.write('(-2)* max loglike: {} \n'.format(-2*a.get_best_fit()['log_likelihood']))
+        f.write('max-loglike params: {}\n'.format(a.get_best_fit()['parameters']))
+        f.write('\n----------------------------------------------------------------------\n')
+        if (date=='0729'):
+            f.write('getdist 1-sigma errors: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1]))
+            f.write('another way around: sigma {:.6}+{:.6}{:.6}, sigma_smear {:.6}+{:.6}{:.6}km/s \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1]))    
+        else:
+            f.write('getdist 1-sigma errors: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
+            f.write('another way around: sigma {:.6}+{:.6}{:.6}, sigma_smear {:.6}+{:.6}{:.6}km/s,Vceil {:.6}+{:.6}{:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
+        stats = a.get_stats()    
+        for j in range(npar):
+            lower[j], upper[j] = stats['marginals'][j]['1sigma']
+            print('multinest {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  upper[j], lower[j]))
+        f.write('\n----------------------------------------------------------------------\n')
+        if (date=='0729'):
+            f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s  \n'.format(lower[0],upper[0],lower[1],upper[1]))
+            f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1]))
+        else:
+            f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
+            f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
+        f.close()
 
     # start the final 2pcf, wp, Vpeak histogram, PDF
     if (rscale=='linear')&(function=='mps'):
@@ -325,6 +326,8 @@ if finish:
     print('the analytical random pair counts are ready.')
 
     # cosmological parameters
+    z = 1/float(a_t)-1
+    #import pdb;pdb.set_trace()
     Ode = 1-Om
     H = 100*np.sqrt(Om*(1+z)**3+Ode)
 
@@ -335,7 +338,7 @@ if finish:
         bbins,UNITv,SHAMv = np.loadtxt('{}best-fit_Vpeak_hist_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),unpack=True)
     else:
         print('reading the UNIT simulation snapshot with a(t)={}'.format(a_t))  
-        halofile = home+'catalog/UNIT_hlist_'+a_t+'.hdf5'        
+        halofile = home+'catalog/UNIT_hlist_'+a_t+'.hdf5'         
         read = time.time()
         f=h5py.File(halofile,"r")
         if len(f["halo"]['Vpeak'][:])%2 ==1:
@@ -458,6 +461,15 @@ if finish:
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
     else:
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[1:]
+    pythoncode = np.loadtxt('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC))
+
+    columns = []
+    import re
+    with open('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC), 'r') as td:
+        for line in td:
+            if line[0] == '#':
+                info = re.split(' +', line)
+                columns.append(info)
     # plot the 2PCF multipoles   
     fig = plt.figure(figsize=(14,8))
     spec = gridspec.GridSpec(nrows=2,ncols=2, height_ratios=[4, 1], wspace=0.2,hspace=0)
@@ -468,10 +480,12 @@ if finish:
         for j in range(2):
             ax[j,k] = fig.add_subplot(spec[j,k])
             #ax[j,k].plot(s,s**2*(xi[:,k]-values[j]),c='c',alpha=0.6,label='SHAM-python')
-            ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='_hidden')#'SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
             #ax[j,k].errorbar(s+0.1,s**2*(Ccode[:,k+2]-values[j])/err[j],s**2*errbarsham[:,k]/err[j],c='m',alpha=0.6,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
-            ax[j,k].fill_between(s,s**2*(Ccode[:,k+2]-values[j])/err[j]-s**2*errbarsham[:,k]/err[j],s**2*(Ccode[:,k+2]-values[j])/err[j]+s**2*errbarsham[:,k]/err[j],color='m',alpha=0.4,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
+            ax[j,k].plot(s,s**2*(pythoncode[:,k]-values[j])/err[j],c='k',alpha=0.6,label='_hidden')#'SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
+            ax[j,k].fill_between(s,s**2*(pythoncode[:,k]-values[j])/err[j]-s**2*errbarsham[:,k]/err[j],s**2*(pythoncode[:,k]-values[j])/err[j]+s**2*errbarsham[:,k]/err[j],color='k',alpha=0.4,label='SHAMpython, $\chi^2$/dof={:.4}/{}'.format(float(columns[0][-1]),int(2*len(s)-npar)))
             ax[j,k].errorbar(s,s**2*(obscf[col]-values[j])/err[j],s**2*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='{} obs 1$\sigma$'.format(obstool))
+            ax[j,k].plot(s,s**2*(Ccode[:,k+2]-values[j])/err[j],c='m',alpha=0.6,label='_hidden')#'SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
+            ax[j,k].fill_between(s,s**2*(Ccode[:,k+2]-values[j])/err[j]-s**2*errbarsham[:,k]/err[j],s**2*(Ccode[:,k+2]-values[j])/err[j]+s**2*errbarsham[:,k]/err[j],color='m',alpha=0.4,label='SHAM, $\chi^2$/dof={:.4}/{}'.format(-2*a.get_best_fit()['log_likelihood'],int(2*len(s)-npar)))
             plt.xlabel('s (Mpc $h^{-1}$)')
             if rscale=='log':
                 plt.xscale('log')
@@ -488,7 +502,7 @@ if finish:
 
     plt.savefig('{}cf_{}_bestfit_{}_{}_z{}z{}_{}-{}Mpch-1_{}.png'.format(fileroot[:-10],multipole,gal,GC,zmin,zmax,rmin,rmax,date))
     plt.close()
-"""
+    
     # plot the 2PCF multipoles 2-25Mpc/h
     if rscale == 'linear':
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[2:binmax]
@@ -575,7 +589,6 @@ if finish:
     pdf = SHAMv[:-1]/UNITv[:-1]
     print('z{}z{} PDF max: {} km/s'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))
 
-
     # plot wp with errorbars
     if (gal == 'LRG')|(gal=='ELG'):
         if rscale == 'linear':
@@ -615,6 +628,7 @@ if finish:
             ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
             ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='obs 1$\sigma$ $\pi$80')
             ax[j,k].plot(swp,(wp[:,1]-values[j])/err[j],color='b',label='SHAM $\pi$80')
+            ax[j,k].fill_between(swp,(wp[:,1]-values[j]-wp[:,2])/err[j],(wp[:,1]-values[j]+wp[:,2])/err[j],color='b',alpha=0.4,label='_hidden')
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):        
@@ -626,6 +640,5 @@ if finish:
                 ax[j,k].set_ylabel('$\Delta$ wp/err')
                 plt.ylim(-3,3)
 
-    plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80.png'.format(fileroot[:-10],gal,GC,smin,smax))
+    plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi80_{}.png'.format(fileroot[:-10],gal,GC,smin,smax,date))
     plt.close()
-"""
