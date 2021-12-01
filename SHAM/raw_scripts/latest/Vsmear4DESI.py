@@ -154,7 +154,7 @@ elif task == 'plot':
 
         ## central mps/Pk calculation: average
         catafile = home+'GLAM_0.74/mock0_smear/'
-        names = ['nosmear','lorentzian','gaussian','stdev','lorentzian_trunc','data_like']
+        names = ['nosmear','lorentzian','gaussian','stdev','lorentzian_trunc2','data_like']
         monodata = [[],[],[],[],[],[]]
         quaddata = [[],[],[],[],[],[]]
         hexadata = [[],[],[],[],[],[]]
@@ -178,39 +178,42 @@ elif task == 'plot':
         mps = [np.mean(monodata,axis=1),np.mean(quaddata,axis=1),np.mean(hexadata,axis=1)]
         #import pdb;pdb.set_trace()
 
-        # plot the 2PCF multipoles   
+        # plot the 2PCF multipoles  
+        plt.rc('font', family='serif', size=18) 
+        fontsize=18
         fig = plt.figure(figsize=(20,8))
-        spec = gridspec.GridSpec(nrows=2,ncols=3, height_ratios=[2, 1], wspace=0.2)
+        spec = gridspec.GridSpec(nrows=2,ncols=3, height_ratios=[2, 1], wspace=0.23,hspace=0,left=0.05, right=0.98)
         ax = np.empty((2,3), dtype=type(plt.axes))
         for k,name in enumerate(['monopole','quadrupole','hexadecapole']):
             values=[np.zeros(nbins), mps[k][0]]       
             err   = [np.ones(nbins),norm*errbar[k*nbins:(k+1)*nbins]]
             for j in range(2):
                 ax[j,k] = fig.add_subplot(spec[j,k])
-                ax[j,k].errorbar(s,norm*(mps[k][0]-values[j])/err[j],norm*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='nosmear 1$\sigma$')
-                ax[j,k].plot(s,norm*(mps[k][1]-values[j])/err[j],alpha=0.8,label='lorentzian')
+                #ax[j,k].errorbar(s,norm*(mps[k][0]-values[j])/err[j],norm*errbar[k*nbins:(k+1)*nbins]/err[j],color='k', marker='o',ecolor='k',ls="none",label='nosmear 1$\sigma$')
+                ax[j,k].plot(s,norm*(mps[k][0]-values[j])/err[j],color='k',label='no smear')
+                ax[j,k].fill_between(s,norm*(mps[k][0]-values[j])/err[j]-norm*errbar[k*nbins:(k+1)*nbins]/err[j],norm*(mps[k][0]-values[j])/err[j]+norm*errbar[k*nbins:(k+1)*nbins]/err[j],color = 'k',alpha=0.2,label='_hidden')
+                #ax[j,k].plot(s,norm*(mps[k][1]-values[j])/err[j],alpha=0.8,label='lorentzian')
                 ax[j,k].plot(s,norm*(mps[k][2]-values[j])/err[j],alpha=0.8,label='gaussian')
                 ax[j,k].plot(s,norm*(mps[k][3]-values[j])/err[j],alpha=0.8,label='stdev')
-                ax[j,k].plot(s,norm*(mps[k][4]-values[j])/err[j],alpha=0.8,label='truncated lorentzian')
-                ax[j,k].plot(s,norm*(mps[k][5]-values[j])/err[j],alpha=0.8,label='sampled_data')
+                ax[j,k].plot(s,norm*(mps[k][4]-values[j])/err[j],alpha=0.8,label='lorentzian < 200km/s')
+                ax[j,k].plot(s,norm*(mps[k][5]-values[j])/err[j],alpha=0.8,label='data')
                 
-                plt.xlabel(xlabel)
                 if (j==0):
                     if datatype=='mps':
-                        ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2))
+                        ax[j,k].set_ylabel('$s^2 * \\xi_{}$'.format(k*2),fontsize=fontsize)
                     else:
-                        ax[j,k].set_ylabel('k$^{{1.5}}$ * $P_{}$'.format(k*2))
+                        ax[j,k].set_ylabel('k$^{{1.5}}$ * $P_{}$'.format(k*2),fontsize=fontsize)
 
                     if k==0:
-                        plt.legend(loc=0)
-                    else:
                         plt.legend(loc=0)
                     #plt.title('correlation function {}'.format(name))
                 if (j==1):
                     if datatype=='mps':
-                        ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2))
+                        ax[j,k].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2),fontsize=fontsize)
                     else:
-                        ax[j,k].set_ylabel('$\Delta P_{}$/err'.format(k*2))
+                        ax[j,k].set_ylabel('$\Delta P_{}$/err'.format(k*2),fontsize=fontsize)
+                    plt.xlabel(xlabel)
+
 
                     #ax[j,k].plot(s,s**2*(xi[:,k]-values[j])/err[j],c='c',alpha=0.8)
 
