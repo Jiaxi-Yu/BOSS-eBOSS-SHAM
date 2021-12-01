@@ -244,248 +244,265 @@ else:
     # bias evolution:
     #zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8','0.2', '0.43','0.6']
     #zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0','0.43','0.7', '1.0']
-    
-    #zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8']
-    #zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0']
-    
+    import matplotlib.gridspec as gridspec
+
+    fig = plt.figure(figsize=(12,5))
+    spec = gridspec.GridSpec(nrows=1,ncols=2, left = 0.08,right = 0.96,bottom=0.1,top = 0.96, hspace=0.1,wspace=0.1)
+    ax = np.empty((1,2), dtype=type(plt.axes))
+    for Pind in range(2):
+        
+        if Pind == 0:
+            zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8']
+            zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0']
+        else:
+            zmins = ['0.2', '0.43','0.6']
+            zmaxs = ['0.43','0.7', '1.0']    
     #zmins = ['0.6','0.6','0.65','0.7','0.8']
     #zmaxs = ['0.7','0.8','0.8' ,'0.9','1.0']
-    zmins = ['0.2', '0.2', '0.33','0.43','0.51']
-    zmaxs = ['0.33','0.43','0.43','0.51','0.57']
+    #zmins = ['0.2', '0.2', '0.33','0.43','0.51']
+    #zmaxs = ['0.33','0.43','0.43','0.51','0.57']
 
-    SHAMbias   = []
-    SHAMbiaserr= []
-    zeff = []
-    bounds0 = [];best0=[]
-    bounds1 = [];best1=[]
-    bounds2 = [];best2=[]
-    bounds3 = [];best3=[]
-    bounds4 = [];best4=[]
+        SHAMbias   = []
+        SHAMbiaserr= []
+        zeff = []
+        bounds0 = [];best0=[]
+        bounds1 = [];best1=[]
+        bounds2 = [];best2=[]
+        bounds3 = [];best3=[]
+        bounds4 = [];best4=[]
 
-    home     = '/home/astro/jiayu/Desktop/SHAM/'
-    
-    Om = 0.31
-    def D(a):
-        return a * hyp2f1(1./3.,1,11./6.,a**3*(1-1./Om))
-    def f(a):
-        derv = derivative(D, a, dx=1e-3)
-        return a * derv / D(a)
+        home     = '/home/astro/jiayu/Desktop/SHAM/'
+        
+        Om = 0.31
+        def D(a):
+            return a * hyp2f1(1./3.,1,11./6.,a**3*(1-1./Om))
+        def f(a):
+            derv = derivative(D, a, dx=1e-3)
+            return a * derv / D(a)
 
-    for zmin,zmax in zip(zmins,zmaxs):
-        if (zmin=='0.6')&(zmax=='1.0'): 
-            SHAMnum   = int(6.26e4)
-            gal = 'LRG'
-            z = 0.7018
-            a_t = '0.58760'
-            ver = 'v7_2'
-            rscale = 'linear'
-            dvstd  = [54.2,55.2]
-            dvnorm = [48.0,49.0]
-        elif (zmin=='0.43')&(zmax=='0.51'): 
-            gal = 'CMASS'
-            SHAMnum = 342000
-            z = 0.4686
-            a_t = '0.68620'
-            rscale = 'linear'
-            dvstd  = [46.5,48.2]
-            dvnorm = [42.5,43.4]
-        elif zmin=='0.51':
-            gal = 'CMASS'
-            SHAMnum = 363000
-            z = 0.5417 
-            a_t = '0.64210'
-            rscale = 'linear'
-            dvstd  = [52.4,54.0]
-            dvnorm = [47.3,48.4]
-        elif zmin=='0.57':
-            gal = 'CMASS'
-            SHAMnum = 160000
-            z = 0.6399
-            a_t =  '0.61420'
-            rscale = 'linear'
-            dvstd  = [60.4,62.2]
-            dvnorm = [52.8,54.0]
-        elif (zmin=='0.43')&(zmax=='0.7'):  
-            gal = 'CMASS'
-            SHAMnum = 264000
-            z = 0.5897
-            a_t = '0.62800'
-            rscale = 'linear'
-            dvstd  = [54.2,55.2]
-            dvnorm = [48.0,49.0]
-        elif (zmin=='0.2')&(zmax=='0.33'):   
-            gal = 'LOWZ'
-            SHAMnum = 337000
-            z = 0.2754
-            a_t = '0.78370' 
-            rscale = 'linear'
-            dvstd  = [25.8,27.2]
-            dvnorm = [24.1,25.3]
-        elif zmin=='0.33':
-            gal = 'LOWZ'
-            SHAMnum = 258000
-            z = 0.3865
-            a_t = '0.71730'
-            rscale = 'linear'
-            dvstd  = [32.9,34.2]
-            dvnorm = [30.6,31.6]
-        elif (zmin=='0.2')&(zmax=='0.43'): 
-            gal = 'LOWZ'
-            SHAMnum = 295000
-            z = 0.3441
-            a_t = '0.74980'
-            rscale = 'linear'
-            dvstd  = [30.0,30.9]
-            dvnorm = [27.2,28.2]
-        elif (zmin=='0.6')&(zmax=='0.8'):
-            gal='LRG'
-            SHAMnum = int(8.86e4)
-            z = 0.7051
-            a_t = '0.58760'
-            rscale = 'log'
-            dvstd  = [108.2,112.2]
-            dvnorm = [89.8,92.3]
-        elif (zmin=='0.6')&(zmax=='0.7'): 
-            gal='LRG'           
-            SHAMnum = int(9.39e4)
-            z = 0.6518
-            a_t = '0.60080'
-            rscale = 'log'
-            dvstd  = [104.9,110.0]
-            dvnorm = [87.6,90.2]
-        elif zmin=='0.65':
-            gal='LRG'
-            SHAMnum = int(8.80e4)
-            z = 0.7273
-            a_t = '0.57470'
-            rscale = 'log'
-            dvstd  = [109.7,114.2]
-            dvnorm = [90.2,92.9]
-        elif zmin=='0.7':
-            gal='LRG'
-            SHAMnum = int(6.47e4)
-            z=0.7968
-            a_t = '0.54980'
-            rscale = 'log'
-            dvstd  = [117.7,123.0]
-            dvnorm = [94.5,97.3]
-        else:
-            gal = 'LRG'
-            SHAMnum = int(3.01e4)
-            z= 0.8777
-            a_t = '0.52600'
-            rscale = 'log'
-            dvstd  = [136.5,144.5]
-            dvnorm = [95.4,100.4]
-        zeff.append(z)
-        """
-        if function == 'mps':
-            filename = 'param_evolution/real_space/SHAM_amplitude_z{}z{}.dat'.format(zmin,zmax)
-            columns = []
-            with open(filename, 'r') as td:
-                for line in td:
-                    if line[0] == '#':
-                        info = re.split(' +', line)
-                        columns.append(info)
-            # best-fits: columns[0][4][:-1], columns[0][6][:-1], columns[0][8][:-1]
-            biasz = np.loadtxt(filename)
-            ind0 = 0
-            sbinmin = 5; sbinmax = 25
-            biasmean = np.sqrt(np.mean(biasz[sbinmin-(5-ind0):sbinmax-(5-ind0)],axis=1)/D(1/(1+z))**2)
+        for zmin,zmax in zip(zmins,zmaxs):
+            if (zmin=='0.6')&(zmax=='1.0'): 
+                SHAMnum   = int(6.26e4)
+                gal = 'LRG'
+                z = 0.7781
+                a_t = '0.56220'
+                ver = 'v7_2'
+                rscale = 'linear'
+                dvstd  = [111.6,115.1]
+                dvnorm = [81.2,84.4]#[78.3,82.3]
+            elif (zmin=='0.43')&(zmax=='0.51'): 
+                gal = 'CMASS'
+                SHAMnum = 342000
+                z = 0.4686
+                a_t = '0.68620'
+                rscale = 'linear'
+                dvstd  = [46.1,47.7]
+                dvnorm = [38.6,39.4]#[38.6,39.4]
+            elif zmin=='0.51':
+                gal = 'CMASS'
+                SHAMnum = 363000
+                z = 0.5417 
+                a_t = '0.64210'
+                rscale = 'linear'
+                dvstd  = [51.9,53.5]
+                dvnorm = [43.0,43.8]#[43.0,43.8]
+            elif zmin=='0.57':
+                gal = 'CMASS'
+                SHAMnum = 160000
+                z = 0.6399
+                a_t =  '0.61420'
+                rscale = 'linear'
+                dvstd  = [60.0,61.8]
+                dvnorm = [46.5,47.7]#[46.5,47.7]
+            elif (zmin=='0.43')&(zmax=='0.7'):  
+                gal = 'CMASS'
+                SHAMnum = 264000
+                z = 0.5897
+                a_t = '0.62800'
+                rscale = 'linear'
+                dvstd  = [53.7,54.7]
+                dvnorm = [44.5,45.1]#[44.5,45.1]
+            elif (zmin=='0.2')&(zmax=='0.33'):   
+                gal = 'LOWZ'
+                SHAMnum = 337000
+                z = 0.2754
+                a_t = '0.78370' 
+                rscale = 'linear'
+                dvstd  = [25.8,27.1]
+                dvnorm = [20.9,21.5]#[20.9,21.5]
+            elif zmin=='0.33':
+                gal = 'LOWZ'
+                SHAMnum = 258000
+                z = 0.3865
+                a_t = '0.71730'
+                rscale = 'linear'
+                dvstd  = [32.5,33.7]
+                dvnorm = [27.5,28.2]#[27.5,28.2]
+            elif (zmin=='0.2')&(zmax=='0.43'): 
+                gal = 'LOWZ'
+                SHAMnum = 295000
+                z = 0.3441
+                a_t = '0.74980'
+                rscale = 'linear'
+                dvstd  = [29.7,30.6]
+                dvnorm = [23.8,24.3]#[23.8,24.3]
+            elif (zmin=='0.6')&(zmax=='0.8'):
+                gal='LRG'
+                SHAMnum = int(8.86e4)
+                z = 0.7051
+                a_t = '0.58760'
+                rscale = 'log'
+                dvstd  = [103.2,106.4]
+                dvnorm =  [80.5,85.3]#[81.0,85.1]
+            elif (zmin=='0.6')&(zmax=='0.7'): 
+                gal='LRG'           
+                SHAMnum = int(9.39e4)
+                z = 0.6518
+                a_t = '0.60080'
+                rscale = 'log'
+                dvstd  =[100.7,103.9]
+                dvnorm = [81.6,87.4]#[81.4,87.0]
+            elif zmin=='0.65':
+                gal='LRG'
+                SHAMnum = int(8.80e4)
+                z = 0.7273
+                a_t = '0.57470'
+                rscale = 'log'
+                dvstd  = [103.8,107.5]
+                dvnorm =  [82.4,87.6]#[82.5,87.3]
+            elif zmin=='0.7':
+                gal='LRG'
+                SHAMnum = int(6.47e4)
+                z=0.7968
+                a_t = '0.54980'
+                rscale = 'log'
+                dvstd  = [112.4,117.1]
+                dvnorm = [81.5,84.7]#[81.2,84.6]
+            else:
+                gal = 'LRG'
+                SHAMnum = int(3.01e4)
+                z= 0.8777
+                a_t = '0.52600'
+                rscale = 'log'
+                dvstd  = [129.0,136.6]
+                dvnorm = [83.1,89.1]#[85.0,89.9]
+            zeff.append(z)
+            """
+            if function == 'mps':
+                filename = 'param_evolution/real_space/SHAM_amplitude_z{}z{}.dat'.format(zmin,zmax)
+                columns = []
+                with open(filename, 'r') as td:
+                    for line in td:
+                        if line[0] == '#':
+                            info = re.split(' +', line)
+                            columns.append(info)
+                # best-fits: columns[0][4][:-1], columns[0][6][:-1], columns[0][8][:-1]
+                biasz = np.loadtxt(filename)
+                ind0 = 0
+                sbinmin = 5; sbinmax = 25
+                biasmean = np.sqrt(np.mean(biasz[sbinmin-(5-ind0):sbinmax-(5-ind0)],axis=1)/D(1/(1+z))**2)
 
-        elif function =='Pk':
-            UNIT = np.loadtxt('param_evolution/UNIT_linear-interp.pk')
-            pkseed = []
-            for seed in range(25):
-                filename = 'param_evolution/catalogues_pk/z{}z{}-seed{}.pk'.format(zmin,zmax,seed)
-                pkseed.append(np.loadtxt(filename,usecols=5))
-            biasmean = np.sqrt(np.mean(pkseed/UNIT[:,-1]/D(1/(1+z))**2,axis=1))
+            elif function =='Pk':
+                UNIT = np.loadtxt('param_evolution/UNIT_linear-interp.pk')
+                pkseed = []
+                for seed in range(25):
+                    filename = 'param_evolution/catalogues_pk/z{}z{}-seed{}.pk'.format(zmin,zmax,seed)
+                    pkseed.append(np.loadtxt(filename,usecols=5))
+                biasmean = np.sqrt(np.mean(pkseed/UNIT[:,-1]/D(1/(1+z))**2,axis=1))
 
-        SHAMbias.append(np.mean(biasmean))
-        SHAMbiaserr.append(np.std(biasmean))
-        """
+            SHAMbias.append(np.mean(biasmean))
+            SHAMbiaserr.append(np.std(biasmean))
+            """
 
-        # best-fits and their constraints
-        #fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
-        #parameters = ["sigma","Vsmear","Vceil"]
-        if (gal == 'LRG')|((gal=='CMASS')&(zmin=='0.57')):
+            # best-fits and their constraints
             fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
             parameters = ["sigma","Vsmear","Vceil"]
+            """
+            # 2param
+            if (gal == 'LRG')|((gal=='CMASS')&(zmin=='0.57')):
+                fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+                parameters = ["sigma","Vsmear","Vceil"]
+            #elif (gal == 'CMASS')&(zmin=='0.57'):
+            #    fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+            #    parameters = ["sigma","Vsmear","Vceil"]
+            else:        
+                fileroot = '{}MCMCout/zbins_0729/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+                parameters = ["sigma","Vsmear"]
+            """
             npar = len(parameters)
-        #elif (gal == 'CMASS')&(zmin=='0.57'):
-        #    fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
-        #    parameters = ["sigma","Vsmear","Vceil"]
-        else:        
-            fileroot = '{}MCMCout/zbins_0729/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
-            parameters = ["sigma","Vsmear"]
-            npar = len(parameters)
-        a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
-        stats = a.get_stats()
-        ind = 0
-        param = stats['marginals'][ind]['1sigma']
-        best = a.get_best_fit()['parameters'][ind]
-        bounds0.append(abs(param-best))
-        best0.append(best)
-        ind = 1
-        param = stats['marginals'][ind]['1sigma']
-        best = a.get_best_fit()['parameters'][ind]
-        bounds1.append(abs(param-best))
-        best1.append(best)
-        if npar == 3:
-            ind = 2
+            a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
+            stats = a.get_stats()
+            ind = 0
             param = stats['marginals'][ind]['1sigma']
             best = a.get_best_fit()['parameters'][ind]
-            bounds2.append(abs(param-best))
-            best2.append(best)
-        # dv meaurements
-        bounds3.append((dvstd[1]-dvstd[0])/2)
-        best3.append(np.mean(dvstd))
-        bounds4.append((dvnorm[1]-dvnorm[0])/2)
-        best4.append(np.mean(dvnorm))
+            bounds0.append(abs(param-best))
+            best0.append(best)
+            ind = 1
+            param = stats['marginals'][ind]['1sigma']
+            best = a.get_best_fit()['parameters'][ind]
+            bounds1.append(abs(param-best))
+            best1.append(best)
+            if npar == 3:
+                ind = 2
+                param = stats['marginals'][ind]['1sigma']
+                best = a.get_best_fit()['parameters'][ind]
+                bounds2.append(abs(param-best))
+                best2.append(best)
+            # dv meaurements
+            bounds3.append((dvstd[1]-dvstd[0])/2)
+            best3.append(np.mean(dvstd))
+            bounds4.append((dvnorm[1]-dvnorm[0])/2)
+            best4.append(np.mean(dvnorm))
+        """
+        from scipy.optimize import curve_fit
+        def linear(x,a,b):
+            return a*x+b
+        popt, pcov = curve_fit(linear,1/(1+np.array(zeff)),np.array(best0),sigma=np.mean(abs(np.array(bounds0).T),axis=0))
+        plt.title(r'The 2-param SHAM best-fit $\sigma$ slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
+        plt.errorbar(1/(1+np.array(zeff)),np.array(best0),np.array(bounds0).T,color='k', marker='o',ecolor='k',ls="none")
+        plt.plot(1/(1+np.array(zeff)),linear(1/(1+np.array(zeff)),*popt),'',label='best-fit')
+        #plt.axvline(0.43, color= "k",linestyle='--')
+        #plt.axvline(0.645, color = "k",linestyle='--')
+        plt.axvline(0.7, color= "k",linestyle='--')
+        plt.text(0.75, 0.1, 'LOWZ')
+        plt.text(0.65, 0.1, 'CMASS')
+        plt.ylabel('$\sigma$')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
+        #plt.xlabel('$z_{eff}$')
+        plt.xlabel('$a(z_{eff}$)')
+        plt.legend(loc=0)
+        plt.ylim(0,0.6)
+        plt.xlim(0.625,0.8)
+        plt.savefig('sigma_evolution.png')
+        plt.close()
+        """
+        # plot together
+        #fig,ax = plt.subplots()
+        #plt.title(r'the BOSS/eBOSS redshift uncertainty v.s. the SHAM Vsmear best-fit ')
+        ax[0,Pind] = fig.add_subplot(spec[0,Pind])
+        plt.rc('font', family='serif', size=12)
 
-    from scipy.optimize import curve_fit
-    def linear(x,a,b):
-        return a*x+b
-    popt, pcov = curve_fit(linear,1/(1+np.array(zeff)),np.array(best0),sigma=np.mean(abs(np.array(bounds0).T),axis=0))
-    plt.title(r'The 2-param SHAM best-fit $\sigma$ slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
-    plt.errorbar(1/(1+np.array(zeff)),np.array(best0),np.array(bounds0).T,color='k', marker='o',ecolor='k',ls="none")
-    plt.plot(1/(1+np.array(zeff)),linear(1/(1+np.array(zeff)),*popt),'',label='best-fit')
-    #plt.axvline(0.43, color= "k",linestyle='--')
-    #plt.axvline(0.645, color = "k",linestyle='--')
-    plt.axvline(0.7, color= "k",linestyle='--')
-    plt.text(0.75, 0.1, 'LOWZ')
-    plt.text(0.65, 0.1, 'CMASS')
-    plt.ylabel('$\sigma$')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
-    #plt.xlabel('$z_{eff}$')
-    plt.xlabel('$a(z_{eff}$)')
-    plt.legend(loc=0)
-    plt.ylim(0,0.6)
-    plt.xlim(0.625,0.8)
-    plt.savefig('sigma_evolution.png')
+        ax[0,Pind].errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label='SHAM Vsmear')
+        ax[0,Pind].plot(np.array(zeff),np.array(best3),color='r', label='obs. std$_{\Delta v}$')
+        ax[0,Pind].fill_between(np.array(zeff),np.array(best3)-np.array(bounds3),np.array(best3)+np.array(bounds3),color='r',alpha=0.4)
+        ax[0,Pind].plot(np.array(zeff),np.array(best4),color='b', label='obs. $\sigma_{\Delta v}$')
+        ax[0,Pind].fill_between(np.array(zeff),np.array(best4)-np.array(bounds4),np.array(best4)+np.array(bounds4),color='b',alpha=0.4)
+        ax[0,Pind].axvline(0.43, color= "k",linestyle='--')
+        ax[0,Pind].axvline(0.645, color = "k",linestyle='--')
+        pos = 150
+        ax[0,Pind].text(0.3, pos, 'LOWZ')
+        ax[0,Pind].text(0.5, pos, 'CMASS')
+        ax[0,Pind].text(0.7, pos, 'eBOSS LRG')
+        if Pind ==0:
+            ax[0,Pind].set_ylabel('$\Delta v$ (km/s)',fontsize=12)#('$\\xi_0(gal)$/$\\xi_0(halo)$')
+        else:
+            ax[0,Pind].set_yticks([])
+        ax[0,Pind].set_xlabel('$z_{eff}$',fontsize=12)
+        ax[0,Pind].set_ylim(0,pos*1.1)
+        ax[0,Pind].set_xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
+        ax[0,Pind].legend(loc=4)
+    plt.savefig('Vsmear_vs_dv_3param.pdf')
     plt.close()
-"""
-    # plot together
-    fig,ax = plt.subplots()
-    plt.title(r'the BOSS/eBOSS redshift uncertainty v.s. the SHAM Vsmear best-fit ')
-    plt.errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label='SHAM best')
-    plt.plot(np.array(zeff),np.array(best3),color='r', label='obs. std$_{\Delta v}$')
-    plt.plot(np.array(zeff),np.array(best4),color='b', label='obs. $\sigma_{\Delta v}$')
-    plt.fill_between(np.array(zeff),np.array(best3)-np.array(bounds3),np.array(best3)+np.array(bounds3),color='r',alpha=0.4)
-    plt.fill_between(np.array(zeff),np.array(best4)-np.array(bounds4),np.array(best4)+np.array(bounds4),color='b',alpha=0.4)
-    ax.axvline(0.43, color= "k",linestyle='--')
-    ax.axvline(0.645, color = "k",linestyle='--')
-    pos = 150
-    ax.text(0.3, pos, 'LOWZ')
-    ax.text(0.5, pos, 'CMASS')
-    ax.text(0.7, pos, 'eBOSS LRG')
-    plt.ylabel('$\Delta v$ (km/s)')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
-    plt.xlabel('$z_{eff}$')
-    plt.legend(loc=4)
-    plt.ylim(0,pos*1.1)
-    plt.xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
-    plt.savefig('Vsmear_vs_dv_2param.png')
-    plt.close()
-"""
+    
 
 """
     # plot together
