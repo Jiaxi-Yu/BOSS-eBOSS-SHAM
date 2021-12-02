@@ -7,8 +7,11 @@ from scipy.optimize import curve_fit
 import pylab as plt
 import os
 from lmfit.models import PseudoVoigtModel
-
-
+"""
+import numpy.ma as ma
+test = ma.array(tac['WEIGHT_SPEC']) 
+tac['WEIGHT_SPEC'][np.where(test.mask==True)]=1
+"""
 c_kms = 299792.
 home = '/global/homes/j/jiaxi/Vsmear-photo'
 cutind = 35
@@ -313,7 +316,7 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
         if target != 'LOWZ':
             C = info['gi']>=2.2
         else:
-            C = info['gi']>=info['z']*2.8+1.1
+            C = info['gi']>=info['z']*2.8+1.2
             
         #import pdb;pdb.set_trace()
         STD = jacknife_hist(dv[w&C],bins,nsub = 100,gaussian=False)
@@ -415,7 +418,7 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
 
     spall = Table.read(spall)
     sp = get_targets(spall, target=target)
-    
+    import pdb;pdb.set_trace()
     if spec1d:
         zsource = 'spec1d'
         info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,spec1d=1,GC=GC)
