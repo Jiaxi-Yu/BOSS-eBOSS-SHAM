@@ -236,6 +236,7 @@ else:
     import numpy as np
     import re
     import pymultinest
+    import sys
 
     from scipy.special import hyp2f1
     from scipy.misc import derivative
@@ -245,18 +246,44 @@ else:
     #zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8','0.2', '0.43','0.6']
     #zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0','0.43','0.7', '1.0']
     import matplotlib.gridspec as gridspec
+    date = sys.argv[1] #'0218' '0729'
+    plottype = sys.argv[2] #'vsmear' 'bias'
 
-    fig = plt.figure(figsize=(12,5))
-    spec = gridspec.GridSpec(nrows=1,ncols=2, left = 0.08,right = 0.96,bottom=0.1,top = 0.96, hspace=0.1,wspace=0.1)
-    ax = np.empty((1,2), dtype=type(plt.axes))
-    for Pind in range(2):
-        
-        if Pind == 0:
-            zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.65','0.7','0.8']
-            zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.8' ,'0.9','1.0']
+    fontsize=15
+    plt.rc('font', family='serif', size=fontsize)
+    if (date == '0218')&(plottype=='vsmear'):
+        Ncol = 3
+        fig = plt.figure(figsize=(10,5))
+        spec = gridspec.GridSpec(nrows=1,ncols=2, left = 0.1,right = 0.98,bottom=0.15,top = 0.98, hspace=0.1,wspace=0.05)
+        ax = np.empty((1,2), dtype=type(plt.axes))
+    else:
+        Ncol = 1
+        fig = plt.figure(figsize=(5,4.5))
+        spec = gridspec.GridSpec(nrows=1,ncols=1, left = 0.15,right = 0.98,bottom=0.12,top = 0.98, hspace=0.1,wspace=0.05)
+        ax = np.empty((1,1), dtype=type(plt.axes))
+
+    for Pind in range(Ncol):
+        if (date == '0218'):
+            parameters = ["sigma","Vsmear","Vceil"]
+            if plottype == 'vsmear':
+                if Pind == 1:
+                    zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.65','0.7','0.8']#,'0.6'
+                    zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8' ,'0.9','1.0']#,'0.8'
+                elif Pind ==0:
+                    zmins = ['0.2', '0.43','0.6']
+                    zmaxs = ['0.43','0.7', '1.0']    
+                else:
+                    parameters = ["sigma","Vsmear"]
+                    zmins = ['0.2', '0.33','0.43','0.51', '0.2']
+                    zmaxs = ['0.33','0.43','0.51','0.57','0.43']
+            else:
+                zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.65','0.7','0.8']#,'0.6'
+                zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8' ,'0.9','1.0']#,'0.8'                
         else:
-            zmins = ['0.2', '0.43','0.6']
-            zmaxs = ['0.43','0.7', '1.0']    
+            parameters = ["sigma","Vsmear"]
+            zmins = ['0.2', '0.33','0.43','0.51']
+            zmaxs = ['0.33','0.43','0.51','0.57']
+
     #zmins = ['0.6','0.6','0.65','0.7','0.8']
     #zmaxs = ['0.7','0.8','0.8' ,'0.9','1.0']
     #zmins = ['0.2', '0.2', '0.33','0.43','0.51']
@@ -387,48 +414,42 @@ else:
                 dvstd  = [129.0,136.6]
                 dvnorm = [83.1,89.1]#[85.0,89.9]
             zeff.append(z)
-            """
-            if function == 'mps':
-                filename = 'param_evolution/real_space/SHAM_amplitude_z{}z{}.dat'.format(zmin,zmax)
-                columns = []
-                with open(filename, 'r') as td:
-                    for line in td:
-                        if line[0] == '#':
-                            info = re.split(' +', line)
-                            columns.append(info)
-                # best-fits: columns[0][4][:-1], columns[0][6][:-1], columns[0][8][:-1]
-                biasz = np.loadtxt(filename)
-                ind0 = 0
-                sbinmin = 5; sbinmax = 25
-                biasmean = np.sqrt(np.mean(biasz[sbinmin-(5-ind0):sbinmax-(5-ind0)],axis=1)/D(1/(1+z))**2)
+            if plottype == 'bias':
+                if function == 'mps':
+                    filename = 'param_evolution/real_space/SHAM_amplitude_z{}z{}.dat'.format(zmin,zmax)
+                    columns = []
+                    with open(filename, 'r') as td:
+                        for line in td:
+                            if line[0] == '#':
+                                info = re.split(' +', line)
+                                columns.append(info)
+                    # best-fits: columns[0][4][:-1], columns[0][6][:-1], columns[0][8][:-1]
+                    biasz = np.loadtxt(filename)
+                    ind0 = 0
+                    sbinmin = 5; sbinmax = 25
+                    biasmean = np.sqrt(np.mean(biasz[sbinmin-(5-ind0):sbinmax-(5-ind0)],axis=1)/D(1/(1+z))**2)
 
-            elif function =='Pk':
-                UNIT = np.loadtxt('param_evolution/UNIT_linear-interp.pk')
-                pkseed = []
-                for seed in range(25):
-                    filename = 'param_evolution/catalogues_pk/z{}z{}-seed{}.pk'.format(zmin,zmax,seed)
-                    pkseed.append(np.loadtxt(filename,usecols=5))
-                biasmean = np.sqrt(np.mean(pkseed/UNIT[:,-1]/D(1/(1+z))**2,axis=1))
+                elif function =='Pk':
+                    UNIT = np.loadtxt('param_evolution/UNIT_linear-interp.pk')
+                    pkseed = []
+                    for seed in range(25):
+                        filename = 'param_evolution/catalogues_pk/z{}z{}-seed{}.pk'.format(zmin,zmax,seed)
+                        pkseed.append(np.loadtxt(filename,usecols=5))
+                    biasmean = np.sqrt(np.mean(pkseed/UNIT[:,-1]/D(float(a_t))**2,axis=1))
 
-            SHAMbias.append(np.mean(biasmean))
-            SHAMbiaserr.append(np.std(biasmean))
-            """
-
+                SHAMbias.append(np.mean(biasmean))
+                SHAMbiaserr.append(np.std(biasmean))
+    
+            
             # best-fits and their constraints
-            fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
-            parameters = ["sigma","Vsmear","Vceil"]
-            """
-            # 2param
-            if (gal == 'LRG')|((gal=='CMASS')&(zmin=='0.57')):
-                fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
-                parameters = ["sigma","Vsmear","Vceil"]
-            #elif (gal == 'CMASS')&(zmin=='0.57'):
-            #    fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
-            #    parameters = ["sigma","Vsmear","Vceil"]
-            else:        
-                fileroot = '{}MCMCout/zbins_0729/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
-                parameters = ["sigma","Vsmear"]
-            """
+            if (date == '0218')&(plottype=='vsmear'):
+                if Pind !=2:
+                    fileroot = '{}MCMCout/zbins_0218/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+                else:
+                    fileroot = '{}MCMCout/zbins_0729/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,rscale,gal,zmin,zmax)
+            else:
+                fileroot = '{}MCMCout/zbins_{}/mps_{}_{}_NGC+SGC_z{}z{}/multinest_'.format(home,date,rscale,gal,zmin,zmax)
+
             npar = len(parameters)
             a = pymultinest.Analyzer(npar, outputfiles_basename = fileroot)
             stats = a.get_stats()
@@ -453,76 +474,102 @@ else:
             best3.append(np.mean(dvstd))
             bounds4.append((dvnorm[1]-dvnorm[0])/2)
             best4.append(np.mean(dvnorm))
-        """
-        from scipy.optimize import curve_fit
-        def linear(x,a,b):
-            return a*x+b
-        popt, pcov = curve_fit(linear,1/(1+np.array(zeff)),np.array(best0),sigma=np.mean(abs(np.array(bounds0).T),axis=0))
-        plt.title(r'The 2-param SHAM best-fit $\sigma$ slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
-        plt.errorbar(1/(1+np.array(zeff)),np.array(best0),np.array(bounds0).T,color='k', marker='o',ecolor='k',ls="none")
-        plt.plot(1/(1+np.array(zeff)),linear(1/(1+np.array(zeff)),*popt),'',label='best-fit')
-        #plt.axvline(0.43, color= "k",linestyle='--')
-        #plt.axvline(0.645, color = "k",linestyle='--')
-        plt.axvline(0.7, color= "k",linestyle='--')
-        plt.text(0.75, 0.1, 'LOWZ')
-        plt.text(0.65, 0.1, 'CMASS')
-        plt.ylabel('$\sigma$')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
-        #plt.xlabel('$z_{eff}$')
-        plt.xlabel('$a(z_{eff}$)')
-        plt.legend(loc=0)
-        plt.ylim(0,0.6)
-        plt.xlim(0.625,0.8)
-        plt.savefig('sigma_evolution.png')
-        plt.close()
-        """
-        # plot together
-        #fig,ax = plt.subplots()
-        #plt.title(r'the BOSS/eBOSS redshift uncertainty v.s. the SHAM Vsmear best-fit ')
-        ax[0,Pind] = fig.add_subplot(spec[0,Pind])
-        plt.rc('font', family='serif', size=12)
 
-        ax[0,Pind].errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label='SHAM Vsmear')
-        ax[0,Pind].plot(np.array(zeff),np.array(best3),color='r', label='obs. std$_{\Delta v}$')
-        ax[0,Pind].fill_between(np.array(zeff),np.array(best3)-np.array(bounds3),np.array(best3)+np.array(bounds3),color='r',alpha=0.4)
-        ax[0,Pind].plot(np.array(zeff),np.array(best4),color='b', label='obs. $\sigma_{\Delta v}$')
-        ax[0,Pind].fill_between(np.array(zeff),np.array(best4)-np.array(bounds4),np.array(best4)+np.array(bounds4),color='b',alpha=0.4)
-        ax[0,Pind].axvline(0.43, color= "k",linestyle='--')
-        ax[0,Pind].axvline(0.645, color = "k",linestyle='--')
-        pos = 150
-        ax[0,Pind].text(0.3, pos, 'LOWZ')
-        ax[0,Pind].text(0.5, pos, 'CMASS')
-        ax[0,Pind].text(0.7, pos, 'eBOSS LRG')
-        if Pind ==0:
-            ax[0,Pind].set_ylabel('$\Delta v$ (km/s)',fontsize=12)#('$\\xi_0(gal)$/$\\xi_0(halo)$')
-        else:
-            ax[0,Pind].set_yticks([])
-        ax[0,Pind].set_xlabel('$z_{eff}$',fontsize=12)
-        ax[0,Pind].set_ylim(0,pos*1.1)
-        ax[0,Pind].set_xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
-        ax[0,Pind].legend(loc=4)
-    plt.savefig('Vsmear_vs_dv_3param.pdf')
+        # plot 
+        if date == '0729':
+            ax[0,Pind] = fig.add_subplot(spec[0,Pind])
+            ax[0,Pind].errorbar(np.array(zeff),np.array(best0),np.array(bounds0).T,color='k', marker='o',ecolor='k',ls="none")
+            ax[0,Pind].axvline(0.43, color= "k",linestyle='--')
+            pos = 0.5
+            ax[0,Pind].text(0.3, pos, 'LOWZ',size=fontsize)
+            ax[0,Pind].text(0.48, pos, 'CMASS',size=fontsize)
+            ax[0,Pind].set_ylabel('$\sigma$',size=fontsize)
+            ax[0,Pind].set_xlabel('$z_{eff}$',size=fontsize)
+            ax[0,Pind].set_ylim(0.2,0.55)
+            plt.yticks([0.2,0.3,0.4,0.5])
+            ax[0,Pind].set_xlim(0.23,0.6)
+            savename = 'sigma_evolution_2param.pdf'
+        elif plottype == 'bias':
+            ax[0,Pind] = fig.add_subplot(spec[0,Pind])
+            if function =='mps':
+                srange = ': mps on 5-25Mpc/h'
+            elif function == 'Pk':
+                srange = ': P(k) linear range'
+            #plt.title(r'SHAM bias evolution{}'.format(srange))
+            ax[0,Pind].errorbar(np.array(zeff),np.array(SHAMbias),np.array(SHAMbiaserr),color='k', marker='o',ecolor='k',ls="none")
+            ax[0,Pind].axvline(0.43, color= "k",linestyle='--')
+            ax[0,Pind].axvline(0.645, color = "k",linestyle='--')
+            pos = 3.2#0.625
+            ax[0,Pind].text(0.25, pos, 'LOWZ',fontsize=fontsize)
+            ax[0,Pind].text(0.48, pos, 'CMASS',fontsize=fontsize)
+            ax[0,Pind].text(0.73, pos, 'eBOSS',fontsize=fontsize)
+            ax[0,Pind].set_xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
+            ax[0,Pind].set_ylabel('linear bias',fontsize=fontsize)
+            ax[0,Pind].set_xlabel('$z_{eff}$',fontsize=fontsize)
+            savename = 'bias_evolution-{}.pdf'.format(function)
+            #np.savetxt('param_evolution/SHAM-bias.txt',np.array([zeff,SHAMbias,SHAMbiaserr]).T,header='zeff bias biaserr')
+        elif plottype == 'vsmear':
+            # plot together
+            if Pind !=2:
+                ax[0,Pind] = fig.add_subplot(spec[0,Pind])
+
+                ax[0,Pind].fill_between(np.array(zeff),np.array(best3)-np.array(bounds3),np.array(best3)+np.array(bounds3),color='r',alpha=0.4)
+                if Pind ==0:
+                    ax[0,Pind].errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label='3-param Vsmear')
+                    ax[0,Pind].plot(np.array(zeff),np.array(best4),color='b', label='$\sigma_{\Delta v}$')
+                    ax[0,Pind].plot(np.array(zeff),np.array(best3),color='r', label='std$_{\Delta v}$')  
+                else:
+                    ax[0,Pind].errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label='_hidden')
+                    ax[0,Pind].plot(np.array(zeff),np.array(best4),color='b', label='_hidden')
+                    ax[0,Pind].plot(np.array(zeff),np.array(best3),color='r', label='_hidden')  
+                ax[0,Pind].fill_between(np.array(zeff),np.array(best4)-np.array(bounds4),np.array(best4)+np.array(bounds4),color='b',alpha=0.4)
+                ax[0,Pind].axvline(0.43, color= "k",linestyle='--')
+                ax[0,Pind].axvline(0.645, color = "k",linestyle='--')
+                pos = 5
+                ax[0,Pind].text(0.25, pos, 'LOWZ',fontsize=fontsize)
+                ax[0,Pind].text(0.48, pos, 'CMASS',fontsize=fontsize)
+                ax[0,Pind].text(0.74, pos, 'eBOSS',fontsize=fontsize)
+                if Pind ==0:
+                    ax[0,Pind].set_ylabel('$\Delta v$ (km/s)',fontsize=fontsize)#('$\\xi_0(gal)$/$\\xi_0(halo)$')
+                else:
+                    plt.yticks(alpha=0)
+                ax[0,Pind].set_xlabel('$z_{eff}$',fontsize=fontsize)
+                ax[0,Pind].set_ylim(0,pos*1.1)
+                ax[0,Pind].set_xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
+            else:
+                ax[0,1].errorbar(np.array(zeff[:-1]),np.array(best1[:-1]),np.array(bounds1[:-1]).T,color='k', marker='^',ecolor='k',ls="none",label='2-param Vsmear')
+                #ax[0,0].legend(loc=2)
+                ax[0,0].errorbar(zeff[-1],best1[-1],np.array(bounds1[-1]).reshape(2,1),color='k', marker='^',ecolor='k',ls="none",label='2-param Vsmear')
+                ax[0,0].legend(loc=2)
+            if Pind == 0:
+                plt.yticks([0,40,80,120,160])
+                plt.legend(loc=2,prop={"size":fontsize-1})
+            plt.ylim(-10,180)
+            savename = 'Vsmear_vs_dv_3param.pdf'
+
+    plt.savefig(savename)
     plt.close()
-    
 
 """
-    # plot together
-    fig,ax = plt.subplots()
-    if function =='mps':
-        srange = ': mps on 5-25Mpc/h'
-    elif function == 'Pk':
-        srange = ': P(k) linear range'
-    plt.title(r'SHAM bias evolution{}'.format(srange))
-    ax.errorbar(np.array(zeff),np.array(SHAMbias),np.array(SHAMbiaserr),color='k', marker='o',ecolor='k',ls="none")
-    ax.axvline(0.43, color= "k",linestyle='--')
-    ax.axvline(0.645, color = "k",linestyle='--')
-    pos = 3.2#0.625
-    ax.text(0.3, pos, 'LOWZ')
-    ax.text(0.5, pos, 'CMASS')
-    ax.text(0.7, pos, 'eBOSS LRG')
-    plt.ylabel('bias')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
-    plt.xlabel('$z_{eff}$')
-    plt.savefig('param_evolution/bias_evolution-{}_1.png'.format(function))
-    np.savetxt('param_evolution/SHAM-bias.txt',np.array([zeff,SHAMbias,SHAMbiaserr]).T,header='zeff bias biaserr')
+    from scipy.optimize import curve_fit
+    def linear(x,a,b):
+        return a*x+b
+    popt, pcov = curve_fit(linear,1/(1+np.array(zeff)),np.array(best0),sigma=np.mean(abs(np.array(bounds0).T),axis=0))
+    plt.title(r'The 2-param SHAM best-fit $\sigma$ slope {:.2f} $\pm$ {:.2f}'.format(popt[0],np.sqrt(np.diag(pcov))[0]))
+    plt.errorbar(1/(1+np.array(zeff)),np.array(best0),np.array(bounds0).T,color='k', marker='o',ecolor='k',ls="none")
+    plt.plot(1/(1+np.array(zeff)),linear(1/(1+np.array(zeff)),*popt),'',label='best-fit')
+    #plt.axvline(0.43, color= "k",linestyle='--')
+    #plt.axvline(0.645, color = "k",linestyle='--')
+    plt.axvline(0.7, color= "k",linestyle='--')
+    plt.text(0.75, 0.1, 'LOWZ')
+    plt.text(0.65, 0.1, 'CMASS')
+    plt.ylabel('$\sigma$')#('$\\xi_0(gal)$/$\\xi_0(halo)$')
+    #plt.xlabel('$z_{eff}$')
+    plt.xlabel('$a(z_{eff}$)')
+    plt.legend(loc=0)
+    plt.ylim(0,0.6)
+    plt.xlim(0.625,0.8)
+    plt.savefig('sigma_evolution.png')
     plt.close()
 
     # parameter evolution fitting
