@@ -164,6 +164,7 @@ elif task == 'plot':
                     mpsdata  = np.loadtxt(catafile+'{}/mps_{}_{}.{}'.format(datatype,name,index,tail),usecols=(0,3,4,5))[binmin:binmax]
                 else:            
                     mpsdata  = np.loadtxt(catafile+'{}/pk_{}_{}.{}'.format(datatype,name,index,tail),usecols=(0,5,6,7))
+                    mpsdata = mpsdata[mpsdata[:,0]<0.3,:]
                 monodata[j].append(mpsdata[:,1])
                 quaddata[j].append(mpsdata[:,2])
                 hexadata[j].append(mpsdata[:,3])
@@ -213,6 +214,8 @@ elif task == 'plot':
                     else:
                         ax[j,k].set_ylabel('$\Delta P_{}$/err'.format(k*2),fontsize=fontsize)
                     plt.xlabel(xlabel)
+                else:
+                    plt.xticks([])
 
 
                     #ax[j,k].plot(s,s**2*(xi[:,k]-values[j])/err[j],c='c',alpha=0.8)
