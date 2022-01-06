@@ -438,7 +438,7 @@ else:
                     biasmean = np.sqrt(np.mean(pkseed/UNIT[:,-1]/D(float(a_t))**2,axis=1))
 
                 SHAMbias.append(np.mean(biasmean))
-                SHAMbiaserr.append(np.std(biasmean))
+                SHAMbiaserr.append(np.std(biasmean)/np.sqrt(25))
     
             
             # best-fits and their constraints
@@ -496,12 +496,12 @@ else:
             elif function == 'Pk':
                 srange = ': P(k) linear range'
             #plt.title(r'SHAM bias evolution{}'.format(srange))
-            ax[0,Pind].errorbar(np.array(zeff),np.array(SHAMbias),np.array(SHAMbiaserr),color='k', marker='o',ecolor='k',ls="none")
+            ax[0,Pind].errorbar(np.array(zeff),np.array(SHAMbias),np.array(SHAMbiaserr),color='k', marker='o',ecolor='k',ls="none",markersize=4)
             ax[0,Pind].axvline(0.43, color= "k",linestyle='--')
             ax[0,Pind].axvline(0.645, color = "k",linestyle='--')
-            pos = 3.2#0.625
-            ax[0,Pind].text(0.25, pos, 'LOWZ',fontsize=fontsize)
-            ax[0,Pind].text(0.48, pos, 'CMASS',fontsize=fontsize)
+            pos = 3.1#0.625
+            ax[0,Pind].text(0.26, pos, 'LOWZ',fontsize=fontsize)
+            ax[0,Pind].text(0.47, pos, 'CMASS',fontsize=fontsize)
             ax[0,Pind].text(0.73, pos, 'eBOSS',fontsize=fontsize)
             ax[0,Pind].set_xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
             ax[0,Pind].set_ylabel('linear bias',fontsize=fontsize)
@@ -525,9 +525,12 @@ else:
                 ax[0,Pind].fill_between(np.array(zeff),np.array(best4)-np.array(bounds4),np.array(best4)+np.array(bounds4),color='b',alpha=0.4)
                 ax[0,Pind].axvline(0.43, color= "k",linestyle='--')
                 ax[0,Pind].axvline(0.645, color = "k",linestyle='--')
-                pos = 5
-                ax[0,Pind].text(0.25, pos, 'LOWZ',fontsize=fontsize)
-                ax[0,Pind].text(0.48, pos, 'CMASS',fontsize=fontsize)
+                if Pind == 0:
+                    pos = 5
+                else:
+                    pos = 150
+                ax[0,Pind].text(0.26, pos, 'LOWZ',fontsize=fontsize)
+                ax[0,Pind].text(0.47, pos, 'CMASS',fontsize=fontsize)
                 ax[0,Pind].text(0.74, pos, 'eBOSS',fontsize=fontsize)
                 if Pind ==0:
                     ax[0,Pind].set_ylabel('$\Delta v$ (km/s)',fontsize=fontsize)#('$\\xi_0(gal)$/$\\xi_0(halo)$')
@@ -537,14 +540,14 @@ else:
                 ax[0,Pind].set_ylim(0,pos*1.1)
                 ax[0,Pind].set_xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
             else:
-                ax[0,1].errorbar(np.array(zeff[:-1]),np.array(best1[:-1]),np.array(bounds1[:-1]).T,color='k', marker='^',ecolor='k',ls="none",label='2-param Vsmear')
+                ax[0,1].errorbar(np.array(zeff[:-1])-0.005,np.array(best1[:-1]),np.array(bounds1[:-1]).T,color='k', marker='o',ecolor='k',ls="none",label='2-param Vsmear',mfc='w')
                 #ax[0,0].legend(loc=2)
-                ax[0,0].errorbar(zeff[-1],best1[-1],np.array(bounds1[-1]).reshape(2,1),color='k', marker='^',ecolor='k',ls="none",label='2-param Vsmear')
+                ax[0,0].errorbar(zeff[-1]-0.005,best1[-1],np.array(bounds1[-1]).reshape(2,1),color='k', marker='o',ecolor='k',ls="none",label='2-param Vsmear',mfc='w')
                 ax[0,0].legend(loc=2)
             if Pind == 0:
                 plt.yticks([0,40,80,120,160])
                 plt.legend(loc=2,prop={"size":fontsize-1})
-            plt.ylim(-10,180)
+            plt.ylim(0,180)
             savename = 'Vsmear_vs_dv_3param.pdf'
 
     plt.savefig(savename)
