@@ -98,13 +98,19 @@ plt.rcParams['text.usetex'] = False
 g = plots.getSinglePlotter()
 g.settings.figure_legend_frame = False
 g.settings.alpha_filled_add=0.4
-g = plots.getSubplotPlotter()
+
+g = plots.getSubplotPlotter(subplot_size=3)
+g.settings.axes_fontsize=15
+g.settings.legend_fontsize = 18
+g.settings.lab_fontsize = 18
 g.triangle_plot(sample,parameters, filled=True)
 for yi in range(npar): 
     for xi in range(yi):
         ax = g.subplots[yi,xi]
+        ax.axvline(a.get_best_fit()['parameters'][xi], color='k',ls = '--',alpha=0.3)
+        ax.axhline(a.get_best_fit()['parameters'][yi], color='k',ls ='--',alpha=0.3)
         ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "*",color='k') 
-g.export('{}{}_{}_{}_posterior.png'.format(fileroot[:-10],date,gal,GC))
+g.export('{}{}_{}_{}_posterior.pdf'.format(fileroot[:-10],date,gal,GC))
 plt.close()
 
 # corner results
@@ -254,15 +260,15 @@ if finish:
         obs2pcf  = '{}catalog/nersc_zbins_wp_mps_{}/{}_{}_{}_{}_eBOSS_{}_zs_{}-{}.dat'.format(home,gal,function,rscale,gal,GC,ver,zmin,zmax)
         # Read the covariance matrices 
         hdu = fits.open(covfits) # cov([mono,quadru])
-        mocks = hdu[1].data[GC+'mocks']
-        Nmock = mocks.shape[1]
+        mock = hdu[1].data[GC+'mocks']
         hdu.close()
         # observations
         obscf = Table.read(obs2pcf,format='ascii.no_header')
         obscf= obscf[(obscf['col3']<rmax)&(obscf['col3']>=rmin)]
         # prepare OBS, covariance and errobar for chi2
-        Nstot = int(mocks.shape[0]/2)
-        mocks = vstack((mocks[binmin:binmax,:],mocks[binmin+Nstot:binmax+Nstot,:]))
+        Nmock = mock.shape[1]
+        Nstot = int(mock.shape[0]/2)
+        mocks = vstack((mock[binmin:binmax,:],mock[binmin+Nstot:binmax+Nstot,:]))
         covcut  = cov(mocks).astype('float32')
         OBS   = append(obscf['col4'],obscf['col5']).astype('float32')# LRG columns are s**2*xi
         covR  = np.linalg.pinv(covcut)*(Nmock-len(mocks)-2)/(Nmock-1)
@@ -456,6 +462,7 @@ if finish:
     # plot the 2pcf results
     errbar = np.std(mocks,axis=1)
     errbarsham = np.loadtxt('{}best-fit_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),usecols=(2,3))
+    errbarsham /= np.sqrt(nseed*2)
     #print('mean Vceil:{:.3f}'.format(np.mean(xi1_ELG,axis=0)[2]))
     if rscale=='linear':
         Ccode = np.loadtxt('{}best-fit_{}_{}.dat'.format(fileroot[:-10],gal,GC))[binmin:binmax]
@@ -509,8 +516,8 @@ if finish:
         # Read the covariance matrices and observations
         hdu = fits.open(covfits) #
         mock = hdu[1].data[GC+'mocks']
-        Nmock = mock.shape[1] 
         hdu.close()
+        Nmock = mock.shape[1] 
         binmin = 2
         nbins = binmax-binmin
         bins  = np.arange(binmin,binmax+1,1)
@@ -608,6 +615,7 @@ if finish:
     obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')
     selwp = (obscfwp[colwp]<smax)&(obscfwp[colwp]>=smin)
     OBSwp   = obscfwp['col4'][selwp]
+    print('obs pi80:',OBSwp)
     # Read the covariance matrices
     hdu = fits.open(covfitswp) 
     mockswp = hdu[1].data[GC+'mocks']#[binminwp:binmaxwp,:]
@@ -628,7 +636,7 @@ if finish:
             ax[j,k] = fig.add_subplot(spec[j,k])#;import pdb;pdb.set_trace()
             ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='obs 1$\sigma$ $\pi$80')
             ax[j,k].plot(swp,(wp[:,1]-values[j])/err[j],color='b',label='SHAM $\pi$80')
-            ax[j,k].fill_between(swp,(wp[:,1]-values[j]-wp[:,2])/err[j],(wp[:,1]-values[j]+wp[:,2])/err[j],color='b',alpha=0.4,label='_hidden')
+            ax[j,k].fill_between(swp,(wp[:,1]-values[j]-wp[:,2]/np.sqrt(nseed*2))/err[j],(wp[:,1]-values[j]+wp[:,2]/np.sqrt(nseed*2))/err[j],color='b',alpha=0.4,label='_hidden')
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):        

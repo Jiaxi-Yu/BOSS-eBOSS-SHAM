@@ -329,7 +329,7 @@ for h,pimax in enumerate(pimaxs):
             ax[j,k] = fig.add_subplot(spec[j,k]);#import pdb;pdb.set_trace()
             ax[j,k].errorbar(swp,(OBSwp-values[j])/err[j],errbarwp/err[j],color='k', marker='o',ecolor='k',ls="none",label='obs+mocks $\pi${}'.format(pimax))
             ax[j,k].plot(swp,(wp[h][:,1]-values[j])/err[j],color='b',label='SHAM $\pi${}'.format(pimax))
-            ax[j,k].fill_between(swp,(wp[h][:,1]-values[j]-wp[h][:,2])/err[j],(wp[h][:,1]-values[j]+wp[h][:,2])/err[j],color='b',alpha=0.4,label='_hidden')
+            ax[j,k].fill_between(swp,(wp[h][:,1]-values[j]-wp[h][:,2]/np.sqrt(nseed*2))/err[j],(wp[h][:,1]-values[j]+wp[h][:,2]/np.sqrt(nseed*2))/err[j],color='b',alpha=0.4,label='_hidden')
             plt.xlabel('rp (Mpc $h^{-1}$)')
             plt.xscale('log')
             if (j==0):        
