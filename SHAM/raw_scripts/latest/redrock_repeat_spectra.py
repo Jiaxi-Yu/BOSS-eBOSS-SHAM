@@ -314,7 +314,7 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
         bins = np.arange(-max_dv, max_dv+1, binwidth*2)
         BIN = (bins[1:]+bins[:-1])/2
         if target != 'LOWZ':
-            C = info['gi']>=2.2
+            C = info['gi']>=2.35
         else:
             C = info['gi']>=info['z']*2.8+1.2
             
@@ -327,6 +327,7 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
         plt.plot(BIN,dens,'r--',label='{:.1f}% red galaxy, std = ${:.1f}_{{-{:.1f}}}^{{+{:.1f}}}$ '.format(100*len(dv[w&C])/len(dv[w]),np.std(dv[w&C]),STD*np.sqrt(nsubvolume),STD*np.sqrt(nsubvolume)))
         
         STD = jacknife_hist(dv[w&(~C)],bins,nsub = 100,gaussian=False)
+        print('blue ratio: {:.1f}%'.format(len(dv[w&(~C)])/len(dv[w])*100))
         print('{} blue galaxy std = {:.1f}+-{:.1f}'.format(len(dv[w&(~C)]),np.std(dv[w&(~C)]),STD*np.sqrt(nsubvolume)))
         dens,BINS = np.histogram(dv[w&(~C)],bins=bins)
         norm = np.sum(dens)
@@ -451,7 +452,6 @@ zmaxs = [0.51,0.57,0.7,0.7]
 maxdvs = [205,200,235,270]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
     plot_all_deltav_histograms(repeatname,'BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1,maxdv=maxdv,coloursel=True)
-
     
 zmins = [0.2, 0.33,0.2]
 zmaxs = [0.33,0.43,0.43]
