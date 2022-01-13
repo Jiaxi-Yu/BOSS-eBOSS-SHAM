@@ -320,18 +320,18 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
             
         #import pdb;pdb.set_trace()
         STD = jacknife_hist(dv[w&C],bins,nsub = 100,gaussian=False)
-        print('{} red galaxy std calculation: Vsmear = [{:.1f},{:.1f}]'.format(len(dv[w&C]),np.std(dv[w&C])-STD*np.sqrt(nsubvolume),np.std(dv[w&C])+STD*np.sqrt(nsubvolume)))
+        print('{} red galaxy std = {:.1f}+-{:.1f}'.format(len(dv[w&C]),np.std(dv[w&C]),STD*np.sqrt(nsubvolume)))
         dens,BINS = np.histogram(dv[w&C],bins=bins)
         norm = np.sum(dens)
         dens = dens/norm
-        plt.plot(BIN,dens,'r--',label='{:.1f}% red galaxy'.format(100*len(dv[w&C])/len(dv[w])))
+        plt.plot(BIN,dens,'r--',label='{:.1f}% red galaxy, std = ${:.1f}_{{-{:.1f}}}^{{+{:.1f}}}$ '.format(100*len(dv[w&C])/len(dv[w]),np.std(dv[w&C]),STD*np.sqrt(nsubvolume),STD*np.sqrt(nsubvolume)))
         
         STD = jacknife_hist(dv[w&(~C)],bins,nsub = 100,gaussian=False)
-        print('{} blue galaxy std calculation: Vsmear = [{:.1f},{:.1f}]'.format(len(dv[w&(~C)]),np.std(dv[w&(~C)])-STD*np.sqrt(nsubvolume),np.std(dv[w&(~C)])+STD*np.sqrt(nsubvolume)))
+        print('{} blue galaxy std = {:.1f}+-{:.1f}'.format(len(dv[w&(~C)]),np.std(dv[w&(~C)]),STD*np.sqrt(nsubvolume)))
         dens,BINS = np.histogram(dv[w&(~C)],bins=bins)
         norm = np.sum(dens)
         dens = dens/norm
-        plt.plot(BIN,dens,'b--',label='{:.1f}% blue galaxy'.format(100*len(dv[w&(~C)])/len(dv[w])))
+        plt.plot(BIN,dens,'b--',label='{:.1f}% blue galaxy, std = ${:.1f}_{{-{:.1f}}}^{{+{:.1f}}}$ '.format(100*len(dv[w&(~C)])/len(dv[w]),np.std(dv[w&(~C)]),STD*np.sqrt(nsubvolume),STD*np.sqrt(nsubvolume)))
         plt.legend(loc=1)
         plt.title('{} {} red vs blue for {} galaxies'.format(target,zrange,len(dv[w])))
         plt.savefig(save[:-4]+'_red-blue.png', bbox_inches='tight')
@@ -418,7 +418,7 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
 
     spall = Table.read(spall)
     sp = get_targets(spall, target=target)
-    import pdb;pdb.set_trace()
+    #import pdb;pdb.set_trace()
     if spec1d:
         zsource = 'spec1d'
         info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,spec1d=1,GC=GC)
