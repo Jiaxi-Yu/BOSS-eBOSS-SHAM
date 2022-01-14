@@ -74,7 +74,7 @@ for zmin,zmax in zip(zmins,zmaxs):
     sel = (z >= zmin) & (z <= zmax)
     n_eff = neff(z, nz, sel)
     Veff_tot = sum(V_eff[0][sel])+sum(V_eff[1][sel])
-    print('z{}z{} NGC+SGC number density: {}e-4, effective volume: {}(Gpc/h)^3,, error ratio:{} \n'.format(zmin,zmax,n_eff*1e4, Veff_tot/1e9/0.676**3, 1+Veff_tot/1e9/0.676**3/10))
+    print('z{}z{} NGC+SGC number density: {}e-4, effective volume: {}(Gpc/h)^3,, error ratio:{} \n'.format(zmin,zmax,n_eff*1e4, Veff_tot/1e9, 1+Veff_tot/1e9/10))
     #n_eff = neff(z, nzN, zmin=zmin, zmax=zmax)
     #print('z{}z{} NGC:{}e-4\n'.format(zmin,zmax,n_eff*1e4))
     #n_eff = neff(z, nzS, zmin=zmin, zmax=zmax)
