@@ -267,8 +267,8 @@ else:
             parameters = ["sigma","Vsmear","Vceil"]
             if plottype == 'vsmear':
                 if Pind == 1:
-                    zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.65','0.7','0.8']#,'0.6'
-                    zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8' ,'0.9','1.0']#,'0.8'
+                    zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.7','0.8']#,'0.65'
+                    zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.9','1.0']#,'0.8'
                 elif Pind ==0:
                     zmins = ['0.2', '0.43','0.6']
                     zmaxs = ['0.43','0.7', '1.0']    
@@ -277,8 +277,8 @@ else:
                     zmins = ['0.2', '0.33','0.43','0.51', '0.2']
                     zmaxs = ['0.33','0.43','0.51','0.57','0.43']
             else:
-                zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.65','0.7','0.8']#,'0.6'
-                zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8' ,'0.9','1.0']#,'0.8'                
+                zmins = ['0.2', '0.33','0.43','0.51','0.57','0.6','0.6','0.7','0.8']#,'0.65'
+                zmaxs = ['0.33','0.43','0.51','0.57','0.7', '0.7','0.8','0.9','1.0']#,'0.8'                
         else:
             parameters = ["sigma","Vsmear"]
             zmins = ['0.2', '0.33','0.43','0.51']
@@ -496,7 +496,7 @@ else:
             elif function == 'Pk':
                 srange = ': P(k) linear range'
             #plt.title(r'SHAM bias evolution{}'.format(srange))
-            ax[0,Pind].errorbar(np.array(zeff),np.array(SHAMbias),np.array(SHAMbiaserr),color='k', marker='o',ecolor='k',ls="none",markersize=4)
+            ax[0,Pind].errorbar(np.array(zeff),np.array(SHAMbias),np.array(SHAMbiaserr),color='k', marker='o',ecolor='k',ls="none",markersize=4,mfc='w')
             ax[0,Pind].axvline(0.43, color= "k",linestyle='--')
             ax[0,Pind].axvline(0.645, color = "k",linestyle='--')
             pos = 3.1#0.625
