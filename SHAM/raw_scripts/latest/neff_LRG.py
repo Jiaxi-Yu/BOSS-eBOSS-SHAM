@@ -52,8 +52,8 @@ root =  '/home/jiaxi/Desktop/'
 gal  = sys.argv[1]
 if gal == 'eBOSS':
     fileroot = root+'clustering_eBOSS/nbar_eBOSS_LRG_{}GC_v7_2.dat'
-    zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
-    zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
+    zmins = [0.6,0.65,0.7,0.75]#[0.6,0.6,0.65,0.7,0.8,0.6]
+    zmaxs = [0.65,0.7,0.75,0.8]#[0.7,0.8,0.8, 0.9,1.0,1.0]
     z, nz,nzN,nzS,V_eff = combineNS(fileroot)
 else:
     fileroot = root+'clustering_BOSS/nbar_DR12v5_'+gal+'_{}_om0p31_Pfkp10000.dat'
