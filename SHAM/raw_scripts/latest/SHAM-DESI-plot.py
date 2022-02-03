@@ -20,6 +20,9 @@ import sys
 import pymultinest
 import corner
 import h5py
+from scipy.stats import cauchy
+
+
 home  = '/global/cscratch1/sd/jiaxi/SHAM/catalog/DESItest/'
 
 
@@ -33,6 +36,7 @@ cata     = sys.argv[4] # UNIT ABACUS
 finish   = 1#int(sys.argv[5])
 pre      = ''#sys.argv[4]
 date     = sys.argv[5]#'0218'#sys.argv[8]
+Vsmeartype = sys.argv[6] # Gaussian Lorentzian
 targetdate  = 'data-202112'
 #'0218': 3-param, '0726':mock-SHAM 3-param, '0729': 2-param
 function = 'mps' # 'wp'
@@ -50,8 +54,11 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-output     = '/global/homes/j/jiaxi/'
-fileroot = '{}MCMCout/zbins_{}/DESItest_{}/multinest_'.format(output,date,gal)
+output     = '/global/homes/j/jiaxi/SHAM/'
+if Vsmeartype == 'Gaussian':
+    fileroot = '{}MCMCout/zbins_{}/DESItest_{}/multinest_'.format(output,date,gal)
+else:
+    fileroot = '{}MCMCout/zbins_{}/DESItest_{}_Lorentzian/multinest_'.format(output,date,gal)
 cols = ['col2','col3']
 if date == '0218':
     parameters = ["sigma","Vsmear","Vceil"]
@@ -319,6 +326,7 @@ else:
                 v_high = 0
             else:
                 uniform,sigma_high,sigma,v_high = PAR
+            
             scatter = 1+append(sigma_high*sqrt(-2*log(uniform[:half]))*cos(2*pi*uniform[half:]),sigma_high*sqrt(-2*log(uniform[:half]))*sin(2*pi*uniform[half:]))
             scatter[scatter<1] = np.exp(scatter[scatter<1]-1)
             datav = datac[:,1]*scatter
@@ -333,7 +341,13 @@ else:
             
             # transfer to the redshift space
             scathalf = int(len(LRGscat)/2)
-            z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
+            if Vsmeartype == 'Gaussian':
+                z_redshift = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
+            else:
+                vsmear = cauchy.rvs(loc=0, scale=sigma, size=SHAMnum)
+                while len(vsmear[abs(vsmear)>200])>0:
+                    vsmear[abs(vsmear)>200] = cauchy.rvs(loc=0, scale=sigma, size=len(vsmear[abs(vsmear)>200]))
+                z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+vsmear)*(1+z)/H)
             z_redshift %=boxsize
             
             # Corrfunc 2pcf and wp
