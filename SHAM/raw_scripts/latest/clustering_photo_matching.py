@@ -7,7 +7,7 @@ import pylab as plt
 import os
 
 home = '/global/cscratch1/sd/jiaxi/SHAM/catalog/'
-datadir = '/global/homes/j/jiaxi/Vsmear-photo/'
+datadir = '/global/homes/j/jiaxi/SDSS_redshift_uncertainty/Vsmear-photo/'
 
 def LOWZcut(x):
     return 2.8*x+1.2
@@ -27,6 +27,7 @@ if not os.path.exists(datadir+'LOWZ_South_mag.fits.gz'):
         print('matching the clustering-photometric data')
         for GC in ['North','South']:
             # clustering reading
+            filename = datadir+'{}_{}_mag.fits.gz'.format(gal,GC)
             redrock = fitsio.read(home+'BOSS_data/galaxy_DR12v5_{}_{}.fits.gz'.format(gal,GC))
             tc = Table(redrock)
             # macthing photo and clustering
@@ -45,7 +46,7 @@ if not os.path.exists(datadir+'LOWZ_South_mag.fits.gz'):
             tca.write(filename.format(gal,GC), format='fits', overwrite=True)
 else:
     GC = 'NGC+SGC'
-    for gal in ['LOWZ','CMASS']:
+    for gal in ['CMASS','LOWZ']:
         filename = datadir+'{}_{}_mag.fits.gz'
         print('colour study')
         # print the red/blue ratio
@@ -109,7 +110,8 @@ else:
 
             # clustering plot
             zsel = (info['z_spec']>zmin)&(info['z_spec']<zmax)
-            for types in ['clustering','repeat']:#['no selection','selected']:
+            TYPES = ['clustering','repeat']#['no selection','selected']:
+            for types in TYPES:
                 if types =='selected':
                     lentot = len(info['z_spec'][sel&zsel])
                     lenblue = len(info['z_spec'][sel&zsel&colcut(info)])
@@ -121,47 +123,52 @@ else:
                 print('{} {} galaxies in {} at {}<z<{}, red = {} ({:.1f}%), blue = {}({:.1f}%)'.format(lentot,types,gal,zmin,zmax,lenred,lenred/lentot*100,lenblue,lenblue/lentot*100))
 
         # the colour-redshift relation with/without cut
-        fig, axs = plt.subplots(ncols=2,figsize=(10, 5))#
-        fig.subplots_adjust(left=0.07, right=0.97)
+        fontsize =15
+        plt.rc('text', usetex=False)
+        plt.rc('font', family='serif', size=fontsize)
+        fig, axs = plt.subplots(ncols=2,figsize=(10, 5),sharey=True)#
+        fig.subplots_adjust(left=0.1, right=0.97)
+
         ax = axs[0]        
-        hb = ax.hexbin(info['z_spec'][simplecut],info['gi_spec'][simplecut],cmap='inferno',reduce_C_function=np.sum,gridsize=250,vmin=0)#,vmax=120)#info['w_spec'],
+        hb = ax.hexbin(info['z_spec'][simplecut],info['gi_spec'][simplecut],cmap='inferno',reduce_C_function=np.sum,gridsize=(50,160),vmin=0,rasterized=True,linewidths=0.2)#,vmax=120)#info['w_spec'],
         cb = fig.colorbar(hb, ax=ax)
-        cb.set_label('counts')
-        ax.plot(np.linspace(zmin,zmax,10),np.ones(10)*2.35,'w--',label='(g-i)=2.35')
+        #cb.set_label('counts')
+
+        ax.plot(np.linspace(zmin,zmax,10),np.ones(10)*2.35,'w',label='(g-i)=2.35')
         if gal == 'CMASS':
-            vmax=12
+            vmax=35
         else:
             ax.plot(np.linspace(zmin,zmax,10),LOWZcut(np.linspace(zmin,zmax,10)),'w--',label='(g-i)=2.8z+1.2')
-            vmax=6
-        #import pdb;pdb.set_trace()
+            vmax=15
         
-        # plot 
-        import matplotlib.tri as tri
-        xi = np.linspace(zmin,zmax,51)
-        yi = np.linspace(1.5,3.5,51)
-        triang = tri.Triangulation(hb.get_offsets()[:,0],hb.get_offsets()[:,1])
-        interpolator = tri.LinearTriInterpolator(triang, hb.get_array())
-        Xi, Yi = np.meshgrid(xi, yi)
-        zi = interpolator(Xi, Yi)
-        #ax.contourf(Xi,Yi,zi,colors='b',levels=2)
-        ax.contour(Xi,Yi,zi,colors='b',levels=5)
-
-        #ax.set_title('no selection')
+        # plot contours
+        if types.find('select') !=-1:
+            import matplotlib.tri as tri
+            xi = np.linspace(zmin,zmax,51)
+            yi = np.linspace(1.5,3.5,51)
+            triang = tri.Triangulation(hb.get_offsets()[:,0],hb.get_offsets()[:,1])
+            interpolator = tri.LinearTriInterpolator(triang, hb.get_array())
+            Xi, Yi = np.meshgrid(xi, yi)
+            zi = interpolator(Xi, Yi)
+            #ax.contourf(Xi,Yi,zi,colors='b',levels=2)
+            ax.contour(Xi,Yi,zi,colors='b',levels=5)
+        
+        ax.set_title('{} catalogue'.format(TYPES[0]))
         ax.set_ylim(1.5,3.5)
-        plt.xlim(zmin,zmax)
-        ax.set_xlabel('z')
-        ax.set_ylabel('(g-i)')
+        ax.set_xlim(zmin,zmax)
+        ax.set_xlabel('z',fontsize=fontsize)
+        ax.set_ylabel('(g-i)',fontsize=fontsize)
 
         ax = axs[1]     
         if types.find('select') !=-1:
             print(len(info['z_spec'][sel]))
-            hb = ax.hexbin(info['z_spec'][sel],info['gi_spec'][sel],cmap='inferno',reduce_C_function=np.sum,gridsize=250,vmin=0)#,vmax=10)
+            hb = ax.hexbin(info['z_spec'][sel],info['gi_spec'][sel],cmap='inferno',reduce_C_function=np.sum,gridsize=(60,140),vmin=0,rasterized=True,linewidths=0.2)#,vmax=10)
         else:
             print(len(repeat['z']))
-            hb = ax.hexbin(repeat['z'],repeat['gi'],cmap='inferno',reduce_C_function=np.sum,gridsize=250,vmin=0,vmax=vmax)
+            hb = ax.hexbin(repeat['z'],repeat['gi'],cmap='inferno',reduce_C_function=np.sum,gridsize=(60,140),vmin=0,vmax=vmax,rasterized=True,linewidths=0.2)
         cb = fig.colorbar(hb, ax=ax)
         cb.set_label('counts')
-        ax.plot(np.linspace(zmin,zmax,10),np.ones(10)*2.35,'w--',label='(g-i)=2.35')
+        ax.plot(np.linspace(zmin,zmax,10),np.ones(10)*2.35,'w',label='(g-i)=2.35')
         if gal == 'LOWZ':
             ax.plot(np.linspace(zmin,zmax,10),LOWZcut(np.linspace(zmin,zmax,10)),'w--',label='(g-i)=2.8z+1.2')
         if types.find('select') !=-1:
@@ -169,14 +176,14 @@ else:
             interpolator = tri.LinearTriInterpolator(triang, hb.get_array())
             zi = interpolator(Xi, Yi)
             ax.contour(Xi,Yi,zi,colors='b',levels=5)
-        #ax.set_title(title)#('i-band selection')
+        ax.set_title('{} catalogue'.format(TYPES[1]))
         plt.ylim(1.5,3.5)
         plt.xlim(zmin,zmax)
-        ax.set_xlabel('z')
-        ax.set_ylabel('(g-i)')
+        ax.set_xlabel('z',fontsize=fontsize)
+        #ax.set_ylabel('(g-i)',fontsize=fontsize-3)
 
         plt.legend(loc=0)
-        plt.savefig('{}_colour_split-selection_mag-repeat.png'.format(gal))
+        plt.savefig('{}_colour_split-selection_mag-repeat.pdf'.format(gal),dpi=150)
         plt.close() 
 """
         # flux in cmodel ugriz   
