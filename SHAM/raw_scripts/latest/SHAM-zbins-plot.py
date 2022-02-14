@@ -83,6 +83,7 @@ best = np.zeros(npar)
 lower = np.zeros(npar)
 upper = np.zeros(npar)
 mean = np.zeros(npar)
+median = np.zeros(npar)
 sigma = np.zeros(npar)
 for i in range(npar):
     par = stats.parWithName(parameters[i])
@@ -150,14 +151,15 @@ if finish:
         stats = a.get_stats()    
         for j in range(npar):
             lower[j], upper[j] = stats['marginals'][j]['1sigma']
-            print('multinest {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  upper[j], lower[j]))
+            median[j] = stats['marginals'][j]['median']
+            print('multinest {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  lower[j], upper[j]))
         f.write('\n----------------------------------------------------------------------\n')
         if (date=='0729'):
             f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s  \n'.format(lower[0],upper[0],lower[1],upper[1]))
-            f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1]))
+            f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s \n'.format(median[0],upper[0]-median[0],lower[0]-median[0],median[1],upper[1]-median[1],lower[1]-median[1]))
         else:
             f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
-            f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
+            f.write('another way around: sigma {0:.6}+ {1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(median[0],upper[0]-median[0],lower[0]-median[0],median[1],upper[1]-median[1],lower[1]-median[1],median[2],upper[2]-median[2],lower[2]-median[2]))
         f.close()
 
     # start the final 2pcf, wp, Vpeak histogram, PDF

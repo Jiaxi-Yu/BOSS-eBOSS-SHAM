@@ -455,18 +455,18 @@ else:
             stats = a.get_stats()
             ind = 0
             param = stats['marginals'][ind]['1sigma']
-            best = a.get_best_fit()['parameters'][ind]
+            best = stats['marginals'][ind]['median']
             bounds0.append(abs(param-best))
             best0.append(best)
             ind = 1
             param = stats['marginals'][ind]['1sigma']
-            best = a.get_best_fit()['parameters'][ind]
+            best = stats['marginals'][ind]['median']
             bounds1.append(abs(param-best))
             best1.append(best)
             if npar == 3:
                 ind = 2
                 param = stats['marginals'][ind]['1sigma']
-                best = a.get_best_fit()['parameters'][ind]
+                best = stats['marginals'][ind]['median']
                 bounds2.append(abs(param-best))
                 best2.append(best)
             # dv meaurements
