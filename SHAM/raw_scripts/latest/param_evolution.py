@@ -515,9 +515,9 @@ else:
 
                 ax[0,Pind].fill_between(np.array(zeff),np.array(best3)-np.array(bounds3),np.array(best3)+np.array(bounds3),color='r',alpha=0.4)
                 if Pind ==0:
-                    ax[0,Pind].errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label='3-param Vsmear')
+                    ax[0,Pind].errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label=r'3-param $v_{\rm smear}$')
                     ax[0,Pind].plot(np.array(zeff),np.array(best4),color='b', label='$\sigma_{\Delta v}$')
-                    ax[0,Pind].plot(np.array(zeff),np.array(best3),color='r', label='std$_{\Delta v}$')  
+                    ax[0,Pind].plot(np.array(zeff),np.array(best3),color='r', label=r'$\hat{\sigma}_{\Delta v}$')  
                 else:
                     ax[0,Pind].errorbar(np.array(zeff),np.array(best1),np.array(bounds1).T,color='k', marker='o',ecolor='k',ls="none",label='_hidden')
                     ax[0,Pind].plot(np.array(zeff),np.array(best4),color='b', label='_hidden')
@@ -540,9 +540,9 @@ else:
                 ax[0,Pind].set_ylim(0,pos*1.1)
                 ax[0,Pind].set_xlim(float(zmins[0]),float(zmaxs[-1])*0.95)
             else:
-                ax[0,1].errorbar(np.array(zeff[:-1])-0.005,np.array(best1[:-1]),np.array(bounds1[:-1]).T,color='k', marker='o',ecolor='k',ls="none",label='2-param Vsmear',mfc='w')
+                ax[0,1].errorbar(np.array(zeff[:-1])-0.005,np.array(best1[:-1]),np.array(bounds1[:-1]).T,color='k', marker='o',ecolor='k',ls="none",label=r'2-param $v_{\rm smear}$',mfc='w')
                 #ax[0,0].legend(loc=2)
-                ax[0,0].errorbar(zeff[-1]-0.005,best1[-1],np.array(bounds1[-1]).reshape(2,1),color='k', marker='o',ecolor='k',ls="none",label='2-param Vsmear',mfc='w')
+                ax[0,0].errorbar(zeff[-1]-0.005,best1[-1],np.array(bounds1[-1]).reshape(2,1),color='k', marker='o',ecolor='k',ls="none",label=r'2-param $v_{\rm smear}$',mfc='w')
                 ax[0,0].legend(loc=2)
             if Pind == 0:
                 plt.yticks([0,40,80,120,160])
