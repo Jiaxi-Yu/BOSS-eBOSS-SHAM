@@ -84,6 +84,7 @@ else:
         sel = (info['z_spec']>zmins[-1])&(info['z_spec']<zmaxs[-1])
         simplecut = (info['gi_spec']<1e4)&sel
 
+        """
         if gal == 'CMASS': 
             sel &= (17.5<info['cmodel_spec'][:,3])&(info['cmodel_spec'][:,3]<19.9)
             sel &= dperp>0.55
@@ -97,6 +98,7 @@ else:
             sel &= abs(cperp)<0.2
             sel &= (info['psf_spec'][:,2]-info['cmodel_spec'][:,2])>0.3
         title = 'selected with target selection criteria'
+        """
         
         # print the red/blue fraction
         for zmin,zmax in zip(zmins,zmaxs):
