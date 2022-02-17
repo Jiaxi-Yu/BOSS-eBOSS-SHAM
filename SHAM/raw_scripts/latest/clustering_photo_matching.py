@@ -134,11 +134,11 @@ else:
         cb = fig.colorbar(hb, ax=ax)
         #cb.set_label('counts')
 
-        ax.plot(np.linspace(zmin,zmax,10),np.ones(10)*2.35,'w',label='(g-i)=2.35')
+        ax.plot(np.linspace(zmin,zmax,10),np.ones(10)*2.35,'w',label='$(g-i)=2.35$')
         if gal == 'CMASS':
             vmax=35
         else:
-            ax.plot(np.linspace(zmin,zmax,10),LOWZcut(np.linspace(zmin,zmax,10)),'w--',label='(g-i)=2.8z+1.2')
+            ax.plot(np.linspace(zmin,zmax,10),LOWZcut(np.linspace(zmin,zmax,10)),'w--',label='$(g-i)=2.8z+1.2$')
             vmax=15
         
         # plot contours
@@ -156,8 +156,8 @@ else:
         ax.set_title('{} catalogue'.format(TYPES[0]))
         ax.set_ylim(1.5,3.5)
         ax.set_xlim(zmin,zmax)
-        ax.set_xlabel('z',fontsize=fontsize)
-        ax.set_ylabel('(g-i)',fontsize=fontsize)
+        ax.set_xlabel('redshift',fontsize=fontsize)
+        ax.set_ylabel('$(g-i)$',fontsize=fontsize)
 
         ax = axs[1]     
         if types.find('select') !=-1:
@@ -168,9 +168,9 @@ else:
             hb = ax.hexbin(repeat['z'],repeat['gi'],cmap='inferno',reduce_C_function=np.sum,gridsize=(60,140),vmin=0,vmax=vmax,rasterized=True,linewidths=0.2)
         cb = fig.colorbar(hb, ax=ax)
         cb.set_label('counts')
-        ax.plot(np.linspace(zmin,zmax,10),np.ones(10)*2.35,'w',label='(g-i)=2.35')
+        ax.plot(np.linspace(zmin,zmax,10),np.ones(10)*2.35,'w',label='$(g-i)=2.35$')
         if gal == 'LOWZ':
-            ax.plot(np.linspace(zmin,zmax,10),LOWZcut(np.linspace(zmin,zmax,10)),'w--',label='(g-i)=2.8z+1.2')
+            ax.plot(np.linspace(zmin,zmax,10),LOWZcut(np.linspace(zmin,zmax,10)),'w--',label='$(g-i)=2.8z+1.2$')
         if types.find('select') !=-1:
             triang = tri.Triangulation(hb.get_offsets()[:,0],hb.get_offsets()[:,1])
             interpolator = tri.LinearTriInterpolator(triang, hb.get_array())

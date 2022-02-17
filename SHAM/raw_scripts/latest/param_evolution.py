@@ -533,7 +533,7 @@ else:
                 ax[0,Pind].text(0.47, pos, 'CMASS',fontsize=fontsize)
                 ax[0,Pind].text(0.74, pos, 'eBOSS',fontsize=fontsize)
                 if Pind ==0:
-                    ax[0,Pind].set_ylabel('$\Delta v$ (km/s)',fontsize=fontsize)#('$\\xi_0(gal)$/$\\xi_0(halo)$')
+                    ax[0,Pind].set_ylabel(r'$\Delta v \, (s^{-1}\,km)$',fontsize=fontsize)#('$\\xi_0(gal)$/$\\xi_0(halo)$')
                 else:
                     plt.yticks(alpha=0)
                 ax[0,Pind].set_xlabel('$z_{eff}$',fontsize=fontsize)

@@ -8,7 +8,6 @@ import numpy as np
 from astropy.table import Table
 from astropy.io import ascii
 from astropy.io import fits
-from NGC_SGC import FCFCcomb
 from multiprocessing import Pool
 from functools import partial
 import os
@@ -57,7 +56,7 @@ for function in ['2PCF','wp']:
                 J = 2*k+j
                 ax[J,K] = fig.add_subplot(spec[J,K])
                 # nosys: black & grey shade
-                ax[J,K].plot(s,s**2*(meannosys[k*nbins:(k+1)*nbins]-values[j])/err[j],color='k', label='realistic')
+                ax[J,K].plot(s,s**2*(meannosys[k*nbins:(k+1)*nbins]-values[j])/err[j],color='k', label='standard')
                 ax[J,K].fill_between(s,s**2*((meannosys-errbarnosys)[k*nbins:(k+1)*nbins]-values[j])/err[j],s**2*((meannosys+errbarnosys)[k*nbins:(k+1)*nbins]-values[j])/err[j],color='k',alpha=0.2)
                 
                 # sys with different weights
@@ -68,15 +67,15 @@ for function in ['2PCF','wp']:
                 hdu.close()
                 errbarsys = np.std(mocks,axis=1)/np.sqrt(Nmock)
                 meansys = np.mean(mocks,axis=1)
-                ax[J,K].plot(s,s**2*(meansys[k*nbins:(k+1)*nbins]-values[j])/err[j],color=colors[M], label='complete')
+                ax[J,K].plot(s,s**2*(meansys[k*nbins:(k+1)*nbins]-values[j])/err[j],color=colors[M], label='biased')
                 ax[J,K].fill_between(s,s**2*((meansys-errbarsys)[k*nbins:(k+1)*nbins]-values[j])/err[j],s**2*((meansys+errbarsys)[k*nbins:(k+1)*nbins]-values[j])/err[j],color=colors[M],alpha=0.2)
                 if J==3:
-                    plt.xlabel('s ($h^{-1}$Mpc)',fontsize=fontsize)
+                    plt.xlabel('$s\,(h^{-1}\,Mpc)$',fontsize=fontsize)
                     plt.xlim(-5,95)
                 else:
                     plt.xticks([])
                 if (j==0):
-                    ax[J,K].set_ylabel('$s^2 * \\xi_{}$'.format(k*2),fontsize=fontsize)#('\\xi_{}$'.format(k*2))#
+                    ax[J,K].set_ylabel('$s^2 \\xi_{}\,(h^{{-2}}\,Mpc^2)$'.format(k*2),fontsize=fontsize)#('\\xi_{}$'.format(k*2))#
                     if k==0:
                         plt.ylim(-5,150)
                         plt.legend(loc=1)
@@ -85,11 +84,15 @@ for function in ['2PCF','wp']:
                         plt.ylim(-90,30)
                 if (j==1):
                     ax[J,K].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2),fontsize=fontsize)
+                    
                     if k==0:
                         plt.ylim(-5,75)
                         plt.yticks([0,50])
                     else:
                         plt.ylim(-10,10)
+                    
+                    #plt.ylim(-10,2)
+                    #plt.yticks([-5,0])
     elif function == 'wp':
         rscale = 'log'
         nbins  = 8
@@ -117,7 +120,7 @@ for function in ['2PCF','wp']:
             for j in range(2):
                 J = 2*k+j
                 ax[J,K] = fig.add_subplot(spec[J,K])
-                ax[J,K].plot(s,(meannosys-values[j])/err[j],color='k', label='realistic')
+                ax[J,K].plot(s,(meannosys-values[j])/err[j],color='k', label='standard')
                 ax[J,K].fill_between(s,((meannosys-errbarnosys)-values[j])/err[j],((meannosys+errbarnosys)-values[j])/err[j],color='k',alpha=0.2)
                 covfitswps  = '{}sys_FKP/EZmocks_{}_{}_{}_z{}z{}_{}'.format(datapath,'sys',function,rscale,Zrange[0],Zrange[1],wptailpi)
                 hdu = fits.open(covfitswps) 
@@ -126,24 +129,26 @@ for function in ['2PCF','wp']:
                 hdu.close()
                 errbarsys = np.std(mocks,axis=1)/np.sqrt(Nmock)
                 meansys = np.mean(mocks,axis=1)
-                ax[J,K].plot(s,(meansys-values[j])/err[j],color=colors[M], label='complete')
+                ax[J,K].plot(s,(meansys-values[j])/err[j],color=colors[M], label='biased')
                 ax[J,K].fill_between(s,((meansys-errbarsys)-values[j])/err[j],((meansys+errbarsys)-values[j])/err[j],color=colors[M],alpha=0.2)
 
-                plt.xlabel('$r_p$ ($h^{-1}$Mpc)',fontsize=fontsize)
+                plt.xlabel(r'$r_p\,(h^{-1}\,Mpc$)',fontsize=fontsize)
                 if rscale=='log':
                     plt.xscale('log')
 
+                #plt.yscale('log')
                 if (j==0):
                     ax[J,K].set_ylabel('$w_p$',fontsize=fontsize)#('\\xi_{}$'.format(k*2))#
-                    ax[J,K].text(5.5,8,'$\pi_{{max}} = {} h^{{-1}}$Mpc'.format(pimax))
-                    plt.ylim(5.5,55)
-                    plt.yscale('log')
+                    ax[J,K].text(5.5,8,r'$\pi_{{max}} = {}\,h^{{-1}}\,Mpc$'.format(pimax))
+                    plt.ylim(5.5,42)
                     if k==0:
                         plt.legend(loc=1)
                 if (j==1):
-                    ax[J,K].set_ylabel('$\Delta$ wp/err',fontsize=fontsize)
+                    ax[J,K].set_ylabel('$\Delta w_p$/err',fontsize=fontsize)
                     plt.ylim(-5,75)
-                    plt.yticks([-5,50])
+                    plt.yticks([1,50])
+                    #plt.ylim(-15,2)
+                    #plt.yticks([-10,0])
 
                 # adjust labels
                 from matplotlib.ticker import ScalarFormatter, NullFormatter
@@ -154,7 +159,7 @@ for function in ['2PCF','wp']:
                         ax[J,K].set_xticks([5,10,25])
                     elif (AX==1)&(j==0):
                         ax[J,K].set_yticks([10,20,40])
-plt.savefig('wptest_sys-vs-nosys{}.png'.format(mockweight))
+plt.savefig('wptest_sys-vs-nosys{}.pdf'.format(mockweight))
 plt.close()
 
 
