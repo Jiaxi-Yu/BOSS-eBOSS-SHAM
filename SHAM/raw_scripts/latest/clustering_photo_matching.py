@@ -179,7 +179,7 @@ else:
         ax.set_title('{} catalogue'.format(TYPES[1]))
         plt.ylim(1.5,3.5)
         plt.xlim(zmin,zmax)
-        ax.set_xlabel('z',fontsize=fontsize)
+        ax.set_xlabel('redshift',fontsize=fontsize)
         #ax.set_ylabel('(g-i)',fontsize=fontsize-3)
 
         plt.legend(loc=0)
