@@ -41,33 +41,33 @@ for function in ['2PCF','wp']:
         s = (np.arange(0,120)+np.arange(1,121))/2
         M=1
         K=0
-        # 2PCF data reading
+        # no sys data
         hdu = fits.open('{}nosys_FKP/EZmocks_{}_{}_{}_z{}z{}_quad.fits.gz'.format(datapath,'nosys',function,rscale,Zrange[0],Zrange[1])) #
         mocks = hdu[1].data['NGC+SGCmocks']
         Nmock = mocks.shape[1] 
         hdu.close()
-        errbarnosys = np.std(mocks,axis=1)/np.sqrt(Nmock)
+        errbarnosys = np.std(mocks,axis=1)
         meannosys = np.mean(mocks,axis=1)
+        # sys data
+        covfitswp = '{}sys_FKP/EZmocks_{}_{}_{}_z{}z{}_quad.fits.gz'.format(datapath,'sys',function,rscale,Zrange[0],Zrange[1])
+        hdu = fits.open(covfitswp)
+        mocks = hdu[1].data['NGC+SGCmocks']
+        Nmock = mocks.shape[1] 
+        hdu.close()
+        errbarsys = np.std(mocks,axis=1)
+        meansys = np.mean(mocks,axis=1)
         mockweight = '_FKPSYSTOT'
         for name,k in zip(['monopole','quadrupole'],range(2)):
             values=[np.zeros(nbins),meannosys[k*nbins:(k+1)*nbins]]        
-            err   = [np.ones(nbins),s**2*errbarnosys[k*nbins:(k+1)*nbins]]
+            err   = [np.ones(nbins),s**2*np.sqrt(errbarnosys[k*nbins:(k+1)*nbins]**2+errbarsys[k*nbins:(k+1)*nbins]**2)]
             for j in range(2):
                 J = 2*k+j
                 ax[J,K] = fig.add_subplot(spec[J,K])
                 # nosys: black & grey shade
-                ax[J,K].plot(s,s**2*(meannosys[k*nbins:(k+1)*nbins]-values[j])/err[j],color='k', label='standard')
+                ax[J,K].plot(s,s**2*(meannosys[k*nbins:(k+1)*nbins]-values[j])/err[j],color='k', label='w/o syst.')
                 ax[J,K].fill_between(s,s**2*((meannosys-errbarnosys)[k*nbins:(k+1)*nbins]-values[j])/err[j],s**2*((meannosys+errbarnosys)[k*nbins:(k+1)*nbins]-values[j])/err[j],color='k',alpha=0.2)
-                
-                # sys with different weights
-                covfitswp = '{}sys_FKP/EZmocks_{}_{}_{}_z{}z{}_quad.fits.gz'.format(datapath,'sys',function,rscale,Zrange[0],Zrange[1])
-                hdu = fits.open(covfitswp)
-                mocks = hdu[1].data['NGC+SGCmocks']
-                Nmock = mocks.shape[1] 
-                hdu.close()
-                errbarsys = np.std(mocks,axis=1)/np.sqrt(Nmock)
-                meansys = np.mean(mocks,axis=1)
-                ax[J,K].plot(s,s**2*(meansys[k*nbins:(k+1)*nbins]-values[j])/err[j],color=colors[M], label='biased')
+                # sys: coloured shade                
+                ax[J,K].plot(s,s**2*(meansys[k*nbins:(k+1)*nbins]-values[j])/err[j],color=colors[M], label='with syst.')
                 ax[J,K].fill_between(s,s**2*((meansys-errbarsys)[k*nbins:(k+1)*nbins]-values[j])/err[j],s**2*((meansys+errbarsys)[k*nbins:(k+1)*nbins]-values[j])/err[j],color=colors[M],alpha=0.2)
                 if J==3:
                     plt.xlabel('$s\,(h^{-1}\,Mpc)$',fontsize=fontsize)
@@ -77,22 +77,18 @@ for function in ['2PCF','wp']:
                 if (j==0):
                     ax[J,K].set_ylabel('$s^2 \\xi_{}\,(h^{{-2}}\,Mpc^2)$'.format(k*2),fontsize=fontsize)#('\\xi_{}$'.format(k*2))#
                     if k==0:
-                        plt.ylim(-5,150)
-                        plt.legend(loc=1)
+                        plt.ylim(-10,155)
+                        plt.legend(loc=1,fontsize=fontsize-2)
                     else:
-                        #plt.legend(loc=1)
-                        plt.ylim(-90,30)
+                        plt.ylim(-110,30)
                 if (j==1):
-                    ax[J,K].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2),fontsize=fontsize)
-                    
                     if k==0:
-                        plt.ylim(-5,75)
-                        plt.yticks([0,50])
+                        ax[J,K].set_ylabel(r'$\Delta\xi_0/\bar{\epsilon}_{{obs,\xi_0}}$',fontsize=fontsize)
                     else:
-                        plt.ylim(-10,10)
+                        ax[J,K].set_ylabel(r'$\Delta\xi_2/\bar{\epsilon}_{{obs,\xi_2}}$',fontsize=fontsize)                    
+                    plt.ylim(-3.5,3.5)
+                    plt.yticks([-3,0,3])
                     
-                    #plt.ylim(-10,2)
-                    #plt.yticks([-5,0])
     elif function == 'wp':
         rscale = 'log'
         nbins  = 8
@@ -107,29 +103,30 @@ for function in ['2PCF','wp']:
         # plot the wp multipoles   
         for k,pimax in enumerate([80,20]):
             wptailpi = 'wp_pi{}.fits.gz'.format(pimax)
+            # no sys
             hdu = fits.open('{}nosys_FKP/EZmocks_{}_{}_{}_z{}z{}_{}'.format(datapath,'nosys',function,rscale,Zrange[0],Zrange[1],wptailpi)) #
             mocks = hdu[1].data['NGC+SGCmocks']
             Nmock = mocks.shape[1] 
             hdu.close()
-            errbarnosys = np.std(mocks,axis=1)/np.sqrt(Nmock)
+            errbarnosys = np.std(mocks,axis=1)
             meannosys = np.mean(mocks,axis=1)
-
+            # sys
+            covfitswps  = '{}sys_FKP/EZmocks_{}_{}_{}_z{}z{}_{}'.format(datapath,'sys',function,rscale,Zrange[0],Zrange[1],wptailpi)
+            hdu = fits.open(covfitswps) 
+            mocks = hdu[1].data['NGC+SGCmocks']
+            Nmock = mocks.shape[1] 
+            hdu.close()
+            errbarsys = np.std(mocks,axis=1)
+            meansys = np.mean(mocks,axis=1)
             # plot wp with different pi
             values=[np.zeros(nbins),meannosys]        
-            err   = [np.ones(nbins),errbarnosys]
+            err   = [np.ones(nbins),np.sqrt(errbarnosys**2+errbarsys**2)]
             for j in range(2):
                 J = 2*k+j
                 ax[J,K] = fig.add_subplot(spec[J,K])
-                ax[J,K].plot(s,(meannosys-values[j])/err[j],color='k', label='standard')
+                ax[J,K].plot(s,(meannosys-values[j])/err[j],color='k', label='w/o syst.')
                 ax[J,K].fill_between(s,((meannosys-errbarnosys)-values[j])/err[j],((meannosys+errbarnosys)-values[j])/err[j],color='k',alpha=0.2)
-                covfitswps  = '{}sys_FKP/EZmocks_{}_{}_{}_z{}z{}_{}'.format(datapath,'sys',function,rscale,Zrange[0],Zrange[1],wptailpi)
-                hdu = fits.open(covfitswps) 
-                mocks = hdu[1].data['NGC+SGCmocks']
-                Nmock = mocks.shape[1] 
-                hdu.close()
-                errbarsys = np.std(mocks,axis=1)/np.sqrt(Nmock)
-                meansys = np.mean(mocks,axis=1)
-                ax[J,K].plot(s,(meansys-values[j])/err[j],color=colors[M], label='biased')
+                ax[J,K].plot(s,(meansys-values[j])/err[j],color=colors[M], label='with syst.')
                 ax[J,K].fill_between(s,((meansys-errbarsys)-values[j])/err[j],((meansys+errbarsys)-values[j])/err[j],color=colors[M],alpha=0.2)
 
                 plt.xlabel(r'$r_p\,(h^{-1}\,Mpc$)',fontsize=fontsize)
@@ -140,15 +137,13 @@ for function in ['2PCF','wp']:
                 if (j==0):
                     ax[J,K].set_ylabel('$w_p$',fontsize=fontsize)#('\\xi_{}$'.format(k*2))#
                     ax[J,K].text(5.5,8,r'$\pi_{{max}} = {}\,h^{{-1}}\,Mpc$'.format(pimax))
-                    plt.ylim(5.5,42)
+                    plt.ylim(5.5,44)
                     if k==0:
-                        plt.legend(loc=1)
+                        plt.legend(loc=1,fontsize=fontsize-2)
                 if (j==1):
-                    ax[J,K].set_ylabel('$\Delta w_p$/err',fontsize=fontsize)
-                    plt.ylim(-5,75)
-                    plt.yticks([1,50])
-                    #plt.ylim(-15,2)
-                    #plt.yticks([-10,0])
+                    ax[J,K].set_ylabel(r'$\Delta w_p/\bar{\epsilon}_{{obs,w_p}}$',fontsize=fontsize)
+                    plt.ylim(-2.9,2.9)
+                    plt.yticks([-2,0,2])
 
                 # adjust labels
                 from matplotlib.ticker import ScalarFormatter, NullFormatter
