@@ -122,7 +122,10 @@ if task == 'together':
                     plt.legend(loc=1)
             else:
                 if K==0:
-                    ax[J,K].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2),fontsize=fontsize)
+                    if k==0:
+                        ax[J,K].set_ylabel(r'$\Delta\xi_0/\epsilon_{{obs,\xi_0}}$',fontsize=fontsize)
+                    else:
+                        ax[J,K].set_ylabel(r'$\Delta\xi_2/\epsilon_{{obs,\xi_2}}$',fontsize=fontsize)
                 else:
                     plt.yticks(alpha=0)
                 plt.ylim(-4,1)
@@ -230,7 +233,10 @@ elif task =='NGCSGC':
                     plt.ylim(-84,37)
                 else:
                     if K==0:
-                        ax[J,K].set_ylabel('$\Delta\\xi_{}$/err'.format(k*2),fontsize=fontsize)
+                        if k==0:
+                            ax[J,K].set_ylabel(r'$\Delta\xi_0/\epsilon_{{obs,\xi_0}}$',fontsize=fontsize)
+                        else:
+                            ax[J,K].set_ylabel(r'$\Delta\xi_2/\epsilon_{{obs,\xi_2}}$',fontsize=fontsize)
                     else:
                         plt.yticks(alpha=0)
                     plt.ylim(-4,1.5)
