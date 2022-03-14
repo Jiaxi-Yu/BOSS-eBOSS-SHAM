@@ -31,7 +31,13 @@ if task == 'plot':
     plt.xticks([0.6,0.7,0.8,0.9,1.0])
     plt.savefig('completeness_eBOSS.pdf')
     plt.close()
+elif task == 'mismatching':
+        hdu = fitsio.read(home+'eboss-decals_5e-4.fits.gz')
+        eboss = Table(hdu)  
+        eboss = eboss[eboss['Z_PHOT_MEAN']==-1000]
+        np.savetxt('mismatching.csv',np.array([eboss['RA'],eboss['DEC']]).T,header='RA DEC')
 elif task == 'brick-matching':
+    distance_thresh = 2e-4
     # find the name of the sweep file
     def fname(ra, dec):
         ra1 = int((ra // 10) * 10)  
@@ -43,10 +49,26 @@ elif task == 'brick-matching':
         char = ['m','p']  
         return f'{ra1:03d}{char[sgn1]}{abs(dec1):03d}-{ra2:03d}{char[sgn2]}{abs(dec2):03d}'
     # read the eBOSS catalogue without i-band lower limit
-    hdu = fitsio.read(home+'ebosstargets_woi.fits.gz',columns=['RA','DEC','i_FLAG'])
-    eboss = Table(hdu)
-    eboss['Z_PHOT_MEAN']= np.empty(len(eboss))
-    eboss['RA_DECALS'], eboss['DEC_DECALS'] = np.empty(len(eboss)),np.empty(len(eboss))
+    midver = home+'eBOSS_matching-progress/1.north-cover-south/eboss-decals_5e-4.fits.gz'
+    finver = home+'eBOSS_matching-progress/final/eboss-decals_5e-4.fits.gz'
+    ## if the intermidiate version doesn't exist, start from scratch
+    if not os.path.exists(midver):
+        print('no intermediate file')
+        hdu = fitsio.read(home+'ebosstargets_woi.fits.gz',columns=['RA','DEC','i_FLAG'])
+        eboss = Table(hdu)
+        eboss['Z_PHOT_MEAN']= np.empty(len(eboss))
+        eboss['RA_DECALS'], eboss['DEC_DECALS'] = np.empty(len(eboss)),np.empty(len(eboss))
+    ## if the intermediate version exists, but not the final one
+    ## checking the long-distance macthing from its output
+    elif not os.path.exists(finver):
+        print('no final file')
+        hdu = fitsio.read(midver)
+        eboss = Table(hdu)
+        eboss = eboss[eboss['Z_PHOT_MEAN']==-1000]
+    ## if the intermediate the final version both exists
+    else:
+        print('matching has finished')
+        exit()
 
     # find the corresponding decals tiles for eBOSS targets
     names = np.array([fname(eboss['RA'][i],eboss['DEC'][i]) for i in range(len(eboss))])
@@ -55,6 +77,8 @@ elif task == 'brick-matching':
     cnt = cnt[np.argsort(-cnt)]
     # matching eBOSS with DeCaLS
     for Fn,namep in enumerate(names_uni):
+    #Fn=118;namep=names_uni[Fn]
+    #if Fn>100:
         # the DeCaLS file in tile that contains several eBOSS target
         file_pzs = glob(home+'eBOSS_DeCaLS/*{}.fits.gz'.format(namep))
         # the eBOSS targets that is at a given tile
@@ -63,57 +87,82 @@ elif task == 'brick-matching':
         rad,decd = np.empty(len(eboss[sel])),np.empty(len(eboss[sel]))
 
         if len(file_pzs)>0:
-            # read the selected decals files for matching
-            for file_pz in file_pzs:
-                hdu = fitsio.read(file_pz)
-                decals = Table(hdu)
-                if len(file_pzs)>1:
-                    print('north and south:',file_pz)
-                # matching with each (RA,DEC) from eboss
-                # if eBOSS targets to match is small, use sequential
-                # if many, parallelize
-                if cnt[Fn]<63:
-                    # matching the eboss targets one by one sequentially
-                    for rd in range(len(eboss['RA'][sel])):
-                        ra,dec = eboss['RA'][sel][rd],eboss['DEC'][sel][rd]
+            # matching with each (RA,DEC) from eboss
+            ## if eBOSS targets to match is small, use sequential
+            if cnt[Fn]<63:
+                # matching the eboss targets one by one sequentially
+                for rd in range(len(eboss['RA'][sel])):
+                    ra,dec = eboss['RA'][sel][rd],eboss['DEC'][sel][rd]
+                    # read the selected decals files for matching
+                    for pzi,file_pz in enumerate(file_pzs):
+                        hdu = fitsio.read(file_pz)
+                        decals = Table(hdu)
                         distance = np.sqrt((ra-decals['RA'])**2+(dec-decals['DEC'])**2)
-                        if distance[np.argmin(distance)]<5e-3:
+                        # initialise the matching parameter
+                        if pzi == 0:
+                            matched = False
+                        # if the min(eboss-decals distance)< distance threshold
+                        # save the corresponding z_photo, RA, DEC
+                        if distance[np.argmin(distance)]<distance_thresh:
                             zmean[rd] = decals['Z_PHOT_MEAN'][np.argmin(distance)]
+                            rad[rd],decd[rd] = decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)]
+                            matched = True
+                            if len(file_pzs)==2:
+                                print('matched,     z_phot={} in {} {}'.format(zmean[rd],rad[rd],decd[rd]))
+                        # if the min(eboss-decals distance) > distance threshold
+                        # save z_photo = -1000, and the closest, RA, DEC
                         else:
-                            print('eBOSS [{},{}] for decals [{},{}] in {}, the smallest distance is larger than 5e-3'.format(eboss['RA'][sel][rd],eboss['DEC'][sel][rd],decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)],namep))
-                            zmean[rd] = -1000
-                        rad[rd],decd[rd] = decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)]
-                    # save the matched decals information
-                    eboss['Z_PHOT_MEAN'][sel]   = zmean.copy()
-                    eboss['RA_DECALS'][sel]     = rad.copy()
-                    eboss['DEC_DECALS'][sel]    = decd.copy()
-                else:
-                    def match(rd):
-                        ra,dec = eboss['RA'][sel][rd],eboss['DEC'][sel][rd]
+                            ## just to avoid the second file covers the first results 
+                            if matched:
+                                print('found again, z_phot={} in {} {}'.format(eboss[sel][rd]['Z_PHOT_MEAN'],eboss[sel][rd]['RA'],eboss[sel][rd]['DEC']))
+                            else:
+                                print('eBOSS {},{} for decals {},{} in {}, the smallest distance is larger than {}'.format(eboss['RA'][sel][rd],eboss['DEC'][sel][rd],decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)],namep,distance_thresh))                                
+                                zmean[rd] = -1000
+                                rad[rd],decd[rd] = decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)]
+                # save the matched decals information
+                eboss['Z_PHOT_MEAN'][sel]   = zmean.copy()
+                eboss['RA_DECALS'][sel]     = rad.copy()
+                eboss['DEC_DECALS'][sel]    = decd.copy()
+            else:
+            ## if there are many to match, parallelize
+                def match(rd1):
+                    ra,dec = eboss['RA'][sel][rd1],eboss['DEC'][sel][rd1]
+                    for pzi,file_pz in enumerate(file_pzs):
+                        hdu = fitsio.read(file_pz)
+                        decals = Table(hdu)
                         distance = np.sqrt((ra-decals['RA'])**2+(dec-decals['DEC'])**2)
-                        if distance[np.argmin(distance)]<5e-3:
+                        if pzi == 0:
+                            matched = False
+                        if distance[np.argmin(distance)]<distance_thresh:
                             zmean = decals['Z_PHOT_MEAN'][np.argmin(distance)]
+                            rad,decd = decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)]
+                            if matched:
+                                print('2 matches in north and south')
+                            matched = True
+                            if len(file_pzs)==2:
+                                print('matched,     z_phot={} in {} {}'.format(zmean,rad,decd))
                         else:
-                            print('eBOSS [{},{}] for decals [{},{}] in {}, the smallest distance is larger than 5e-3'.format(eboss['RA'][sel][rd],eboss['DEC'][sel][rd],decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)],namep))
-                            zmean = -1000
-                        rad,decd = decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)]
-                        return [rd,zmean,rad,decd]
+                            if matched:
+                                print('found again, z_phot={} in {} {}'.format(zmean,rad,decd))
+                                #.format(eboss[sel][rd1]['Z_PHOT_MEAN'],eboss[sel][rd1]['RA'],eboss[sel][rd1]['DEC']))
+                                #zmean,rad,decd = eboss[sel][rd1]['Z_PHOT_MEAN'],eboss[sel][rd1]['RA'],eboss[sel][rd1]['DEC']
+                            else:
+                                print('eBOSS {},{} for decals {},{} in {}, the smallest distance is larger than {}'.format(ra,dec,decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)],namep,distance_thresh))                                
+                                zmean = -1000
+                                rad,decd = decals['RA'][np.argmin(distance)],decals['DEC'][np.argmin(distance)]                            
+                    return [rd1,zmean,rad,decd]
 
-                    DATA = [0]*len(eboss[sel])
-                    # matching ra,dec in parallel for eboss targets in one sweep file
-                    pool = Pool()     
-                    for f, match_array in enumerate(pool.imap(match,np.arange(cnt[Fn]))):
-                        DATA[f] = match_array
-                        if f==0:
-                            print('start merging')
-                        elif (f+1)%(np.ceil(cnt[Fn]/10))==0:
-                            print('{}\% merging finished'.format((f+1)//(cnt[Fn]/100)))
-                    pool.close() 
-                    pool.join()  
-                    ind = np.array([DATA[i][0] for i in range(cnt[Fn])])
-                    eboss['Z_PHOT_MEAN'][sel]   = np.array([DATA[i][1] for i in range(cnt[Fn])])[np.argsort(ind)]
-                    eboss['RA_DECALS'][sel]     = np.array([DATA[i][2] for i in range(cnt[Fn])])[np.argsort(ind)]
-                    eboss['DEC_DECALS'][sel]    = np.array([DATA[i][3] for i in range(cnt[Fn])])[np.argsort(ind)]
+                DATA = [0]*len(eboss[sel])
+                # matching ra,dec in parallel for eboss targets in one sweep file
+                pool = Pool()     
+                for f, match_array in enumerate(pool.imap(match,np.arange(cnt[Fn]))):
+                    DATA[f] = match_array
+                pool.close() 
+                pool.join()  
+                ind = np.array([DATA[i][0] for i in range(cnt[Fn])])
+                eboss['Z_PHOT_MEAN'][sel]   = np.array([DATA[i][1] for i in range(cnt[Fn])])[np.argsort(ind)]
+                eboss['RA_DECALS'][sel]     = np.array([DATA[i][2] for i in range(cnt[Fn])])[np.argsort(ind)]
+                eboss['DEC_DECALS'][sel]    = np.array([DATA[i][3] for i in range(cnt[Fn])])[np.argsort(ind)]
         else:
             # how many eboss samples has no decals measurements
             print('eboss',namep,'has no decals observation')
@@ -121,11 +170,22 @@ elif task == 'brick-matching':
             eboss['RA_DECALS'][sel] = np.nan
             eboss['DEC_DECALS'][sel] = np.nan     
         #print(eboss[sel]['Z_PHOT_MEAN'])
-    eboss.write(home+'eboss-decals.fits.gz',format='fits', overwrite=True)
+    if not os.path.exists(midver):
+        eboss.write(home+'eboss-decals_5e-4.fits.gz',format='fits', overwrite=True)
+    elif not os.path.exists(finver):
+        hdu = fitsio.read(midver)
+        ebosstot = Table(hdu)
+        ebosstot[ebosstot['Z_PHOT_MEAN']==-1000] = eboss
+        ebosstot.write(home+'eboss-decals_5e-4.fits.gz',format='fits', overwrite=True)
 
-    # set -1000 for long-distance matching; -99 from DeCaLS original data
-    malsel = (eboss['Z_PHOT_MEAN']==-1000)| (eboss['Z_PHOT_MEAN']==-99) 
-    print('{:.1f}% of eBOSS has no corresponding DeCaLS observation'.format(100*len(eboss[(malsel)|(np.isnan(eboss['Z_PHOT_MEAN']))])/len(eboss)))
+        # set -1000 for long-distance matching; -99 from DeCaLS original data
+        seldis = (ebosstot['Z_PHOT_MEAN']==-1000)
+        selz   = (ebosstot['Z_PHOT_MEAN']==-99) 
+        selobs = (np.isnan(ebosstot['Z_PHOT_MEAN']))
+        print('{:.1f}% of eBOSS has no matching photo z'.format(100*len(ebosstot[seldis|selz|selobs])/len(ebosstot)))
+        print('{:.1f}% of eBOSS has distance larger than {}'.format(100*len(ebosstot[seldis])/len(ebosstot),distance_thresh))
+        print('{:.1f}% of eBOSS has no DECaLS photo z'.format(100*len(ebosstot[selz])/len(ebosstot)))
+        print('{:.1f}% of eBOSS has no DECaLS bricks'.format(100*len(ebosstot[selobs])/len(ebosstot)))
 
 elif task == 'eboss-matching':
     hdu = fitsio.read(home+'eBOSS_TS/output/ebosstarget/v0005/ebosstarget-v0005-lrg.fits',\
