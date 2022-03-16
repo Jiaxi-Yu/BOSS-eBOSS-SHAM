@@ -1,5 +1,3 @@
-import matplotlib 
-matplotlib.use('agg')
 import time
 init = time.time()
 import numpy as np
@@ -28,15 +26,13 @@ home  = '/global/cscratch1/sd/jiaxi/SHAM/catalog/DESItest/'
 
 # variables
 gal      = sys.argv[1]
+cata     = sys.argv[2] # UNIT ABACUS
+date     = sys.argv[3]#'0218'#sys.argv[8]
+Vsmeartype = sys.argv[4] # Gaussian Lorentzian
 GC       = 'NGC+SGC'#sys.argv[2]
 rscale   = 'linear'#sys.argv[3] #'linear' # 'log'
-zmin     = sys.argv[2]
-zmax     = sys.argv[3]
-cata     = sys.argv[4] # UNIT ABACUS
 finish   = 1#int(sys.argv[5])
 pre      = ''#sys.argv[4]
-date     = sys.argv[5]#'0218'#sys.argv[8]
-Vsmeartype = sys.argv[6] # Gaussian Lorentzian
 targetdate  = 'data-202112'
 #'0218': 3-param, '0726':mock-SHAM 3-param, '0729': 2-param
 function = 'mps' # 'wp'
@@ -44,11 +40,12 @@ nseed    = 16
 npoints  = 100 
 multipole= 'quad' # 'mono','quad','hexa'
 var      = 'Vpeak'  #'Vmax' 'Vpeak'
-Om       = 0.315192
 if cata == 'UNIT': 
     boxsize = 1000
+    Om       = 0.31
 elif cata == 'ABACUS':
     boxsize  = 2000
+    Om       = 0.315192
 nthread  = 3
 autocorr = 1
 mu_max   = 1
@@ -79,6 +76,7 @@ best = np.zeros(npar)
 lower = np.zeros(npar)
 upper = np.zeros(npar)
 mean = np.zeros(npar)
+median = np.zeros(npar)
 sigma = np.zeros(npar)
 for i in range(npar):
     par = stats.parWithName(parameters[i])
@@ -126,12 +124,12 @@ print('its chi2: {:.6}'.format(-2*a.get_best_fit()['log_likelihood']))
 if not finish: 
     # create observational files for tests
     for datatype,tail,pair in zip(['XI02','WP'],['dat','wp'],['xi0-rmu','wp-rp-pi']):
-        if not os.path.exists(home+'data-202112/ELG_z0.8z1.5.wp'):
+        if not os.path.exists(home+'data-202112/QSO_z0.8z2.1.wp'):
             targets,mpsdates = [home+'data-202112/',home+'data-202110/'],['XI_17DEC','XI_11Oct']
             if tail == 'wp':
                 targets,mpsdates = [home+'data-202112/'],['XI_17DEC']
             for target,mpsdate in zip(targets,mpsdates):
-                GALS = ['LRG','ELG','BGS_BRIGHT']
+                GALS = ['LRG','ELG','BGS_BRIGHT','QSO']
                 if mpsdate == 'XI_11Oct':
                     GALS = ['LRG','ELG']
                 for GAL in GALS:
@@ -142,9 +140,14 @@ if not finish:
                     elif GAL == 'ELG':
                         zmins = [0.8,1.1,0.8]
                         zmaxs = [1.1,1.5,1.5]
-                    else:
+                    elif GAL == 'BGS_BRIGHT':
                         zmins = [0.1,0.2,0.3,0.1]
                         zmaxs = [0.3,0.4,0.5,0.5]
+                    elif GAL == 'QSO':
+                        zmins = [0.8,1.1,1.5,0.8]
+                        zmaxs = [1.1,1.5,2.1,2.1]
+                        if tail == 'wp':
+                            pair = 'wp-logrp-pi'
                     for zmin,zmax in zip(zmins,zmaxs):
                         data = []
                         obsdir = '{}{}_NS_CLUSTERING_wEdWsys_z1z2_{}-{}_pip_angup-{}-NJN-240.txt'.format(origin,GAL,zmin,zmax,pair)
@@ -153,8 +156,6 @@ if not finish:
                         data.append(obsraw0[:,3])
                         if tail == 'dat':
                             # read & save complete xi0 & xi2 and truncated covR
-                            tot1 = obsraw0[5:,4:]
-                            err1 = obsraw0[5:,2]
                             obsdir = '{}{}_NS_CLUSTERING_wEdWsys_z1z2_{}-{}_pip_angup-xi2-rmu-NJN-240.txt'.format(origin,GAL,zmin,zmax)
                             obsraw2 = np.loadtxt(obsdir)[:25]
                             data.append(obsraw2[:,3])
@@ -178,43 +179,7 @@ if not finish:
 
                         # save observation
                         np.savetxt('{}{}_z{}z{}.{}'.format(target,GAL,zmin,zmax,tail),np.array(data).T)
-        
-    # plot the different SHAM 2PCF to check the correctness of outputs
-    if not os.path.exists('{}{}mocks.mps'.format(home,gal)):
-        print('reading galaxy catalogue')
-        # read the HOD catalogue
-        sim = np.loadtxt('{}{}mocks.dat'.format(home,gal))
-        SHAMnum   = 8014074
-        # RSD
-        z = 0.8;Ode = 1-Om;H = 100*np.sqrt(Om*(1+z)**3+Ode)
-        sim[:,2] += sim[:,3]*(1+z)/H
-        sim[:,2] %=boxsize
-        # s
-        bins  = np.arange(rmin,rmax+1,1);nbins = len(bins)-1;binmin = rmin;binmax = rmax
-        s = (bins[:-1]+bins[1:])/2
-        # analytical RR
-        mu = (np.linspace(0,mu_max,nmu+1)[:-1]+np.linspace(0,mu_max,nmu+1)[1:]).reshape(1,nmu)/2+np.zeros((nbins,nmu))
-        RR_counts = 4*np.pi/3*(bins[1:]**3-bins[:-1]**3)/(boxsize**3)
-        rr=((RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu)
-        # mps of HOD
-        DD_counts = DDsmu(autocorr,nthread,bins,mu_max, nmu,sim[:,0],sim[:,1],sim[:,2],periodic=True, verbose=False,boxsize=boxsize)
-        mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
-        quad = mono * 2.5 * (3 * mu**2 - 1)
-        mps = np.array([np.sum(mono,axis=-1)/nmu,np.sum(quad,axis=-1)/nmu]).T
-        np.savetxt('{}{}mocks.mps'.format(home,gal),mps)
-    else:
-        mps = np.loadtxt('{}{}mocks.mps'.format(home,gal))
-        # plot
-        obs = np.loadtxt('{}data-202110/{}_z{}z{}.dat'.format(home,gal,zmin,zmax))
-        sham = np.loadtxt('{}best-fit_LRG_NGC+SGC.dat'.format(fileroot[:-10]))[5:]
-        shammono = np.loadtxt('{}best-fit_LRG_NGC+SGC-maxmono.dat'.format(fileroot[:-10]))[5:]
-        for i in range(2):
-            plt.errorbar(obs[:,0],obs[:,0]**2*obs[:,1+i],obs[:,0]**2*obs[:,3+i],label='obs',color='k', marker='o',ecolor='k',ls="none")
-            plt.plot(obs[:,0],obs[:,0]**2*mps[:,i],label='HOD')
-            plt.plot(obs[:,0],obs[:,0]**2*sham[:,i+2],label='SHAM')
-            plt.plot(obs[:,0],obs[:,0]**2*shammono[:,i+2],label='SHAM max')
 
-            plt.legend(loc=0);plt.savefig('sham_xi{}.png'.format(2*i));plt.close() 
 else:
     # write the multinest/gedist analysis report
     file = '{}Vzsmear_report_{}_{}.txt'.format(fileroot[:-10],gal,GC)
@@ -233,26 +198,41 @@ else:
         stats = a.get_stats()    
         for j in range(npar):
             lower[j], upper[j] = stats['marginals'][j]['1sigma']
+            median[j] = stats['marginals'][j]['median']
             print('multinest {0:s}: [{1:.6f} {2:.6f}]'.format(parameters[j],  upper[j], lower[j]))
         f.write('\n----------------------------------------------------------------------\n')
         if (date=='0729'):
             f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s  \n'.format(lower[0],upper[0],lower[1],upper[1]))
-            f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1]))
+            f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s \n'.format(median[0],upper[0]-median[0],lower[0]-median[0],median[1],upper[1]-median[1],lower[1]-median[1]))
         else:
             f.write('multinest analyser results: sigma [{:.6},{:.6}], sigma_smear [{:.6},{:.6}] km/s, Vceil [{:.6},{:.6}] km/s \n'.format(lower[0],upper[0],lower[1],upper[1],lower[2],upper[2]))
-            f.write('another way around: sigma {0:.6}+{1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(a.get_best_fit()['parameters'][0],upper[0]-a.get_best_fit()['parameters'][0],lower[0]-a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],upper[1]-a.get_best_fit()['parameters'][1],lower[1]-a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2],upper[2]-a.get_best_fit()['parameters'][2],lower[2]-a.get_best_fit()['parameters'][2]))
+            f.write('another way around: sigma {0:.6}+ {1:.6}{2:.6}, sigma_smear {3:.6}+{4:.6}{5:.6}km/s,Vceil {6:.6}+{7:.6}{8:.6}km/s  \n'.format(median[0],upper[0]-median[0],lower[0]-median[0],median[1],upper[1]-median[1],lower[1]-median[1],median[2],upper[2]-median[2],lower[2]-median[2]))
         f.close()
 
     # start the final 2pcf, wp, Vpeak histogram, PDF
     if gal == 'LRG':
         SHAMnum   = 1001760
+        zmin = 0.6 ; zmax  = 1.1
         a_t = '0.54980'
+        maxdv = 200
     elif gal=='ELG':
         SHAMnum   = 13542938
+        zmin = 0.8 ; zmax  = 1.5
         a_t = '0.48140'
+        maxdv = 100
     elif gal=='BGS_BRIGHT':
         SHAMnum   = 4258386
+        zmin = 0.2 ; zmax  = 0.4
         a_t = '0.74980'
+        maxdv = 150
+    elif gal == 'QSO':
+        SHAMnum = 126606
+        zmin = 0.8 ; zmax  = 2.1
+        a_t = '0.41230'
+        maxdv = 400
+    # delta v bins
+    vbins = np.arange(-maxdv,maxdv+1,5)
+
     # generate s bins
     bins  = np.arange(rmin,rmax+1,1)
     nbins = len(bins)-1
@@ -274,6 +254,17 @@ else:
     rr=((RR_counts.reshape(nbins,1)+np.zeros((1,nmu)))/nmu)
     print('the analytical random pair counts are ready.')
 
+    # plot wp with errorbars
+    obs2pcfwp  = np.loadtxt('{}{}/{}_z{}z{}.{}'.format(home,targetdate,gal,zmin,zmax,'wp'))
+    selwp = (obs2pcfwp[:,0]>rmin)&(obs2pcfwp[:,0]<rmax)
+    obs2pcfwp = obs2pcfwp[tuple(selwp),:]
+    swp = obs2pcfwp[:,0]
+    nbinswp = len(swp)
+    sbins = np.copy(bins)
+    # wp observation & error
+    OBSwp   = obs2pcfwp[:,1]
+    errbarwp = obs2pcfwp[:,2]
+
     # cosmological parameters
     #import pdb;pdb.set_trace()
     z = 1/float(a_t)-1
@@ -291,11 +282,11 @@ else:
         read = time.time()
         f=h5py.File(halofile,"r")
         if len(f["halo"]['Vpeak'][:])%2 ==1:
-            datac = np.zeros((len(f["halo"]['Vpeak'][:])-1,5))
+            datac = np.zeros((len(f["halo"]['Vpeak'][:])-1,len(f["halo"].keys())))
             for i,key in enumerate(f["halo"].keys()):
                 datac[:,i] = (f["halo"][key][:])[:-1]
         else:
-            datac = np.zeros((len(f["halo"]['Vpeak'][:]),5))
+            datac = np.zeros((len(f["halo"]['Vpeak'][:]),len(f["halo"].keys())))
             for i,key in enumerate(f["halo"].keys()):
                 datac[:,i] = f["halo"][key][:]
         f.close()       
@@ -352,7 +343,7 @@ else:
             
             # Corrfunc 2pcf and wp
             DD_counts = DDsmu(autocorr, nthread,bins,mu_max, nmu,LRGscat[:,2],LRGscat[:,3],z_redshift,periodic=True, verbose=False,boxsize=boxsize)
-            wp_dat = wp(boxsize,40,nthread,bins,LRGscat[:,2],LRGscat[:,3],z_redshift)
+            wp_dat = wp(boxsize,40,nthread,sbins,LRGscat[:,2],LRGscat[:,3],z_redshift)
             # calculate the 2pcf and the multipoles
             mono = (DD_counts['npairs'].reshape(nbins,nmu)/(SHAMnum**2)/rr-1)
             quad = mono * 2.5 * (3 * mu**2 - 1)
@@ -388,8 +379,8 @@ else:
         
         # wp
         tmp = [xi1_ELG[a][2] for a in range(nseed)]
-        true_array = np.hstack((((np.array(tmp)).T)[:nbins],((np.array(tmp)).T)[nbins:]))
-        wp= (np.array([s,np.mean(true_array,axis=1),np.std(true_array,axis=1)/np.sqrt(nseed*2)]).reshape(3,nbins)).T
+        true_array = np.hstack((((np.array(tmp)).T)[:nbinswp],((np.array(tmp)).T)[nbinswp:]))
+        wp= (np.array([swp,np.mean(true_array,axis=1),np.std(true_array,axis=1)/np.sqrt(nseed*2)]).reshape(3,nbinswp)).T
         np.savetxt('{}best-fit-wp_{}_{}-python.dat'.format(fileroot[:-10],gal,GC),wp,header='s wp wperr')
 
         # distributions:
@@ -496,15 +487,6 @@ else:
     plt.close()
     pdf = SHAMv[:-1]/UNITv[:-1]
     print('z{}z{} PDF max: {} km/s'.format(zmin,zmax,(bbins[:-1])[pdf==max(pdf[~np.isnan(pdf)])]))
-    
-    # plot wp with errorbars
-    obs2pcfwp  = '{}{}/{}_z{}z{}.{}'.format(home,targetdate,gal,zmin,zmax,'wp')
-    pythonsel = (wp[:,0]>rmin)&(wp[:,0]<rmax)
-    wp = wp[tuple(pythonsel),:]
-    # observation & error
-    obscfwp = Table.read(obs2pcfwp,format='ascii.no_header')[binmin:binmax]
-    OBSwp   = obscfwp['col2']
-    errbarwp = obscfwp['col3']
 
     # plot the wp
     fig = plt.figure(figsize=(6,7))
@@ -532,4 +514,68 @@ else:
 
     plt.savefig('{}wp_bestfit_{}_{}_{}-{}Mpch-1_pi40_{}.png'.format(fileroot[:-10],gal,GC,rmin,rmax,date))
     plt.close()
-    
+
+    # Vsmear vs Delta v 
+    # read SHAM best-fit
+    stats = a.get_stats()    
+    median = stats['marginals'][1]['median']
+    diff = stats['marginals'][1]['1sigma'][1]-median
+    # select repeats
+    import fitsio
+    catapath = '/global/homes/j/jiaxi/DESI_redshift_uncertainty/repeats_final-targets/'
+    hdu = fitsio.read(catapath+'DESI_{}_redshift_uncertainty.fits.gz'.format(gal))
+    tcomp = Table(hdu)
+    sel = (tcomp['Z_TRUTH']<zmax)&(tcomp['Z_TRUTH']>zmin)
+    sel &= tcomp['ZWARN'] == 0
+    tcomp = tcomp[sel]
+    # the fitting function
+    if Vsmeartype == 'Gaussian':
+        def func(x,a,sigma,mu):
+            return a/np.sqrt(2*np.pi)/sigma*np.exp(-(x-mu)**2/(2*sigma**2))
+        label = r'Gaussian fit $\sigma = {:.1f} \pm {:.1f}$'
+        label1 = r'SHAM Gaussian fit $\sigma = {:.1f} \pm {:.1f}$'
+        rescale = 1
+    else:
+        def func(x,a,w,p):
+            return a/(1+((x-p)*2/w)**2)
+        label   = r'Lorentzian fit w/(2$\sqrt{{2ln2}})$'+' = ${:.1f} \pm {:.1f}$'
+        label1   = r'SHAM Lorentzian fit w/(2$\sqrt{{2ln2}})$'+' = ${:.1f} \pm {:.1f}$'
+        rescale = 2*np.sqrt(2*np.log(2))
+
+    for mode in ['multiple-obs', 'one-obs', 'inter-obs']:
+        print('repetitive model:',mode)
+        if mode == 'one-obs':
+            modes = 'one obs - deepest obs'
+            dv = (tcomp['Z'] - tcomp['Z_TRUTH'])*299792./(1+tcomp['Z_TRUTH'])
+            zerr = tcomp['ZERR']*299792./(1+tcomp['Z_TRUTH'])
+            A,B = np.unique(tcomp['TARGETID'],return_index=True)
+            dv = dv[B]
+        elif mode == 'inter-obs':
+            modes = 'one obs - another obs'
+            A = np.unique(tcomp['TARGETID'])
+            tcomp['ZERR_TRUTH']  = np.zeros(len(tcomp))
+            print(len(A))
+            for az in A:
+                tcomp[tcomp['TARGETID'] == az]['Z_TRUTH'] == tcomp[tcomp['TARGETID'] == az]['Z'][0]
+                tcomp[tcomp['TARGETID'] == az]['ZERR_TRUTH'] == tcomp[tcomp['TARGETID'] == az]['ZERR'][0]
+            dv = (tcomp['Z'] - tcomp['Z_TRUTH'])*299792./(1+tcomp['Z_TRUTH'])
+            dv = dv[dv!=0]
+        elif mode =='multiple-obs':
+            modes = 'all obs - deepest obs'
+            dv = (tcomp['Z'] - tcomp['Z_TRUTH'])*299792./(1+tcomp['Z_TRUTH'])
+            
+        # make histograms
+        BIN = (vbins[1:]+vbins[:-1])/2
+        dens,BINS,plot = plt.hist(dv, bins=vbins, histtype='step',label='repeat obs')
+
+        # fitting & plot
+        from scipy.optimize import curve_fit
+        popt, pcov = curve_fit(func,BIN,dens)    
+        plt.plot(BIN, func(BIN,*popt),c='k',label=label.format(popt[1]/rescale,np.sqrt(np.diag(pcov))[1]/rescale))
+        # plot the SHAM best-fit
+        plt.plot(BIN, func(BIN,popt[0],median,popt[2]),c='green',label=label1.format(median/rescale,diff/rescale))        
+        plt.title('repeat observation with dv = {}'.format(modes))
+        plt.ylim(0,1.5*max(dens))
+        plt.legend(loc=0)
+        plt.savefig('{}best-fit_vsmear_{}_z{}z{}_{}.png'.format(fileroot[:-10],gal,zmin,zmax,mode))
+        plt.close()
