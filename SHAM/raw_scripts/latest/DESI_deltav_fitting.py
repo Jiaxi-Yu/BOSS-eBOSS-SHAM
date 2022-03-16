@@ -17,6 +17,10 @@ task = sys.argv[1]
 # "plot" 'random_catalogue', 'lorentzian_random', 'voigt_random'
 TYPE = sys.argv[2]
 # 'LRG', 'ELG', 'QSO', 'BGS'
+catapath = sys.argv[3]
+# repeats_final-targets; repeats_Ashley-guess(old)
+mode = sys.argv[4]
+# 'multiple-obs'; 'one-obs'; 'inter-obs'
 dz,z,zrsel,ggzsel = {'LRG':[],'ELG':[],'QSO':[],'BGS':[]},{'LRG':[],'ELG':[],'QSO':[],'BGS':[]},{'LRG':[],'ELG':[],'QSO':[],'BGS':[]},{'LRG':[],'ELG':[],'QSO':[],'BGS':[]}
 #-- fit a Gaussian
 def gaussian(x,a,sigma,mu):
@@ -54,7 +58,7 @@ def sampling(datalen):
     return np.array(simu)
 
 if TYPE == 'LRG':
-    zmin=0.32;zmax=0.6
+    zmin=0.6;zmax=1.1#zmin=0.32;zmax=0.6
     maxdv = 200
     bins = np.arange(-maxdv,maxdv+1,5)
 elif TYPE == 'ELG':
@@ -72,25 +76,50 @@ elif TYPE =='BGS':
 
 zrange = 'z{}z{}'.format(zmin,zmax) #'z0.4z1.0' 'z0.32z0.6' 'z0.6z0.8'
 print('delta v: reading the catalogue')
-if not os.path.exists(datadir+'DESI_{}_redshift_uncertainty.fits.gz'.format(TYPE)):
-    tf = evalSR.add_truth(TYPE,release='cascades',version='3.1',bdir='/global/cfs/cdirs/desi/survey/catalogs/SV1/redshift_comps')
-    # zrsel for the redshift-range selection, ggsel for the redshift-range and removing-catastrophic selection
-    if TYPE =='QSO':
-        dz[TYPE],z[TYPE],ggzsel[TYPE] = evalSR.repeatvsdchi2(tf,TYPE+'lz')
+print(catapath+'/DESI_{}_redshift_uncertainty.fits.gz'.format(TYPE))
+if not os.path.exists(catapath+'/DESI_{}_redshift_uncertainty.fits.gz'.format(TYPE)):
+    if catapath == 'repeats_Ashley-guess':
+        baseline = True
     else:
-        dz[TYPE],z[TYPE],ggzsel[TYPE] = evalSR.repeatvsdchi2(tf,TYPE)
-else:
-    hdu = fits.open(datadir+'DESI_{}_redshift_uncertainty.fits.gz'.format(TYPE))
-    tcomp = hdu[1].data
-    hdu.close()
-    sel = (tcomp['Z_TRUTH']<zmax)&(tcomp['Z_TRUTH']>zmin)
-    sel &= tcomp['ZWARN'] == 0
-    tcomp = tcomp[sel]
-    ztrue = tcomp['Z_TRUTH']*1
+        baseline = False
+    tf = evalSR.add_truth(TYPE,baseline = baseline,release='cascades',version='3.1',bdir='/global/cfs/cdirs/desi/survey/catalogs/SV1/redshift_comps')
+    # zrsel for the redshift-range selection, ggsel for the redshift-range and removing-catastrophic selection
+    print(catapath)
+    if (TYPE =='QSO'):
+        dz[TYPE],z[TYPE],ggzsel[TYPE] = evalSR.repeatvsdchi2(tf,TYPE+'lz',catapath)
+    else:
+        dz[TYPE],z[TYPE],ggzsel[TYPE] = evalSR.repeatvsdchi2(tf,TYPE,catapath)
+        
+hdu = fitsio.read(catapath+'/DESI_{}_redshift_uncertainty.fits.gz'.format(TYPE))
+tcomp = Table(hdu)
+sel = (tcomp['Z_TRUTH']<zmax)&(tcomp['Z_TRUTH']>zmin)
+sel &= tcomp['ZWARN'] == 0
+tcomp = tcomp[sel]
+print('repetitive model:',mode)
+if mode == 'one-obs':
     dv = (tcomp['Z'] - tcomp['Z_TRUTH'])*299792./(1+tcomp['Z_TRUTH'])
     zerr = tcomp['ZERR']*299792./(1+tcomp['Z_TRUTH'])
+    A,B = np.unique(tcomp['TARGETID'],return_index=True)
+    dv = dv[B]
+    zerr = zerr[B]
+elif mode == 'inter-obs':
+    A = np.unique(tcomp['TARGETID'])
+    tcomp['ZERR_TRUTH']  = np.zeros(len(tcomp))
+    print(len(A))
+    for a in A:
+        tcomp[tcomp['TARGETID'] == a]['Z_TRUTH'] == tcomp[tcomp['TARGETID'] == a]['Z'][0]
+        tcomp[tcomp['TARGETID'] == a]['ZERR_TRUTH'] == tcomp[tcomp['TARGETID'] == a]['ZERR'][0]
+    dv = (tcomp['Z'] - tcomp['Z_TRUTH'])*299792./(1+tcomp['Z_TRUTH'])
+    zerr = np.sqrt(tcomp['ZERR_TRUTH']**2+tcomp['ZERR']**2)*299792./(1+tcomp['Z_TRUTH'])    
+    zerr = zerr[dv!=0]
+    dv = dv[dv!=0]
+elif mode =='multiple-obs':
+    dv = (tcomp['Z'] - tcomp['Z_TRUTH'])*299792./(1+tcomp['Z_TRUTH'])
+    zerr = tcomp['ZERR']*299792./(1+tcomp['Z_TRUTH'])
+    
 
-    #ztrue,dv,zerr = np.loadtxt('{}_deltav_{}_new.dat'.format(TYPE,zrange),unpack=True)
+#ztrue = tcomp['Z_TRUTH']*1
+#ztrue,dv,zerr = np.loadtxt('{}_deltav_{}_new.dat'.format(TYPE,zrange),unpack=True)
 
 if task == 'plot':
     print('delta v: fitting')
@@ -105,8 +134,8 @@ if task == 'plot':
         print('Gaussian finished')
         popt1, pcov1 = curve_fit(lorentzian,BIN,dens)
         print('Lorentzian finished')
-        popt2, pcov2 = curve_fit(pvoigt,BIN,dens,bounds=(np.array([0,0,-np.inf,0]),np.array([np.inf,1000,np.inf,np.inf])))
-        print('Voigt finished')
+        #popt2, pcov2 = curve_fit(pvoigt,BIN,dens,bounds=(np.array([0,0,-np.inf,0]),np.array([np.inf,1000,np.inf,np.inf])))
+        #print('Voigt finished')
         
         """
         # manual voigt realisation
@@ -126,7 +155,7 @@ if task == 'plot':
         outlierp = len(dv[(dv<1000)&(dv>maxdv)])
         plt.scatter(-maxdv,outliern,c='b',label='outliers')
         plt.scatter(maxdv,outlierp,c='b')
-        plt.title(TYPE+' dv histogram ,stdev = {:.1f} km/s'.format(np.std(dv)))
+        plt.title(TYPE+' dv histogram ,stdev = {:.1f} km/s, {:.1f}% of outliers'.format(np.std(dv),(outliern+outlierp)/norm*100))
         ax.set_xlim(-maxdv-5,maxdv+5)
         if jseq ==0:
             log = 'lin'
@@ -139,15 +168,16 @@ if task == 'plot':
         ax.set_ylabel('counts')
         ax.grid(True)
         plt.legend(loc=2)
-        plt.savefig('{}_deltav_hist_std{:.1f}_{}_maxdv{}-{}_new.png'.format(TYPE,np.std(dv),zrange,maxdv,log))
+        plt.savefig('{}/{}_deltav_hist_std{:.1f}_{}_maxdv{}-{}_new.png'.format(catapath,TYPE,np.std(dv),zrange,maxdv,log))
         plt.close()
+        
     print('{} in {} has {} pairs, fitting results are:'.format(TYPE,zrange,len(dv)))
     print('mu = {:.1f},sigma = {:.1f},chi2 = {:.1}'.format(popt[2],popt[1],sum((dens-gaussian(BIN,*popt))**2)))
     #print('abs<100 chi2 = {:.1}, abs>100 chi2 = {:.1}'.format(sum((dens[abs(BIN)<100]-gaussian(BIN,*popt)[abs(BIN)<100])**2),sum((dens[abs(BIN)>=100]-gaussian(BIN,*popt)[abs(BIN)>=100])**2)))
     print('lorentizan p0 = {:.1f}, sigma = {:.1f}, chi2 = {:.2}'.format(popt1[2],popt1[1]/np.sqrt(2*np.log(2))/2,sum((dens-lorentzian(BIN,*popt1))**2)))
     print('abs<100 chi2 = {:.1}, abs>100 chi2 = {:.1f}'.format(sum((dens[abs(BIN)<100]-lorentzian(BIN,*popt1)[abs(BIN)<100])**2),sum((dens[abs(BIN)>=100]-lorentzian(BIN,*popt1)[abs(BIN)>=100])**2)))
-    print('voigt mu = {:.1f}, sigma = {:.1f}, chi2={:.2}'.format(popt2[2],popt2[1],sum((dens-pvoigt(BIN,*popt2))**2)))
-    print('abs<100 chi2 = {:.1}, abs>100 chi2 = {:.1f}'.format(sum((dens[abs(BIN)<100]-pvoigt(BIN,*popt2)[abs(BIN)<100])**2),sum((dens[abs(BIN)>=100]-pvoigt(BIN,*popt2)[abs(BIN)>=100])**2)))
+    #print('voigt mu = {:.1f}, sigma = {:.1f}, chi2={:.2}'.format(popt2[2],popt2[1],sum((dens-pvoigt(BIN,*popt2))**2)))
+    #print('abs<100 chi2 = {:.1}, abs>100 chi2 = {:.1f}'.format(sum((dens[abs(BIN)<100]-pvoigt(BIN,*popt2)[abs(BIN)<100])**2),sum((dens[abs(BIN)>=100]-pvoigt(BIN,*popt2)[abs(BIN)>=100])**2)))
     print('stdev = ',np.std(dv))
 
     #-- fit a Gaussian for zerr/Delta v
@@ -167,20 +197,20 @@ if task == 'plot':
     plt.scatter(ratio,ratiodens,color='k')
     plt.plot(ratio, gaussian(ratio,*popt3), label=r'Gaussian $\sigma = {0:.1f}\pm{{{1:.2f}}}$, $\chi^2$ /dof = {2:.1}/{3:}'.format(popt3[1],np.sqrt(np.diag(pcov3))[1],sum(res2**2),len(res2)))
     plt.plot(ratio, lorentzian(ratio,*popt4), label = 'Lorentzian w/(2$\sqrt{2ln2})$'+' = ${:.1f} \pm {:.1f}, \chi^2/dof={:.1}/{}$'.format(popt4[1]/2/np.sqrt(2*np.log(2)),np.sqrt(np.diag(pcov4))[1]/2/np.sqrt(2*np.log(2)),sum(res3**2),len(res3)))
-    plt.xlabel(r'$\Delta v$ (km/s)')
+    plt.xlabel(r'$\Delta v$/ZERR')
     plt.ylabel('counts')
     plt.legend(loc=1)
     plt.ylim(0,max(ratiodens)*1.3)
     plt.title(TYPE+' dv/ZERR at {}<z<{}'.format(zmin,zmax))
 
-    plt.savefig('{}_dvzerr_hist_{}_maxdv{}.png'.format(TYPE,zrange,maxdv))
+    plt.savefig('{}/{}_dvzerr_hist_{}_maxdv{}.png'.format(catapath,TYPE,zrange,maxdv))
     plt.close()
     #import pdb;pdb.set_trace()
     dvzerrsel = (abs(dv)<maxdv*2)&(zerr<maxdv/5*2)
     plt.hexbin(dv[dvzerrsel],zerr[dvzerrsel],bins='log')
     plt.xlabel('dv')
     plt.ylabel('zerr')
-    plt.savefig('{}_hexbin_dvzerr_{}.png'.format(TYPE,zrange))
+    plt.savefig('{}/{}_hexbin_dvzerr_{}.png'.format(catapath,TYPE,zrange))
     plt.close()
 
 
