@@ -11,12 +11,11 @@ import sys
 import re
 import os
 
-
 task = sys.argv[1]
 home = '/global/cscratch1/sd/jiaxi/SHAM/catalog/'
 print(task)
 if task == 'plot':
-    hdu = fitsio.read(home+'eboss-decals.fits.gz')
+    hdu = fitsio.read(home+'eboss-decals_5e-4.fits.gz')
     data_woi = Table(hdu)
     unsel = np.isnan(data_woi['Z_PHOT_MEAN'])&(data_woi['Z_PHOT_MEAN']==-1000)&(data_woi['Z_PHOT_MEAN']==-99)
     countsc,bins = np.histogram(data_woi['Z_PHOT_MEAN'],bins = np.linspace(0.6,1.0,20))
@@ -32,12 +31,23 @@ if task == 'plot':
     plt.savefig('completeness_eBOSS.pdf')
     plt.close()
 elif task == 'mismatching':
-        hdu = fitsio.read(home+'eboss-decals_5e-4.fits.gz')
-        eboss = Table(hdu)  
-        eboss = eboss[eboss['Z_PHOT_MEAN']==-1000]
-        np.savetxt('mismatching.csv',np.array([eboss['RA'],eboss['DEC']]).T,header='RA DEC')
+    distance_thresh = 5e-4*2
+    hdu = fitsio.read(home+'eboss-decals_5e-4.fits.gz')
+    eboss = Table(hdu)  
+    # set -1000 for long-distance matching; -99 from DeCaLS original data
+    seldis = (eboss['Z_PHOT_MEAN']==-1000)
+    selz   = (eboss['Z_PHOT_MEAN']==-99) 
+    selobs = (np.isnan(eboss['Z_PHOT_MEAN']))
+    print('{:.1f}% of eBOSS has no matching photo z'.format(100*len(eboss[seldis|selz|selobs])/len(eboss)))
+    print('{:.1f}% of eBOSS has distance larger than {}'.format(100*len(eboss[seldis])/len(eboss),distance_thresh))
+    print('{:.1f}% of eBOSS has no DECaLS photo z'.format(100*len(eboss[selz])/len(eboss)))
+    print('{:.1f}% of eBOSS has no DECaLS bricks'.format(100*len(eboss[selobs])/len(eboss)))
+    # filtering the mismatched one
+    eboss = eboss[eboss['Z_PHOT_MEAN']==-1000]
+    for i in range(3):
+        np.savetxt('mismatching{}.csv'.format(i),np.array([eboss['RA'][20000*i:20000*(i+1)],eboss['DEC'][20000*i:20000*(i+1)]]).T,header='RA DEC')
 elif task == 'brick-matching':
-    distance_thresh = 2e-4
+    distance_thresh = 5e-4*2
     # find the name of the sweep file
     def fname(ra, dec):
         ra1 = int((ra // 10) * 10)  
@@ -49,7 +59,8 @@ elif task == 'brick-matching':
         char = ['m','p']  
         return f'{ra1:03d}{char[sgn1]}{abs(dec1):03d}-{ra2:03d}{char[sgn2]}{abs(dec2):03d}'
     # read the eBOSS catalogue without i-band lower limit
-    midver = home+'eBOSS_matching-progress/1.north-cover-south/eboss-decals_5e-4.fits.gz'
+    midver = home+'eBOSS_matching-progress/3.thresh_2e-5-to-5e-4/eboss-decals_5e-4.fits.gz'
+    # 1.north-cover-south, 2.thresh_2e-5, 3.thresh_2e-5-to-5e-4, 
     finver = home+'eBOSS_matching-progress/final/eboss-decals_5e-4.fits.gz'
     ## if the intermidiate version doesn't exist, start from scratch
     if not os.path.exists(midver):
@@ -61,7 +72,7 @@ elif task == 'brick-matching':
     ## if the intermediate version exists, but not the final one
     ## checking the long-distance macthing from its output
     elif not os.path.exists(finver):
-        print('no final file')
+        print('no final file, start from ',midver)
         hdu = fitsio.read(midver)
         eboss = Table(hdu)
         eboss = eboss[eboss['Z_PHOT_MEAN']==-1000]
