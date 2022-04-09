@@ -20,20 +20,23 @@ import corner
 import h5py
 from scipy.stats import cauchy
 
-
-home  = '/global/cscratch1/sd/jiaxi/SHAM/catalog/DESItest/'
+output  = '/global/homes/j/jiaxi/SHAM/'
+home    = output+'catalog/DESISV3/'
 
 
 # variables
 gal      = sys.argv[1]
-cata     = sys.argv[2] # UNIT ABACUS
-date     = sys.argv[3]#'0218'#sys.argv[8]
-Vsmeartype = sys.argv[4] # Gaussian Lorentzian
+cata     = 'UNIT'#sys.argv[2] # UNIT ABACUS
+date     = '0218'#sys.argv[3]#
+Vsmeartype= sys.argv[2] # Gaussian Lorentzian
+zmin     = sys.argv[3]
+zmax     = sys.argv[4]
+maxdv    = sys.argv[5]
+targetdate  = 'data-202112'
 GC       = 'NGC+SGC'#sys.argv[2]
 rscale   = 'linear'#sys.argv[3] #'linear' # 'log'
 finish   = 1#int(sys.argv[5])
 pre      = ''#sys.argv[4]
-targetdate  = 'data-202112'
 #'0218': 3-param, '0726':mock-SHAM 3-param, '0729': 2-param
 function = 'mps' # 'wp'
 nseed    = 16
@@ -51,11 +54,10 @@ autocorr = 1
 mu_max   = 1
 nmu      = 120
 autocorr = 1
-output     = '/global/homes/j/jiaxi/SHAM/'
 if Vsmeartype == 'Gaussian':
     fileroot = '{}MCMCout/zbins_{}/DESItest_{}/multinest_'.format(output,date,gal)
 else:
-    fileroot = '{}MCMCout/zbins_{}/DESItest_{}_Lorentzian/multinest_'.format(output,date,gal)
+    fileroot = '{}MCMCout/zbins_{}/DESItest_{}_Lorentzian_z{}z{}/multinest_'.format(output,date,gal,zmin,zmax)
 cols = ['col2','col3']
 if date == '0218':
     parameters = ["sigma","Vsmear","Vceil"]
@@ -96,7 +98,7 @@ g = plots.getSubplotPlotter()
 g.triangle_plot(sample,parameters, filled=True)
 for yi in range(npar): 
     for xi in range(yi):
-        ax = g.subplots[yi,xi]
+        ax = g.subplots[yi,xi] # to print best-fit, use [yi,yi], but sigma is too narrow
         ax.plot(a.get_best_fit()['parameters'][xi],a.get_best_fit()['parameters'][yi], "*",color='k') 
 g.export('{}{}_{}_{}_posterior.png'.format(fileroot[:-10],date,gal,GC))
 plt.close()
@@ -121,66 +123,8 @@ else:
     print('the best-fit parameters: sigma {},Vsmear {} km/s, Vceil {} km/s'.format(a.get_best_fit()['parameters'][0],a.get_best_fit()['parameters'][1],a.get_best_fit()['parameters'][2]))
 print('its chi2: {:.6}'.format(-2*a.get_best_fit()['log_likelihood']))
 
-if not finish: 
-    # create observational files for tests
-    for datatype,tail,pair in zip(['XI02','WP'],['dat','wp'],['xi0-rmu','wp-rp-pi']):
-        if not os.path.exists(home+'data-202112/QSO_z0.8z2.1.wp'):
-            targets,mpsdates = [home+'data-202112/',home+'data-202110/'],['XI_17DEC','XI_11Oct']
-            if tail == 'wp':
-                targets,mpsdates = [home+'data-202112/'],['XI_17DEC']
-            for target,mpsdate in zip(targets,mpsdates):
-                GALS = ['LRG','ELG','BGS_BRIGHT','QSO']
-                if mpsdate == 'XI_11Oct':
-                    GALS = ['LRG','ELG']
-                for GAL in GALS:
-                    origin = '/global/cfs/cdirs/desi/survey/catalogs/SV3/LSS/LSScats/test_Shadab/{}/{}/'.format(mpsdate,datatype)#XI_17DEC  XI_11Oct
-                    if GAL == 'LRG':
-                        zmins = [0.4,0.6,0.8,0.6]
-                        zmaxs = [0.6,0.8,1.1,1.1]
-                    elif GAL == 'ELG':
-                        zmins = [0.8,1.1,0.8]
-                        zmaxs = [1.1,1.5,1.5]
-                    elif GAL == 'BGS_BRIGHT':
-                        zmins = [0.1,0.2,0.3,0.1]
-                        zmaxs = [0.3,0.4,0.5,0.5]
-                    elif GAL == 'QSO':
-                        zmins = [0.8,1.1,1.5,0.8]
-                        zmaxs = [1.1,1.5,2.1,2.1]
-                        if tail == 'wp':
-                            pair = 'wp-logrp-pi'
-                    for zmin,zmax in zip(zmins,zmaxs):
-                        data = []
-                        obsdir = '{}{}_NS_CLUSTERING_wEdWsys_z1z2_{}-{}_pip_angup-{}-NJN-240.txt'.format(origin,GAL,zmin,zmax,pair)
-                        obsraw0 = np.loadtxt(obsdir)[:25]
-                        data.append(obsraw0[:,0])
-                        data.append(obsraw0[:,3])
-                        if tail == 'dat':
-                            # read & save complete xi0 & xi2 and truncated covR
-                            obsdir = '{}{}_NS_CLUSTERING_wEdWsys_z1z2_{}-{}_pip_angup-xi2-rmu-NJN-240.txt'.format(origin,GAL,zmin,zmax)
-                            obsraw2 = np.loadtxt(obsdir)[:25]
-                            data.append(obsraw2[:,3])
-                            tot2 = obsraw2[5:,4:]
-                            err2 = obsraw2[5:,2]
-                            data.append(obsraw0[:,2])
-                            data.append(obsraw2[:,2])
 
-                            # calculate covariance matrix
-                            mocks = np.vstack((tot1,tot2))
-                            print(np.std(mocks,axis=1)*np.sqrt(239)-np.append(err1,err2))
-                            Nbins = mocks.shape[0]
-                            Nmock = mocks.shape[1]
-                            covcut  = np.cov(mocks)*239
-                            covR  = np.linalg.pinv(covcut)*(Nmock-Nbins-2)/(Nmock-1)
-                            np.savetxt('{}{}-covR_z{}z{}.{}'.format(target,GAL,zmin,zmax,tail),covR)
-                        else:
-                            # save complete wp and errors
-                            err1 = obsraw0[:,2]
-                            data.append(err1)
-
-                        # save observation
-                        np.savetxt('{}{}_z{}z{}.{}'.format(target,GAL,zmin,zmax,tail),np.array(data).T)
-
-else:
+if finish:
     # write the multinest/gedist analysis report
     file = '{}Vzsmear_report_{}_{}.txt'.format(fileroot[:-10],gal,GC)
     if not os.path.exists(file):
@@ -214,22 +158,27 @@ else:
         SHAMnum   = 1001760
         zmin = 0.6 ; zmax  = 1.1
         a_t = '0.54980'
-        maxdv = 200
+        #maxdv = 300
+    elif gal == 'LRGlow':
+        SHAMnum   = 1187982
+        zmin = 0.4 ; zmax  = 0.6
+        a_t = '0.67120'
+        #maxdv = 300
     elif gal=='ELG':
         SHAMnum   = 13542938
         zmin = 0.8 ; zmax  = 1.5
         a_t = '0.48140'
-        maxdv = 100
+        #maxdv = 100
     elif gal=='BGS_BRIGHT':
         SHAMnum   = 4258386
         zmin = 0.2 ; zmax  = 0.4
         a_t = '0.74980'
-        maxdv = 150
+        #maxdv = 150
     elif gal == 'QSO':
         SHAMnum = 126606
         zmin = 0.8 ; zmax  = 2.1
         a_t = '0.41230'
-        maxdv = 400
+        #maxdv = 400
     # delta v bins
     vbins = np.arange(-maxdv,maxdv+1,5)
 
@@ -335,10 +284,11 @@ else:
             if Vsmeartype == 'Gaussian':
                 z_redshift = (LRGscat[:,4]+(LRGscat[:,0]+append(sigma*sqrt(-2*log(uniform[:scathalf]))*cos(2*pi*uniform[-scathalf:]),sigma*sqrt(-2*log(uniform[:scathalf]))*sin(2*pi*uniform[-scathalf:])))*(1+z)/H)
             else:
-                vsmear = cauchy.rvs(loc=0, scale=sigma, size=SHAMnum)
-                while len(vsmear[abs(vsmear)>200])>0:
-                    vsmear[abs(vsmear)>200] = cauchy.rvs(loc=0, scale=sigma, size=len(vsmear[abs(vsmear)>200]))
-                z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+vsmear)*(1+z)/H)
+                lorentz = np.tan((2*uniform-1)*np.pi)*sigma/2
+                while len(lorentz[abs(lorentz)>maxdv])>0:
+                    uni_tmp = np.random.RandomState(seed=time.time()).rand(len(lorentz[abs(lorentz)>maxdv]))
+                    lorentz[abs(lorentz)>maxdv] = np.tan((2*uni_tmp-1)*np.pi)*sigma/2
+                z_redshift  = (LRGscat[:,4]+(LRGscat[:,0]+lorentz)*(1+z)/H)
             z_redshift %=boxsize
             
             # Corrfunc 2pcf and wp
@@ -579,3 +529,5 @@ else:
         plt.legend(loc=0)
         plt.savefig('{}best-fit_vsmear_{}_z{}z{}_{}.png'.format(fileroot[:-10],gal,zmin,zmax,mode))
         plt.close()
+
+
