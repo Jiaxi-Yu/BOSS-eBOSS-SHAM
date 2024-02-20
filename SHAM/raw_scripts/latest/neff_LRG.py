@@ -48,7 +48,7 @@ def neff(z, nz, sel):
     neff2 = simps(nz**2 * chi**2, x=chi) / simps(chi**2, x=chi)
     return np.sqrt(neff2)
 
-root =  '/home/jiaxi/Desktop/'
+root =  '/home/jiaxi/Desktop/data_archive/'
 gal  = sys.argv[1]
 if gal == 'eBOSS':
     fileroot = root+'clustering_eBOSS/nbar_eBOSS_LRG_{}GC_v7_2.dat'

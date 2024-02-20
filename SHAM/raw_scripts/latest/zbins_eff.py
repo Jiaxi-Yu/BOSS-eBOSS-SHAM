@@ -3,13 +3,14 @@ import numpy as np
 import sys
 
 zw = {}
+root =  '/home/jiaxi/Desktop/data_archive/' #'/global/cscratch1/sd/jiaxi/SHAM/catalog/BOSS_data/' #
 
 if sys.argv[1] == 'eBOSS':
     for gal,ver in zip(['LRG'],['v7_2']):#zip(['LRG','ELG'],['v7_2','v7']):
         f = open(gal+'zeff.txt','w')
         f.write('# zmin zmax zeff Ngal \n')
         for GC in ['NGC','SGC']:
-            filename = '/global/cscratch1/sd/jiaxi/SHAM/catalog/eBOSS_clustering_fits/eBOSS_{}_clustering_{}_{}.dat.fits'.format(gal,GC,ver)
+            filename = root+'eBOSS_clustering/eBOSS_{}_clustering_{}_{}.dat.fits'.format(gal,GC,ver)
             hdu = fits.open(filename)
             zw[gal+'_'+GC+'_z']=hdu[1].data['Z']
             zw[gal+'_'+GC+'_w']=hdu[1].data['WEIGHT_FKP']*hdu[1].data['WEIGHT_SYSTOT']*hdu[1].data['WEIGHT_CP']*hdu[1].data['WEIGHT_NOZ']
@@ -29,12 +30,11 @@ if sys.argv[1] == 'eBOSS':
         f.close()
 else:
     ver = 'DR12v5'
-    root =  '/global/cscratch1/sd/jiaxi/SHAM/catalog/BOSS_data/' #'/home/jiaxi/Desktop/BOSS_clustering/'
-    for gal in ['CMASSLOWZTOT','CMASS','LOWZ']:
-        f = open(root+gal+'zbins.txt','w')
+    for gal in ['CMASSLOWZTOT']:#,'CMASS','LOWZ']:
+        f = open(root+'clustering_BOSS/'+gal+'zbins.txt','a')
         f.write('# zmin zmax zeff Ngal ngal(e-4)\n')
         for GC in ['North','South']:
-            filename = root+'galaxy_{}_{}_{}.dat'.format(ver,gal,GC)
+            filename = root+'clustering_BOSS/'+'galaxy_{}_{}_{}.dat'.format(ver,gal,GC)
             X,Y,Z,w_tot = np.loadtxt(filename,unpack=True,skiprows=1)
             zw[gal+'_'+GC+'_z'] = np.copy(Z)
             zw[gal+'_'+GC+'_w'] = np.copy(w_tot)
@@ -45,8 +45,8 @@ else:
                 zmins = [0.43,0.51,0.57,0.43]
                 zmaxs = [0.51,0.57,0.70,0.70]
             elif gal == 'CMASSLOWZTOT':
-                zmins = [0.2]
-                zmaxs = [0.75]
+                zmins = [0.2, 0.4]
+                zmaxs = [0.75,0.6]
                 
         for zmin,zmax in zip(zmins,zmaxs):
             sel1 = (zw[gal+'_North_z']>zmin)&(zw[gal+'_North_z']<=zmax)
