@@ -6,16 +6,11 @@ import numpy as np
 from scipy.optimize import curve_fit
 import pylab as plt
 import os
-from lmfit.models import PseudoVoigtModel
-"""
-import numpy.ma as ma
-test = ma.array(tac['WEIGHT_SPEC']) 
-tac['WEIGHT_SPEC'][np.where(test.mask==True)]=1
-"""
-c_kms = 299792.
-home = '/global/homes/j/jiaxi/SDSS_redshift_uncertainty/Vsmear-photo'
-cutind = 35
 
+c_kms = 299792.
+scratch = os.environ['SCRATCH']+'/SHAM/catalog/SDSS_data/'
+home = '/global/homes/j/jiaxi/SDSS_redshift_uncertainty/Vsmear-reproduce/'#-photo'
+cutind = 35
 
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
@@ -32,75 +27,79 @@ def targetid2platemjdfiber(targetid):
     return plate, mjd, fiber
 
 def write_spall_redrock_join(spallname, zbestname, output):
+    if not os.path.exists(output):
+        print('Reading spAll')
+        spall = fitsio.read(spallname,
+                    columns=['PLATE', 'MJD', 'FIBERID', 'THING_ID',
+                             'BOSS_TARGET1', 'EBOSS_TARGET0', 'EBOSS_TARGET1', 'SPECTROFLUX',
+                             'SN_MEDIAN', 
+                             'OBJID',
+                             'CHUNK','THING_ID_TARGETING',
+                             'ZWARNING', 'ZWARNING_NOQSO', 'Z', 'Z_NOQSO', 'DOF', 
+                             'RCHI2DIFF', 'RCHI2DIFF_NOQSO', 'SPECPRIMARY'])
 
-    print('Reading spAll')
-    spall = fitsio.read(spallname,
-                columns=['PLATE', 'MJD', 'FIBERID', 'THING_ID',
-                         'BOSS_TARGET1', 'EBOSS_TARGET0', 'EBOSS_TARGET1', 
-                         'SN_MEDIAN', 
-                         'OBJID',
-                         'CHUNK','THING_ID_TARGETING',
-                         'ZWARNING', 'ZWARNING_NOQSO', 'Z', 'Z_NOQSO', 'DOF', 
-                         'RCHI2DIFF', 'RCHI2DIFF_NOQSO', 'SPECPRIMARY'])
+        print('Reading zbest')
+        redrock = fitsio.read(zbestname)
 
-    print('Reading zbest')
-    redrock = fitsio.read(zbestname)
-    
-    print('Making tables')
-    ta = Table(spall)
-    tc = Table(redrock)
-    redrock=[];spall=[]
-    tc['PLATE'], tc['MJD'], tc['FIBERID'] = \
-        targetid2platemjdfiber(tc['TARGETID'])
-    
-    for name in tc.colnames:
-        if name not in ['PLATE', 'MJD', 'FIBERID']:
-            if name=='Z':
-                tc[name].name = 'Z-_REDROCK'
-            elif name == 'Z_REDROCK':
-                pass
-            else:
-                tc[name].name = name+'_REDROCK'
+        print('Making tables')
+        ta = Table(spall)
+        tc = Table(redrock)
+        redrock=[];spall=[]
+        tc['PLATE'], tc['MJD'], tc['FIBERID'] = \
+            targetid2platemjdfiber(tc['TARGETID'])
 
-    print('Joining tables')
-    if output.find('photo')==-1:
-        tac = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
-                   join_type='left')
+        for name in tc.colnames:
+            if name not in ['PLATE', 'MJD', 'FIBERID']:
+                if name=='Z':
+                    tc[name].name = 'Z-_REDROCK'
+                elif name == 'Z_REDROCK':
+                    pass
+                else:
+                    tc[name].name = name+'_REDROCK'
+
+        print('Joining tables')
+        if home.find('photo')==-1:
+            tac = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
+                       join_type='left')
+        else:
+            tac_tmp = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
+                       join_type='left')
+            ta = [];tc=[];
+            print('reading photo-info file')
+            photo_tmp =  fitsio.read('Photo_dr16.fits.gz',\
+                            columns=['OBJID','CMODELMAG','MODELMAG','PSFMAG','FIBER2MAG'])
+            photo = Table(photo_tmp)
+            photo_tmp = []
+            tac = join(tac_tmp,photo,keys=['OBJID'],join_type='left')
+
+        print('Writing joined table')
+        tac.write(output, format='fits', overwrite=True)
     else:
-        tac_tmp = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
-                   join_type='left')
-        ta = [];tc=[];
-        print('reading photo-info file')
-        photo_tmp =  fitsio.read('Photo_dr16.fits.gz',\
-                        columns=['OBJID','CMODELMAG','MODELMAG','PSFMAG','FIBER2MAG'])
-        photo = Table(photo_tmp)
-        photo_tmp = []
-        tac = join(tac_tmp,photo,keys=['OBJID'],join_type='left')
-
-    print('Writing joined table')
-    tac.write(output, format='fits', overwrite=True)
+        print('file exists: ',output)
 
 def write_spall_repeats(spallin, spallout, ncount=2):
+    if not os.path.exists(spallout):
+        a = Table.read(spallin)
 
-    a = Table.read(spallin)
+        thid = a['THING_ID']
 
-    thid = a['THING_ID']
+        #-- get unique values and number of occurrencies
+        uthid, counts = np.unique(thid, return_counts=True) 
 
-    #-- get unique values and number of occurrencies
-    uthid, counts = np.unique(thid, return_counts=True) 
+        #-- repeats are entries with more than one count
+        if ncount is None:
+            ruthid = uthid[counts>1]
+        else:
+            ruthid = uthid[counts==ncount]
 
-    #-- repeats are entries with more than one count
-    if ncount is None:
-        ruthid = uthid[counts>1]
+        #-- get elements that are repeated
+        w = np.isin(thid, ruthid) 
+
+        print(sum(w), 'repeats of ', w.size)
+        t = Table(a[w])
+        t.write(spallout, overwrite=True)
     else:
-        ruthid = uthid[counts==ncount]
-
-    #-- get elements that are repeated
-    w = np.isin(thid, ruthid) 
- 
-    print(sum(w), 'repeats of ', w.size)
-    t = Table(a[w])
-    t.write(spallout, overwrite=True)
+        print('file exists: ',spallout)
 
 
 def get_targets(spall, target='LRG'):
@@ -125,8 +124,8 @@ def get_targets(spall, target='LRG'):
 
     return spall[w]
 
-def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redrock=0, spec1ddr16=0,GC='NGC+SGC'):
-    filename = '{}/{}-{}_deltav_z{}z{}-{}.fits.gz'.format(home,proj,target,zmin,zmax,GC)
+def get_delta_velocities_from_repeats(spall,proj,target,spec1d=0, redrock=0, spec1ddr16=0,GC='NGC+SGC'):
+    filename = '{}/{}-{}_deltav-{}.fits.gz'.format(home,proj,target,GC)
     if GC == 'NGC':
         spallsel = (spall['RA_REDROCK']>120)&(spall['RA_REDROCK']<240)
         spall = spall[spallsel]
@@ -147,18 +146,21 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
     zerr_field = 'ZERR_REDROCK'
 
     # select repeats
-    if os.path.exists(filename):
+    info = {'thids': [], 'delta_v':[], 'delta_chi2':[], \
+            'z':[], 'zerr':[],'zerr0':[],'zerr1':[],\
+            'sn_i': [], 'sn_z': []}
+    if home.find('photo')==-1:
+        info = {**info,'mag':[]}
+    else:
+        info = {**info,'cmodelmag':[],'modelmag':[],'psfmag':[],'fiber2mag':[], 'gi':[]}
 
-        info = {'thids': [], 'delta_v':[], 'delta_chi2':[], \
-                'z':[], 'zerr':[],'zerr0':[],'zerr1':[],\
-                'sn_i': [], 'sn_z': [],'gi':[]}
+    if os.path.exists(filename):
         hdu = fits.open(filename)
         data = hdu[1].data
         hdu.close()
         for k in info.keys():
             info[k] = np.array(data[k])
-        print('{}<z<{} has {} duplicates'.format(zmin,zmax,len(np.array(data['z']))))
-
+        print('{} {} has {} duplicates'.format(proj,target,len(np.array(data['z']))))
     else:
         print('Total galaxies', len(spall))
         w =  (spall[zwar_field] == 0) | (spall[zwar_field]==4)
@@ -168,17 +170,11 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
 
         spall = spall[w]
 
-        info = {'thids': [], 'delta_v':[], 'delta_chi2':[], \
-                'z':[], 'zerr':[],'zerr0':[],'zerr1':[],\
-                'sn_i': [], 'sn_z': [],\
-                'cmodelmag':[],'modelmag':[],'psfmag':[],'fiber2mag':[], 'gi':[]}
-
         uthid, index, inverse, counts = np.unique(spall['THING_ID'], return_index=True, return_inverse=True, return_counts=True)
 
         w = (counts == 2)
         print('Selecting only duplicates', np.sum(w), w.size)
         uthid = uthid[w]
-        zflag=[]
 
         for thid in uthid:
             if thid in info['thids']:
@@ -218,31 +214,28 @@ def get_delta_velocities_from_repeats(spall,proj,target,zmin,zmax,spec1d=0, redr
             info['zerr1'].append((spall["SPECPRIMARY"][j2]*spall[zerr_field][j2]+spall["SPECPRIMARY"][j1]*spall[zerr_field][j1])*c_kms/(1+z_clustering))
             flaginv2 = 1-spall["SPECPRIMARY"][j2];flaginv1 = 1-spall["SPECPRIMARY"][j1]
             info['zerr0'].append((flaginv2*spall[zerr_field][j2]+flaginv1*spall[zerr_field][j1])*c_kms/(1+z_clustering))
-            
-            # photometric info:
-            magnitudes = spall[j1]['CMODELMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['CMODELMAG']*spall["SPECPRIMARY"][j2]
-            info['cmodelmag'].append(magnitudes)
-            info['modelmag'].append(spall[j1]['MODELMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['MODELMAG']*spall["SPECPRIMARY"][j2])
-            info['psfmag'].append(spall[j1]['PSFMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['PSFMAG']*spall["SPECPRIMARY"][j2])
-            info['fiber2mag'].append(spall[j1]['FIBER2MAG']*spall["SPECPRIMARY"][j1]+spall[j2]['FIBER2MAG']*spall["SPECPRIMARY"][j2])
-            info['gi'].append(magnitudes[1]-magnitudes[3])
-
+            if home.find('photo')==-1:
+                flux_i = (spall[j1]['SPECTROFLUX']*spall["SPECPRIMARY"][j1]+spall[j2]['SPECTROFLUX']*spall["SPECPRIMARY"][j2])[3]
+                info['mag'].append(22.5 - 2.5 * np.log10(flux_i))
+            else:
+                # photometric info:
+                magnitudes = spall[j1]['CMODELMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['CMODELMAG']*spall["SPECPRIMARY"][j2]
+                info['cmodelmag'].append(magnitudes)
+                info['modelmag'].append(spall[j1]['MODELMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['MODELMAG']*spall["SPECPRIMARY"][j2])
+                info['psfmag'].append(spall[j1]['PSFMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['PSFMAG']*spall["SPECPRIMARY"][j2])
+                info['fiber2mag'].append(spall[j1]['FIBER2MAG']*spall["SPECPRIMARY"][j1]+spall[j2]['FIBER2MAG']*spall["SPECPRIMARY"][j2])
+                info['gi'].append(magnitudes[1]-magnitudes[3])
 
         # print information in this sample
-        zflag = (np.array(info['z'])>zmin)&(np.array(info['z'])<zmax)
-        print('{}<z<{} has {} duplicates'.format(zmin,zmax,len(np.array(info['z'])[zflag])))
-        
         cols = []
-        print('before:',np.array(info['z']).shape)
+        print('there are {} repeat pairs in total'.format(np.array(info['z']).shape))
         for k in info.keys():
-            info[k] = np.array(info[k])[zflag]
-            if k.find('mag')==-1:
+            if (k.find('mag')==-1)|(k=='mag'):
                 cols.append(fits.Column(name=k,format='D',array=info[k]))
             else:
                 cols.append(fits.Column(name=k,format='5E',array=info[k]))                
         hdulist = fits.BinTableHDU.from_columns(cols)
         hdulist.writeto(filename,overwrite=True)
-        print('after:',np.array(info['z']).shape)
 
     return info
 
@@ -285,14 +278,16 @@ def jacknife_hist(dvsel,bins,nsub,save=0,gaussian=True):
     
     return output
     
-def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0,coloursel=False):
+def plot_deltav_hist(info,target,zmin,zmax,max_dv=500., min_deltachi2=9, nsubvolume = 1000,title=None, save=0,coloursel=False):
     #-- select inside redshift range, reject outliers
+    info = info[(zmin<info['z'])&(info['z']<zmax)]
     dc = info['delta_chi2']
     dv = info['delta_v']
     z = info['z']
     zerr = info['zerr']
     w = (dc > min_deltachi2)&(abs(dv)<1000)
     dvsel = dv[w]
+    zrange = 'z{}z{}'.format(zmin,zmax)
     
     # binning dv[w]
     binwidth = 5
@@ -358,7 +353,8 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
         popt1, pcov1 = curve_fit(lorentzian,BIN,dens,sigma=histcovR)
         res1 = lorentzian(BIN,*popt1)-dens
         print('Lorentzian fit in [-{},{}]: Vsmear = [{:.1f},{:.1f}]'.format(max_dv,max_dv,(popt1[1]-np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2)),(popt1[1]+np.sqrt(np.diag(pcov1))[1])/2/np.sqrt(2*np.log(2))))  
-
+        
+        from lmfit.models import PseudoVoigtModel
         mod = PseudoVoigtModel()
         pars = mod.guess(dens, x=BIN)
         out = mod.fit(dens, pars, x=BIN,weights=1/histstd**2)
@@ -393,7 +389,7 @@ def plot_deltav_hist(info,target,zrange,max_dv=500., min_deltachi2=9, nsubvolume
         ratiodens,ratiobin = np.histogram(dv/zerr,ratios)
         ratiodens = ratiodens/len(ratiodens)
         
-        BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:cutind]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-zerr-{}.dat'.format(GC))
+        BIN,hists = jacknife_hist(dv/zerr,ratios,nsub = nsubvolume,save = save[:-4]+target+'-'+zrange+'-maxdv'+str(max_dv)+'-jacknife-zerr-{}.dat'.format(GC))
         hists =hists/len(ratiodens)
         histstd = np.std(hists,axis=1)*np.sqrt(nsubvolume)
         histcovR = np.linalg.pinv(np.cov(hists)*nsubvolume)*(hists.shape[1]-hists.shape[0]-2)/(hists.shape[1]-1)
@@ -422,36 +418,46 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
     #import pdb;pdb.set_trace()
     if spec1d:
         zsource = 'spec1d'
-        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,spec1d=1,GC=GC)
+        info = get_delta_velocities_from_repeats(sp,proj,target,spec1d=1,GC=GC)
     elif redrock:
         zsource = 'redrock'
-        info = get_delta_velocities_from_repeats(sp,proj,target,zmin,zmax,redrock=1,GC=GC)
+        info = get_delta_velocities_from_repeats(sp,proj,target,redrock=1,GC=GC)
         
-    plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC),coloursel=coloursel)
+    plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/plots/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC),coloursel=coloursel)
     #plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
         
 ##=================================================================================
+if home.find('photo')==-1:
+    zbestname = 'spAll-zbest-v5_13_0.fits'
+    repeatname= 'spAll-zbest-v5_13_0-repeats-2x_redrock.fits'
+    colorsel=False
+else:
+    zbestname = 'spAll-zbest-v5_13_0-photo.fits' # with photo info
+    repeatname= 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits'
+    colorsel=True
+    
+repeatnames = home+repeatname    
+write_spall_redrock_join(scratch+'spAll-v5_13_0.fits', scratch+'spAll_trimmed_pREDROCK.fits',scratch+zbestname) # with photo info
+write_spall_repeats(scratch+zbestname, repeatnames) # with photo-info
 
-#write_spall_redrock_join('spAll-v5_13_0.fits', 'spAll_trimmed_pREDROCK.fits','spAll-zbest-v5_13_0-photo.fits') # with photo info
-#write_spall_repeats('spAll-zbest-v5_13_0-photo.fits', 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits') # with photo-info
+
 #write_spall_repeats('specObj-dr16.fits', 'spAll-zbest-dr16-repeats-2x_LOWZ.fits') # two populations of LOWZ: before MJD (zerr=0) and after
 #write_spall_repeats('spAll-v5_4_45.fits', 'spAll-zbest-v5_4_45-repeats-2x.fits') # an older version
 #plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin=0.2,zmax=0.43,target='LOWZ',dchi2=9,spec1d=1,maxdv=140)
 
 GC = 'NGC+SGC'
-repeatname = '/global/homes/j/jiaxi/SDSS_redshift_uncertainty/spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits'
 
 zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
 zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
 maxdvs = [235,275,275,300,255,360]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms(repeatname,'eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv,coloursel=True)
+    plot_all_deltav_histograms(repeatnames,'eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv,coloursel=colorsel)
 
 zmins = [0.43,0.51,0.57,0.43]
 zmaxs = [0.51,0.57,0.7,0.7]
 maxdvs = [205,200,235,270]
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms(repeatname,'BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1,maxdv=maxdv,coloursel=True)
+    plot_all_deltav_histograms(repeatnames,'BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1,maxdv=maxdv,coloursel=colorsel)
     
 zmins = [0.2, 0.33,0.2]
 zmaxs = [0.33,0.43,0.43]
@@ -462,11 +468,17 @@ elif GC == 'SGC':
 else:
     maxdvs = [105,140,140] # NGC+SGC
 for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms(repeatname,'BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1,maxdv=maxdv,GC=GC,coloursel=True)
+    plot_all_deltav_histograms(repeatnames,'BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1,maxdv=maxdv,GC=GC,coloursel=colorsel)
     #plot_all_deltav_histograms('spAll-zbest-dr16-repeats-2x_LOWZ.fits','BOSS',zmin,zmax,target='LOWZdr16',dchi2=9,spec1d=1,maxdv=maxdv)
 
 ###############################################################################################   
 """
+# remove masked data
+import numpy.ma as ma
+test = ma.array(tac['WEIGHT_SPEC']) 
+tac['WEIGHT_SPEC'][np.where(test.mask==True)]=1
+
+
 ## dv[sel] related quantities are not corrected
 def lnprior(par):
     a, fwhm,maxpos = par
