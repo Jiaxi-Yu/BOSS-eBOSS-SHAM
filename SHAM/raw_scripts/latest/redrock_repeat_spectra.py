@@ -9,7 +9,7 @@ import os
 
 c_kms = 299792.
 scratch = os.environ['SCRATCH']+'/SHAM/catalog/SDSS_data/'
-home = '/global/homes/j/jiaxi/SDSS_redshift_uncertainty/Vsmear-reproduce' # '-photo' can provide fiber2mag information to match repeats and clustering, but it cannot be used now due to dimension problem when joining redrock and photo info
+home = '/global/homes/j/jiaxi/SDSS_redshift_uncertainty/Vsmear-reproduce/' # '-photo' can provide fiber2mag information to match repeats and clustering, but it cannot be used now due to dimension problem when joining redrock and photo info
 if home.find('photo')==-1:
     zbestname = 'spAll-zbest-v5_13_0.fits'
     repeatname= 'spAll-zbest-v5_13_0-repeats-2x_redrock.fits'

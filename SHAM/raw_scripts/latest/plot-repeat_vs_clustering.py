@@ -1,7 +1,6 @@
 import numpy as np
-from astropy.io import fits
-from multiprocessing import Pool 
-from itertools import repeat
+from astropy.table import Table, vstack
+import fitsio
 import pylab as plt
 import matplotlib.gridspec as gridspec
 import sys
@@ -12,9 +11,13 @@ min_dchi2 = 9
 fc_limit = (62/3600)**2
 
 # load the total catalogue and the repetitive samples
-scratch = os.environ['SCRATCH']+'/SHAM/catalog/SDSS_data/'
-home = os.environ['HOME']+'/SDSS_redshift_uncertainty/Vsmear/'
-gal = sys.argv[1] #LOWZ, CMASS, LRG
+scratch  = os.environ['SCRATCH']+'/SHAM/catalog/SDSS_data/'
+home     = os.environ['HOME']+'/SDSS_redshift_uncertainty/Vsmear-reproduce/'
+gal      = sys.argv[1] #LOWZ, CMASS, LRG(not ready yet)
+q_repeats= ['zerr','FIBER2FLUX','z']
+q_clusts = ['ZERR_REDROCK','FIBER2FLUX','Z']
+xlabels  = ['ZERR  (km/s)','i magnitude', 'redshift']
+
 if gal == 'LRG':
     proj='eBOSS'
     zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
@@ -22,7 +25,8 @@ if gal == 'LRG':
     maxdvs = [235,275,275,300,255,360]
     ylim = 100;xlim = 200
     #zmin = 0.6; zmax = 1.0
-    clusteringN,clusteringS = scratch+'eBOSS_clustering_fits/eBOSS_LRG_clustering_NGC_v7_2.dat.fits',scratch+'eBOSS_clustering_fits/eBOSS_LRG_clustering_SGC_v7_2.dat.fits'
+    clusteringname = scratch+'eBOSS_LRG_clustering_data-{}-vDR16.fits'
+    caps = ['NGC','SGC']
 elif gal == 'CMASS':
     proj='BOSS'
     zmins = [0.43,0.51,0.57,0.43]
@@ -30,7 +34,10 @@ elif gal == 'CMASS':
     maxdvs = [205,200,235,270]
     ylim = 50;xlim = 100
     #zmin = 0.43; zmax = 0.7
-    clusteringN,clusteringS = scratch+'BOSS_data/galaxy_DR12v5_CMASS_North.fits.gz',scratch+'BOSS_data/galaxy_DR12v5_CMASS_South.fits.gz'
+    clusteringname = scratch+'galaxy_DR12v5_CMASS_{}.fits.gz'
+    caps = ['North','South']
+    magmin = 19.5
+    magmax = 22
 elif gal == 'LOWZ':
     proj='BOSS'
     zmins = [0.2, 0.33,0.2]
@@ -38,109 +45,53 @@ elif gal == 'LOWZ':
     maxdvs = [105,140,140]
     ylim = 40;xlim = 100
     #zmin = 0.2; zmax = 0.43
-    clusteringN,clusteringS = scratch+'BOSS_data/galaxy_DR12v5_LOWZ_North.fits.gz',scratch+'BOSS_data/galaxy_DR12v5_LOWZ_South.fits.gz'
+    clusteringname = scratch+'galaxy_DR12v5_LOWZ_{}.fits.gz'
+    caps = ['North','South']
+    magmin = 17.5
+    magmax = 21.5
 else:
     print("Wrong input")    
 
-nrow = 3
-fig = plt.figure(figsize=(5*len(zmins),5*nrows))
-spec = gridspec.GridSpec(nrows=nrow,ncols=len(zmins),wspace=0.,hspace=0.3,left=0.1,right=0.99,top=0.95,bottom=0.1)
+nrow = len(q_repeats)
+fig = plt.figure(figsize=(4*len(zmins),4*nrow))
+spec = gridspec.GridSpec(nrows=nrow,ncols=len(zmins),wspace=0.,hspace=0.25,left=0.08,right=0.99,top=0.95,bottom=0.08)
 ax = np.empty((nrow,len(zmins)), dtype=type(plt.axes))
 for k,zmin,zmax,maxdv in zip(range(len(zmins)),zmins,zmaxs,maxdvs):
     # repeat samples
-    repeatfile = home+'/final_results/{}-{}_deltav_z{}z{}.fits.gz'.format(proj,gal,zmin,zmax)
-    hdu = fits.open(repeatfile)
-    reobs = hdu[1].data
-    reobs = reobs[(reobs['delta_chi2']>min_dchi2)&(abs(reobs['delta_v'])<1000)]
-    hdu.close()
+    reobs = Table(fitsio.read(home+'clustering_zerr/{}_targetid_deltav_zerr.fits.gz'.format(gal)))
     print('the repetitive sample sample reading finished.')
 
-    # clustering matched deltav and zerr
-    LRG = []
-    for cap in ['N','S']:
-        hdu = fits.open(home+'clustering_zerr/{}_targetid_deltav_zerr_z{}z{}-{}.fits.gz'.format(gal,zmin,zmax,cap))
-        data = hdu[1].data
-        hdu.close()
-        LRGtot = np.zeros((len(data['zerr']),3))
-        for n,name in enumerate(data.columns.names):
-            LRGtot[:,n] = data[name]
-        LRG.append(LRGtot)
-    clustering = np.vstack((LRG[0],LRG[0]))
+    # clustering samples
+    data_cap = []
+    for cap in caps:            
+        data_cap.append(Table(fitsio.read(clusteringname.format(cap))))
+    clustering = vstack(data_cap)
 
     # binning the deltav
     binwidth = 5
-    bins = np.arange(-maxdv, maxdv+1, binwidth)
-    dens,BINS = np.histogram(reobs['delta_v'],bins=bins)
-    norm = np.sum(dens)
-    dens = dens/norm
-    dens1,BINS = np.histogram(clustering[:,1][~np.isnan(clustering[:,1])],bins=bins)
-    norm1 = np.sum(dens1)
-    dens1 = dens1/norm1
-    binmid = (bins[1:]+bins[:-1])/2
-
-    bins1 = np.arange(0, maxdv/2, 1)
-    dens0,BINS = np.histogram(clustering[:,-1][~np.isnan(clustering[:,1])],bins=bins1)
-    norm0 = np.sum(dens0)
-    dens0 = dens0/norm0
-    dens3,BINS = np.histogram(clustering[:,-1][~np.isnan(clustering[:,-1])],bins=bins1)
-    norm3 = np.sum(dens3)
-    dens3 = dens3/norm3
-    binmid1 = (bins1[1:]+bins1[:-1])/2
-
     # plot the histogram from repeat and clustering
     for j in range(nrow):
+        
         ax[j,k] = fig.add_subplot(spec[j,k])
         if j==0:
-            ax[j,k].plot(binmid,dens,c='b',label='all repeat ')
-            ax[j,k].plot(binmid,dens1,c='r',label='clustering repeat')
-            plt.title('{}<z<{} all repeat $\Delta$v v.s. clustering repeat $\Delta$v'.format(zmin,zmax))
-            ax[j,k].set_ylabel('normalised counts')
-            ax[j,k].set_xlabel('$\Delta$v (km/s)')
+            bins = np.arange(0,maxdv+1,5)
+            clustering[q_clusts[j]] = clustering[q_clusts[j]]*c_kms/clustering['Z']
         elif j==1:
-            ax[j,k].plot(binmid1,dens0,c='b',label='clustering repeat')
-            ax[j,k].plot(binmid1,dens3,c='r',label='clustering all')
-            plt.title('histogram: {}<z<{} clustering repeat ZERR v.s. clustering all ZERR'.format(zmin,zmax))
+            bins = np.arange(magmin,magmax,0.1)
+            reobs[q_repeats[j]]     = 22.5 - 2.5 * np.log10(reobs[q_repeats[j]][:,3])
+            clustering[q_clusts[j]] = 22.5 - 2.5 * np.log10(clustering[q_clusts[j]][:,3])
+        elif j==2:
+            bins = np.arange(zmin,zmax+0.01,0.01)
+        ax[j,k].hist(reobs[q_repeats[j]],bins = bins, color='b',label='clustring repeat',density=True, histtype='step')
+        ax[j,k].hist(clustering[q_clusts[j]],bins=bins,color='r',label='clustering all',alpha=0.3,density=True)
+        ax[j,k].set_xlabel(xlabels[j])
+        plt.title('{} at {}<z<{}'.format(gal,zmin,zmax))
+        if k==0:
             ax[j,k].set_ylabel('normalised counts')
-            ax[j,k].set_xlabel('ZERR (km/s)')
+            plt.legend(loc=2)
         else:
-            hb = ax[j,k].hexbin(reobs['delta_v'],reobs['zerr'],cmap='Blues')#,c='b',label='ZERRavg',alpha=0.5)
-            #ax[j,k].scatter(reobs['delta_v'],reobs['zerr0'],c='m',label='ZERR0',alpha=0.5)
-            #ax[j,k].scatter(reobs['delta_v'],reobs['zerr1'],c='green',label='ZERR1',alpha=0.5)
-            # if no difference, can use ax[j,k].hexbin
-            ax[j,k].set_ylabel('ZERR')
-            ax[j,k].set_xlabel('$\Delta$v (km/s)')
-            ax[j,k].set_ylim(0,ylim)
-            ax[j,k].set_xlim(-xlim,xlim)
-            plt.title('scatter: {}<z<{} repeat $\Delta$v v.s. repeat ZERR'.format(zmin,zmax))
-            cb = fig.colorbar(hb, ax=ax[j,k])
-
-        plt.legend(loc=1)
-plt.savefig(home+'clustering_zerr/{}_dv-representative_nz_imag.png'.format(gal))
+            plt.yticks(alpha=0)
+plt.savefig(home+'clustering_zerr/{}_dv-representative.png'.format(gal))
 plt.close()
 
-"""
-for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    # clustering matched deltav and zerr
-    LRG = []
-    for i,cap in enumerate(['N','S']):
-        hdu = fits.open(home+'clustering_zerr/{}_targetid_deltav_zerr_z{}z{}-{}.fits.gz'.format(gal,zmin,zmax,cap))
-        data = hdu[1].data
-        hdu.close()
-        LRGtot = np.zeros((len(data['zerr']),3))
-        for k,name in enumerate(data.columns.names):
-            LRGtot[:,k] = data[name]
-        LRG.append(LRGtot)
-    clustering = np.vstack((LRG[0],LRG[0]))
 
-    # figure: dv vs zerr
-    bins = np.arange(0,maxdv+1,5)
-    densdv,BINS = np.histogram(np.abs(clustering[~np.isnan(clustering[:,1]),1]),bins=bins)
-    denszerr,BINS = np.histogram(np.abs(clustering[~np.isnan(clustering[:,2]),2]),bins=bins)
-    plt.plot((BINS[1:]+BINS[:-1])/2,densdv/sum(densdv),'r',label='$\Delta$ v')
-    plt.plot((BINS[1:]+BINS[:-1])/2,denszerr/sum(denszerr),'b',label='ZERR')
-    plt.yscale('log')
-    plt.legend(loc=1)
-    plt.title('{} clustering galaxy |$\Delta$ v| (if exists) v.s. ZERR'.format(gal))
-    plt.savefig(home+'clustering_zerr/{}_clustering_deltav_vs_zerr_z{}z{}.png'.format(gal,zmin,zmax))
-    plt.close()
-"""

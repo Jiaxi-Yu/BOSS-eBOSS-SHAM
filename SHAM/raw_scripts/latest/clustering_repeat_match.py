@@ -14,7 +14,7 @@ fc_limit = (62/3600)**2 # fibre collision limit
 # load the total catalogue and the repetitive samples
 scratch = os.environ['SCRATCH']+'/SHAM/catalog/SDSS_data/'
 home = os.environ['HOME']+'/SDSS_redshift_uncertainty/Vsmear-reproduce/'
-gal = sys.argv[1]
+gal = sys.argv[1] #LOWZ, CMASS (eBOSS not supported yet)
 if gal == 'LRG':
     proj='eBOSS'
     zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
@@ -53,6 +53,7 @@ elif gal == 'LOWZ':
     caps = ['North','South']
 else:
     print("Wrong input")   
+import pdb;pdb.set_trace()
 
 output = home+'clustering_zerr/{}_targetid_deltav_zerr.fits.gz'.format(gal)
 if not os.path.exists(output):
