@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from astropy.io import fits
-from astropy.table import Table, join
+from astropy.table import Table, join, vstack
 import fitsio
 import numpy as np
 from scipy.optimize import curve_fit
@@ -19,6 +19,8 @@ else:
     repeatname= 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits'
     colorsel=False#True
 repeatnames = home+repeatname   
+zerr_field = 'ZERR_REDROCK'
+GC = 'NGC+SGC' 
 
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
@@ -112,6 +114,26 @@ def write_spall_repeats(spallin, spallout, ncount=2):
     else:
         print('file exists: ',spallout)
 
+def write_zbest_clustering_join(zbestname, clusteringname, output, caps=['North','South']):
+    print('Reading zbest')
+    tc = Table(fitsio.read(zbestname))
+    for cap in caps:
+        tac=[]
+        print('Reading clustering')
+        ta = Table(fitsio.read(clusteringname.format(cap)))
+
+        if not zerr_field in ta.colnames:
+            tc=tc['PLATE', 'MJD', 'FIBERID', zerr_field]
+            print('Joining tables')
+            if home.find('photo')==-1:
+                tac = join(ta, tc, keys=['PLATE', 'MJD', 'FIBERID'], 
+                           join_type='left')
+
+            print('Writing joined table')
+            tac.write(output.format(cap), format='fits', overwrite=True)
+        else:
+            print('column exists',zerr_field)
+
 
 def get_targets(spall, target='LRG'):
 
@@ -156,7 +178,6 @@ def get_delta_velocities_from_repeats(spall,proj,target,spec1d=0, redrock=0, spe
         zwar_field = 'ZWARN_REDROCK'
         chi2diff_field = 'DELTACHI2_REDROCK'
         z_field = 'Z_REDROCK'    
-    zerr_field = 'ZERR_REDROCK'
 
     # initialise dictionary
     info = {'TARGETID':[], 'thids': [], 'delta_v':[], 'delta_chi2':[], \
@@ -449,30 +470,41 @@ write_spall_repeats(scratch+zbestname, repeatnames)
 #write_spall_repeats('spAll-v5_4_45.fits', 'spAll-zbest-v5_4_45-repeats-2x.fits') # an older version
 #plot_all_deltav_histograms('spAll-zbest-v5_13_0-repeats-2x_redrock.fits','BOSS',zmin=0.2,zmax=0.43,target='LOWZ',dchi2=9,spec1d=1,maxdv=140)
 
-GC = 'NGC+SGC'
-
-zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
-zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
-maxdvs = [235,275,275,300,255,360]
-for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms(repeatnames,'eBOSS',zmin,zmax,target='LRG',dchi2=9,redrock=1,maxdv=maxdv,coloursel=colorsel)
-
-zmins = [0.43,0.51,0.57,0.43]
-zmaxs = [0.51,0.57,0.7,0.7]
-maxdvs = [205,200,235,270]
-for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms(repeatnames,'BOSS',zmin,zmax,target='CMASS',dchi2=9,spec1d=1,maxdv=maxdv,coloursel=colorsel)
+for gal in ['LRG','CMASS','LOWZ']:
+    if gal == 'LRG':
+        proj='eBOSS'
+        zmins = [0.6,0.6,0.65,0.7,0.8,0.6]
+        zmaxs = [0.7,0.8,0.8, 0.9,1.0,1.0]
+        maxdvs = [235,275,275,300,255,360]
+        ylim = 100;xlim = 200
+        #zmin = 0.6; zmax = 1.0
+        clustering = scratch+'eBOSS_LRG_clustering_data-{}-vDR16.fits'
+        caps = ['NGC','SGC']
+    elif gal == 'CMASS':
+        proj='BOSS'
+        zmins = [0.43,0.51,0.57,0.43]
+        zmaxs = [0.51,0.57,0.7,0.7]
+        maxdvs = [205,200,235,270]
+        ylim = 50;xlim = 100
+        #zmin = 0.43; zmax = 0.7
+        clustering = scratch+'galaxy_DR12v5_CMASS_{}.fits.gz'
+        caps = ['North','South']
+    elif gal == 'LOWZ':
+        proj='BOSS'
+        zmins = [0.2, 0.33,0.2]
+        zmaxs = [0.33,0.43,0.43]
+        maxdvs = [105,140,140]
+        ylim = 40;xlim = 100
+        #zmin = 0.2; zmax = 0.43
+        clustering = scratch+'galaxy_DR12v5_LOWZ_{}.fits.gz'
+        caps = ['North','South']
+    else:
+        print("Wrong input")   
+    #for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
+    #    plot_all_deltav_histograms(repeatnames,proj,zmin,zmax,gals,dchi2=9,redrock=1,maxdv=maxdv,coloursel=colorsel)
+    if gal != 'LRG':
+        write_zbest_clustering_join(scratch+zbestname, clustering, clustering, caps = caps)
     
-zmins = [0.2, 0.33,0.2]
-zmaxs = [0.33,0.43,0.43]
-if GC == 'NGC':
-    maxdvs = [85,120,130] #NGC
-elif GC == 'SGC':
-    maxdvs = [105,135,135] #SGC
-else:
-    maxdvs = [105,140,140] # NGC+SGC
-for zmin,zmax,maxdv in zip(zmins,zmaxs,maxdvs):
-    plot_all_deltav_histograms(repeatnames,'BOSS',zmin,zmax,target='LOWZ',dchi2=9,spec1d=1,maxdv=maxdv,GC=GC,coloursel=colorsel)
     #plot_all_deltav_histograms('spAll-zbest-dr16-repeats-2x_LOWZ.fits','BOSS',zmin,zmax,target='LOWZdr16',dchi2=9,spec1d=1,maxdv=maxdv)
 
 ###############################################################################################   
