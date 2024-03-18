@@ -9,8 +9,16 @@ import os
 
 c_kms = 299792.
 scratch = os.environ['SCRATCH']+'/SHAM/catalog/SDSS_data/'
-home = '/global/homes/j/jiaxi/SDSS_redshift_uncertainty/Vsmear-reproduce/'#-photo'
-cutind = 35
+home = '/global/homes/j/jiaxi/SDSS_redshift_uncertainty/Vsmear-reproduce' # '-photo' can provide fiber2mag information to match repeats and clustering, but it cannot be used now due to dimension problem when joining redrock and photo info
+if home.find('photo')==-1:
+    zbestname = 'spAll-zbest-v5_13_0.fits'
+    repeatname= 'spAll-zbest-v5_13_0-repeats-2x_redrock.fits'
+    colorsel=False
+else:
+    zbestname = 'spAll-zbest-v5_13_0-photo.fits' # with photo info
+    repeatname= 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits'
+    colorsel=False#True
+repeatnames = home+repeatname   
 
 plt.rc('text', usetex=False)
 plt.rc('font', family='serif', size=12)
@@ -66,12 +74,15 @@ def write_spall_redrock_join(spallname, zbestname, output):
                        join_type='left')
             ta = [];tc=[];
             print('reading photo-info file')
-            photo_tmp =  fitsio.read('Photo_dr16.fits.gz',\
-                            columns=['OBJID','CMODELMAG','MODELMAG','PSFMAG','FIBER2MAG'])
-            photo = Table(photo_tmp)
-            photo_tmp = []
-            tac = join(tac_tmp,photo,keys=['OBJID'],join_type='left')
-
+            photo_tmp =  Table(fitsio.read(scratch+'photoPosPlate-dr16.fits',\
+                            columns=['OBJID','CMODELMAG','MODELMAG','PSFMAG','FIBER2MAG']))
+            ######### problematic #############
+            ind = int(len(tac_tmp)/100)
+            for k in range(100):
+                print(k*ind)
+                tac = join(tac_tmp[k*ind:(k+1)*ind],photo_tmp,keys=['OBJID'],join_type='left')
+            import pdb;pdb.set_trace()
+            ##############
         print('Writing joined table')
         tac.write(output, format='fits', overwrite=True)
     else:
@@ -133,6 +144,8 @@ def get_delta_velocities_from_repeats(spall,proj,target,spec1d=0, redrock=0, spe
         spallsel = (spall['RA_REDROCK']<120)|(spall['RA_REDROCK']>240)
         spall = spall[spallsel]
 
+    spall['TARGETID'] = spall['PLATE']*1e9+spall['MJD']*1e4+spall['FIBERID']
+
     # zwarning, chi2difference
     if spec1d:
         zwar_field = 'ZWARNING_NOQSO'
@@ -145,8 +158,8 @@ def get_delta_velocities_from_repeats(spall,proj,target,spec1d=0, redrock=0, spe
         z_field = 'Z_REDROCK'    
     zerr_field = 'ZERR_REDROCK'
 
-    # select repeats
-    info = {'thids': [], 'delta_v':[], 'delta_chi2':[], \
+    # initialise dictionary
+    info = {'TARGETID':[], 'thids': [], 'delta_v':[], 'delta_chi2':[], \
             'z':[], 'zerr':[],'zerr0':[],'zerr1':[],\
             'sn_i': [], 'sn_z': []}
     if home.find('photo')==-1:
@@ -154,13 +167,10 @@ def get_delta_velocities_from_repeats(spall,proj,target,spec1d=0, redrock=0, spe
     else:
         info = {**info,'cmodelmag':[],'modelmag':[],'psfmag':[],'fiber2mag':[], 'gi':[]}
 
+    # select repeats
     if os.path.exists(filename):
-        hdu = fits.open(filename)
-        data = hdu[1].data
-        hdu.close()
-        for k in info.keys():
-            info[k] = np.array(data[k])
-        print('{} {} has {} duplicates'.format(proj,target,len(np.array(data['z']))))
+        info = Table(fitsio.read(filename))
+        print('{} {} has {} duplicates'.format(proj,target,len(info['z'])))
     else:
         print('Total galaxies', len(spall))
         w =  (spall[zwar_field] == 0) | (spall[zwar_field]==4)
@@ -203,6 +213,7 @@ def get_delta_velocities_from_repeats(spall,proj,target,spec1d=0, redrock=0, spe
             dc_min = np.min([dc1, dc2])
             sn_i = np.min([spall['SN_MEDIAN'][j1, 3], spall['SN_MEDIAN'][j2, 3]])
             sn_z = np.min([spall['SN_MEDIAN'][j1, 4], spall['SN_MEDIAN'][j2, 4]])
+            info['TARGETID'].append((spall["SPECPRIMARY"]*spall['TARGETID'])[j2]+(spall["SPECPRIMARY"]*spall['TARGETID'])[j1])
             info['thids'].append(thid) 
             info['delta_v'].append(dv)
             info['delta_chi2'].append(dc_min)
@@ -225,7 +236,7 @@ def get_delta_velocities_from_repeats(spall,proj,target,spec1d=0, redrock=0, spe
                 info['psfmag'].append(spall[j1]['PSFMAG']*spall["SPECPRIMARY"][j1]+spall[j2]['PSFMAG']*spall["SPECPRIMARY"][j2])
                 info['fiber2mag'].append(spall[j1]['FIBER2MAG']*spall["SPECPRIMARY"][j1]+spall[j2]['FIBER2MAG']*spall["SPECPRIMARY"][j2])
                 info['gi'].append(magnitudes[1]-magnitudes[3])
-
+        """
         # print information in this sample
         cols = []
         print('there are {} repeat pairs in total'.format(np.array(info['z']).shape))
@@ -236,7 +247,10 @@ def get_delta_velocities_from_repeats(spall,proj,target,spec1d=0, redrock=0, spe
                 cols.append(fits.Column(name=k,format='5E',array=info[k]))                
         hdulist = fits.BinTableHDU.from_columns(cols)
         hdulist.writeto(filename,overwrite=True)
-
+        """
+        info = Table(info)
+        info.write(filename,overwrite=True)
+        
     return info
 
 def jacknife_hist(dvsel,bins,nsub,save=0,gaussian=True):
@@ -423,22 +437,12 @@ def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=5
         zsource = 'redrock'
         info = get_delta_velocities_from_repeats(sp,proj,target,redrock=1,GC=GC)
         
-    plot_deltav_hist(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/plots/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC),coloursel=coloursel)
-    #plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
+    #plot_deltav_hist(info,target,zmin,zmax,min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/plots/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC),coloursel=coloursel)
         
 ##=================================================================================
-if home.find('photo')==-1:
-    zbestname = 'spAll-zbest-v5_13_0.fits'
-    repeatname= 'spAll-zbest-v5_13_0-repeats-2x_redrock.fits'
-    colorsel=False
-else:
-    zbestname = 'spAll-zbest-v5_13_0-photo.fits' # with photo info
-    repeatname= 'spAll-zbest-v5_13_0-repeats-2x_redrock-photo.fits'
-    colorsel=True
-    
-repeatnames = home+repeatname    
-write_spall_redrock_join(scratch+'spAll-v5_13_0.fits', scratch+'spAll_trimmed_pREDROCK.fits',scratch+zbestname) # with photo info
-write_spall_repeats(scratch+zbestname, repeatnames) # with photo-info
+ 
+write_spall_redrock_join(scratch+'spAll-v5_13_0.fits', scratch+'spAll_trimmed_pREDROCK.fits',scratch+zbestname) 
+write_spall_repeats(scratch+zbestname, repeatnames) 
 
 
 #write_spall_repeats('specObj-dr16.fits', 'spAll-zbest-dr16-repeats-2x_LOWZ.fits') # two populations of LOWZ: before MJD (zerr=0) and after
@@ -582,6 +586,19 @@ def plot_deltav_hist_emcee(info,target,zrange,max_dv=500., min_deltachi2=9, nsub
     if save:
         plt.savefig(save[:-4]+'_emcee-{}.png'.format(GC), bbox_inches='tight')
     plt.close()
+def plot_all_deltav_histograms(spall,proj,zmin,zmax,target='LRG',dchi2=9,maxdv=500,spec1d=0, redrock=0,GC='NGC+SGC',coloursel=False):
+
+    spall = Table.read(spall)
+    sp = get_targets(spall, target=target)
+    #import pdb;pdb.set_trace()
+    if spec1d:
+        zsource = 'spec1d'
+        info = get_delta_velocities_from_repeats(sp,proj,target,spec1d=1,GC=GC)
+    elif redrock:
+        zsource = 'redrock'
+        info = get_delta_velocities_from_repeats(sp,proj,target,redrock=1,GC=GC)
+        
+    #plot_deltav_hist_emcee(info,target,zrange='z{}z{}'.format(zmin,zmax),min_deltachi2=dchi2,  max_dv=maxdv,title='{} {} {}<z<{}'.format(proj,target,zmin,zmax), save='{}/{}-{}-repeats-{}-dchi2_{}-z{}z{}-{}.png'.format(home,proj,target,zsource,dchi2,zmin,zmax,GC))
 """
 ##############################################################################################
 """
