@@ -15,12 +15,14 @@ task = sys.argv[1]
 home = '/global/cscratch1/sd/jiaxi/SHAM/catalog/'
 print(task)
 if task == 'plot':
-    hdu = fitsio.read(home+'eboss-decals_5e-4.fits.gz')
+    hdu = fitsio.read('eboss-decals_5e-4.fits.gz')
     data_woi = Table(hdu)
     unsel = np.isnan(data_woi['Z_PHOT_MEAN'])&(data_woi['Z_PHOT_MEAN']==-1000)&(data_woi['Z_PHOT_MEAN']==-99)
     countsc,bins = np.histogram(data_woi['Z_PHOT_MEAN'],bins = np.linspace(0.6,1.0,20))
     countsi,bins = np.histogram(data_woi['Z_PHOT_MEAN'][data_woi['i_FLAG']==0],bins = bins)
-    fig = plt.figure(figsize = (5,4),tight_layout=True)
+    # plot the completeness
+    plt.rc('font', family='serif', size=15) 
+    fig = plt.figure(figsize = (6,5),tight_layout=True)
     plt.subplots_adjust(left=0.1,right=0.9,top=0.9,bottom=0.1)
     plt.plot((bins[1:]+bins[:-1])/2,countsi/countsc,'k',lw=2)
     plt.xlabel(r'$z_{{photo}}$')
@@ -28,7 +30,17 @@ if task == 'plot':
     plt.ylim(0.82,1.02)
     plt.yticks([0.85,0.9,0.95,1.0])
     plt.xticks([0.6,0.7,0.8,0.9,1.0])
-    plt.savefig('completeness_eBOSS.pdf')
+    #plt.savefig('completeness_eBOSS.pdf')
+    plt.close()
+
+    # plot the incompleteness to correspond to Vceil
+    fig = plt.figure(figsize = (6,5),tight_layout=True)
+    plt.subplots_adjust(left=0.1,right=0.9,top=0.9,bottom=0.1)
+    plt.plot((bins[1:]+bins[:-1])/2,1-countsi/countsc,'k',lw=2)
+    plt.xlabel(r'$z_{{photo}}$')
+    plt.ylabel('incompleteness')
+    plt.xticks([0.6,0.7,0.8,0.9,1.0])
+    plt.savefig('incompleteness_eBOSS.png')
     plt.close()
 elif task == 'mismatching':
     distance_thresh = 5e-4*2
