@@ -39,7 +39,7 @@ if task == 'plot':
     plt.plot((bins[1:]+bins[:-1])/2,1-countsi/countsc,'k',lw=2)
     plt.xlabel(r'$z_{{photo}}$')
     plt.ylabel('incompleteness')
-    plt.xticks([0.6,0.7,0.8,0.9,1.0])
+    plt.xlim(1.0,0.6)
     plt.savefig('incompleteness_eBOSS.png')
     plt.close()
 elif task == 'mismatching':
